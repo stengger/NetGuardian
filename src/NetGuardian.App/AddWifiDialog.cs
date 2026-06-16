@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Media;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Models;
@@ -22,9 +23,43 @@ public sealed class AddWifiDialog : Window
         MinWidth = 440;
         MinHeight = 360;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         Background = Brush("#181D17");
         Foreground = Brush("#F4F1E8");
+
+        var shell = new Grid();
+        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
+        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+        var titleBar = new Border { Background = Brush("#181D17") };
+        titleBar.MouseLeftButtonDown += (_, _) => DragMove();
+        var titleGrid = new Grid();
+        titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+        titleGrid.Children.Add(new TextBlock
+        {
+            Text = localizer.T("AddWifi"),
+            Foreground = Brush("#DADDD3"),
+            FontSize = 12,
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(12, 0, 0, 0)
+        });
+        var closeButton = new Button
+        {
+            Content = "×",
+            MinHeight = 30,
+            Padding = new Thickness(0),
+            Margin = new Thickness(0),
+            BorderThickness = new Thickness(0),
+            Background = Brush("#181D17"),
+            Foreground = Brush("#F4F1E8")
+        };
+        closeButton.Click += (_, _) => DialogResult = false;
+        Grid.SetColumn(closeButton, 1);
+        titleGrid.Children.Add(closeButton);
+        titleBar.Child = titleGrid;
+        shell.Children.Add(titleBar);
 
         var root = new Grid { Margin = new Thickness(22) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -78,7 +113,9 @@ public sealed class AddWifiDialog : Window
         Grid.SetRow(buttons, 5);
         root.Children.Add(buttons);
 
-        Content = root;
+        Grid.SetRow(root, 1);
+        shell.Children.Add(root);
+        Content = shell;
     }
 
     public string Ssid => _ssidBox.Text;
