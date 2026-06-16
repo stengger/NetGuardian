@@ -17,7 +17,7 @@ using NetGuardian.Core.Wifi;
 
 namespace NetGuardian.App;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
     private readonly SettingsStore _store = new();
     private readonly AppSettings _settings;
@@ -194,42 +194,20 @@ public partial class MainWindow : Window
         SaveSettings();
     }
 
-    private void ShowStatus_Click(object sender, RoutedEventArgs e) => ShowPanel(StatusPanel);
-    private void ShowWifi_Click(object sender, RoutedEventArgs e) => ShowPanel(WifiPanel);
-    private void ShowPolicy_Click(object sender, RoutedEventArgs e) => ShowPanel(PolicyPanel);
-    private void ShowTools_Click(object sender, RoutedEventArgs e) => ShowPanel(ToolsPanel);
-    private void ShowLog_Click(object sender, RoutedEventArgs e) => ShowPanel(LogPanel);
-    private void ShowSettings_Click(object sender, RoutedEventArgs e) => ShowPanel(SettingsPanel);
-
-    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void RootNavigation_SelectionChanged(Wpf.Ui.Controls.NavigationView sender, RoutedEventArgs args)
     {
-        if (e.ClickCount == 2)
+        if (sender.SelectedItem is Wpf.Ui.Controls.NavigationViewItem item && item.Tag is string tag)
         {
-            ToggleMaximize();
-            return;
+            ShowPanel(tag switch
+            {
+                "WifiPanel" => WifiPanel,
+                "PolicyPanel" => PolicyPanel,
+                "ToolsPanel" => ToolsPanel,
+                "LogPanel" => LogPanel,
+                "SettingsPanel" => SettingsPanel,
+                _ => StatusPanel
+            });
         }
-
-        DragMove();
-    }
-
-    private void MinimizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        WindowState = WindowState.Minimized;
-    }
-
-    private void MaximizeButton_Click(object sender, RoutedEventArgs e)
-    {
-        ToggleMaximize();
-    }
-
-    private void CloseWindowButton_Click(object sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
-    private void ToggleMaximize()
-    {
-        WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
     }
 
     private async Task StartMonitoringAsync()
@@ -481,10 +459,10 @@ public partial class MainWindow : Window
         HealthStateText.Text = StateText(report.State);
         HealthStateText.Foreground = report.State switch
         {
-            NetworkState.Healthy => FindBrush("Success"),
-            NetworkState.Recovering => FindBrush("Primary"),
-            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => FindBrush("Warning"),
-            _ => FindBrush("Danger")
+            NetworkState.Healthy => new SolidColorBrush(Color.FromRgb(105, 209, 139)),
+            NetworkState.Recovering => new SolidColorBrush(Color.FromRgb(93, 174, 120)),
+            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => new SolidColorBrush(Color.FromRgb(217, 164, 65)),
+            _ => new SolidColorBrush(Color.FromRgb(239, 107, 91))
         };
         SummaryText.Text = report.Summary;
         CurrentSsidText.Text = string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid;
@@ -494,8 +472,6 @@ public partial class MainWindow : Window
             probe.LatencyMs.HasValue ? $"{probe.LatencyMs.Value:F0} ms" : "-",
             probe.Detail));
     }
-
-    private Brush FindBrush(string key) => (Brush)FindResource(key);
 
     private string StateText(NetworkState state)
     {
@@ -587,7 +563,7 @@ public partial class MainWindow : Window
     private void ApplyLanguage()
     {
         Title = _localizer.T("AppTitle");
-        AppTitleText.Text = _localizer.T("AppTitle");
+        TitleBar.Title = _localizer.T("AppTitle");
         StatusNavButton.Content = _localizer.T("Status");
         WifiNavButton.Content = _localizer.T("Wifi");
         PolicyNavButton.Content = _localizer.T("Policy");
@@ -687,8 +663,8 @@ public partial class MainWindow : Window
         MonitorStateText.Text = state;
         HeaderStateText.Text = state;
         StatusDot.Fill = overrideState == _localizer.T("Checking")
-            ? FindBrush("Warning")
-            : _isMonitoring ? FindBrush("Success") : FindBrush("Danger");
+            ? new SolidColorBrush(Color.FromRgb(217, 164, 65))
+            : _isMonitoring ? new SolidColorBrush(Color.FromRgb(105, 209, 139)) : new SolidColorBrush(Color.FromRgb(239, 107, 91));
         StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StartMonitorButton.IsEnabled = !_isMonitoring || !_isChecking;
         StopButton.IsEnabled = _isMonitoring;

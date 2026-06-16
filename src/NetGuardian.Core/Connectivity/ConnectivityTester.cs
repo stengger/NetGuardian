@@ -11,6 +11,15 @@ public sealed class ConnectivityTester
 {
     private static readonly string[] DnsTargets = ["www.microsoft.com", "www.baidu.com"];
     private static readonly string[] HttpsTargets = ["www.microsoft.com", "www.baidu.com", "www.cloudflare.com"];
+    private static readonly HttpClient SharedHttpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        ConnectTimeout = TimeSpan.FromSeconds(5)
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(5)
+    };
+
     private readonly MonitorPolicy _policy;
 
     public ConnectivityTester(MonitorPolicy policy)
@@ -157,7 +166,9 @@ public sealed class ConnectivityTester
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            await Dns.GetHostAddressesAsync(host, cancellationToken);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(_policy.ProbeTimeoutSeconds));
+            await Dns.GetHostAddressesAsync(host, cts.Token);
             stopwatch.Stop();
             return new ConnectivityProbe($"DNS {host}", true, stopwatch.Elapsed.TotalMilliseconds, "Resolved");
         }
@@ -173,9 +184,10 @@ public sealed class ConnectivityTester
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(_policy.ProbeTimeoutSeconds) };
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(_policy.ProbeTimeoutSeconds));
             using var request = new HttpRequestMessage(HttpMethod.Head, $"https://{host}/");
-            using var response = await client.SendAsync(request, cancellationToken);
+            using var response = await SharedHttpClient.SendAsync(request, cts.Token);
             stopwatch.Stop();
             var ok = (int)response.StatusCode is >= 200 and < 500;
             return new ConnectivityProbe($"HTTPS {host}", ok, stopwatch.Elapsed.TotalMilliseconds, $"HTTP {(int)response.StatusCode}");

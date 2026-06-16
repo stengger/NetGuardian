@@ -19,23 +19,9 @@ public sealed partial class NetshWifiClient : IWifiClient
         return ParseCurrentSsid(result.Output);
     }
 
-    public async Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
+    public Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
     {
-        var xml = BuildWlanProfileXml(ssid, password, authentication);
-        var path = Path.Combine(Path.GetTempPath(), $"netguardian-wlan-{Guid.NewGuid():N}.xml");
-        try
-        {
-            await File.WriteAllTextAsync(path, xml, cancellationToken);
-            var result = await RunNetshAsync(["wlan", "add", "profile", $"filename={path}", "user=current"], cancellationToken);
-            return result.ExitCode == 0;
-        }
-        finally
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
+        throw new NotSupportedException("Netsh profile saving is deprecated due to plaintext password risk. Use NativeWifiScanner instead.");
     }
 
     public async Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default)

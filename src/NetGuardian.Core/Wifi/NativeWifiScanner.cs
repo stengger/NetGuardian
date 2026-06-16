@@ -50,6 +50,43 @@ public sealed class NativeWifiScanner
         }
     }
 
+    public bool SaveProfile(string ssid, string? password, string authentication)
+    {
+        var openResult = WlanOpenHandle(WlanClientVersion, IntPtr.Zero, out _, out var handle);
+        if (openResult != ErrorSuccess)
+        {
+            return false;
+        }
+
+        try
+        {
+            var interfaces = EnumerateInterfaces(handle);
+            if (interfaces.Count == 0)
+            {
+                return false;
+            }
+
+            var xml = NetshWifiClient.BuildWlanProfileXml(ssid, password, authentication);
+            var interfaceGuid = interfaces[0].InterfaceGuid;
+
+            var result = WlanSetProfile(
+                handle,
+                ref interfaceGuid,
+                0, // 0 = no special flags
+                xml,
+                null,
+                true, // overwrite
+                IntPtr.Zero,
+                out var reasonCode);
+
+            return result == ErrorSuccess;
+        }
+        finally
+        {
+            WlanCloseHandle(handle, IntPtr.Zero);
+        }
+    }
+
     private static IReadOnlyList<WlanInterfaceInfo> EnumerateInterfaces(IntPtr handle)
     {
         var result = WlanEnumInterfaces(handle, IntPtr.Zero, out var listPointer);
@@ -186,6 +223,17 @@ public sealed class NativeWifiScanner
         uint flags,
         IntPtr reserved,
         out IntPtr availableNetworkList);
+
+    [DllImport("wlanapi.dll", CharSet = CharSet.Unicode)]
+    private static extern uint WlanSetProfile(
+        IntPtr clientHandle,
+        ref Guid interfaceGuid,
+        uint flags,
+        [MarshalAs(UnmanagedType.LPWStr)] string profileXml,
+        [MarshalAs(UnmanagedType.LPWStr)] string? allUserProfileSecurityDescriptor,
+        bool overwrite,
+        IntPtr reserved,
+        out uint reasonCode);
 
     [DllImport("wlanapi.dll")]
     private static extern void WlanFreeMemory(IntPtr memory);
