@@ -1,16 +1,20 @@
 # NetGuardian
 
-NetGuardian 是一个面向远程 Windows 电脑的 Wi-Fi 连通性监控与恢复工具。当前版本已迁移为 C# / WPF 桌面应用，默认中文界面，支持切换 English。
+NetGuardian 是一个面向远程 Windows 电脑的 Wi-Fi 连通性监控与恢复工具。当前版本是 C# / WPF 桌面应用，默认中文界面，支持切换 English。
 
 ## 当前能力
 
-- 现代 WPF 桌面界面，左侧导航与状态卡片布局
+- 现代 WPF 桌面界面，左侧导航、状态卡片、最近事件和网络探针表格
 - 默认中文，设置页可切换 English
 - Native Wi-Fi API 扫描，失败时回退到 `netsh`
+- 可为 Wi-Fi 预设密码，并写入 Windows WLAN Profile，应用配置不保存明文密码
+- Wi-Fi 恢复优先级列表支持拖拽排序、上移/下移和删除
 - 连通性检测：IPv4、默认网关、DNS、公网 HTTPS
-- Wi-Fi 恢复优先级列表
 - 检测策略配置：检测间隔、失败阈值、冷却时间、DNS 刷新开关
-- 双击 `Start-NetGuardian.vbs` 启动，无需手敲命令
+- 时间设置支持秒、分钟、小时
+- 系统托盘常驻，可选择关闭窗口时退出或后台运行
+- 项目专属图标，接入窗口、exe 和托盘
+- 正式发布输出 `dist\NetGuardian\NetGuardian.exe`
 
 ## 环境
 
@@ -24,13 +28,25 @@ E:\Environment\dotnet-sdk-8.0
 
 ## 启动
 
-双击：
+推荐先发布正式 exe：
+
+```powershell
+.\scripts\publish.ps1
+```
+
+然后双击：
+
+```text
+dist\NetGuardian\NetGuardian.exe
+```
+
+开发期也可以双击：
 
 ```text
 Start-NetGuardian.vbs
 ```
 
-首次启动如果还没构建，会自动调用 `scripts\build.ps1` 构建应用，然后启动 WPF exe。
+它会优先启动已发布 exe；如果还没发布，会自动构建 Debug 版本并启动。
 
 也可以手动构建：
 
@@ -38,10 +54,10 @@ Start-NetGuardian.vbs
 .\scripts\build.ps1
 ```
 
-构建后的 exe 位于：
+Debug 构建后的 exe 位于：
 
 ```text
-src\NetGuardian.App\bin\Debug\net8.0-windows\NetGuardian.App.exe
+src\NetGuardian.App\bin\Debug\net8.0-windows\NetGuardian.exe
 ```
 
 ## 项目结构

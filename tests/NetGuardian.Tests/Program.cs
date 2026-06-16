@@ -6,6 +6,7 @@ var tests = new List<(string Name, Action Body)>
 {
     ("parse current SSID", ParseCurrentSsid),
     ("parse scan output", ParseScanOutput),
+    ("build WLAN profile XML", BuildWlanProfileXml),
     ("settings round trip", SettingsRoundTrip)
 };
 
@@ -85,6 +86,15 @@ static void SettingsRoundTrip()
         {
             File.Delete(path);
         }
+    }
+}
+
+static void BuildWlanProfileXml()
+{
+    var xml = NetshWifiClient.BuildWlanProfileXml("A&B", "pa<ss>", "WPA2-Personal");
+    if (!xml.Contains("A&amp;B") || !xml.Contains("pa&lt;ss&gt;"))
+    {
+        throw new InvalidOperationException("WLAN profile XML did not escape SSID/password.");
     }
 }
 

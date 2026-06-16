@@ -30,6 +30,11 @@ public sealed class WifiClient : IWifiClient
         return _netsh.GetCurrentSsidAsync(cancellationToken);
     }
 
+    public Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
+    {
+        return _netsh.SaveProfileAsync(ssid, password, authentication, cancellationToken);
+    }
+
     public Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default)
     {
         return _netsh.ConnectAsync(ssid, cancellationToken);
@@ -40,4 +45,3 @@ public sealed class WifiClient : IWifiClient
         return _netsh.DisconnectAsync(cancellationToken);
     }
 }
-

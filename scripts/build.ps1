@@ -12,5 +12,10 @@ $env:DOTNET_SKIP_FIRST_TIME_EXPERIENCE = "1"
 $env:DOTNET_CLI_TELEMETRY_OPTOUT = "1"
 
 & $dotnet restore (Join-Path $root "NetGuardian.sln") --configfile (Join-Path $root "NuGet.Config")
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 & $dotnet build (Join-Path $root "NetGuardian.sln") --configfile (Join-Path $root "NuGet.Config") --no-restore
-
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}

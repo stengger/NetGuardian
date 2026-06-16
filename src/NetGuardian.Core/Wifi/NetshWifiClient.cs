@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Security;
 using System.Text.RegularExpressions;
 using NetGuardian.Core.Models;
 
@@ -16,6 +17,25 @@ public sealed partial class NetshWifiClient : IWifiClient
     {
         var result = await RunNetshAsync(["wlan", "show", "interfaces"], cancellationToken);
         return ParseCurrentSsid(result.Output);
+    }
+
+    public async Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
+    {
+        var xml = BuildWlanProfileXml(ssid, password, authentication);
+        var path = Path.Combine(Path.GetTempPath(), $"netguardian-wlan-{Guid.NewGuid():N}.xml");
+        try
+        {
+            await File.WriteAllTextAsync(path, xml, cancellationToken);
+            var result = await RunNetshAsync(["wlan", "add", "profile", $"filename={path}", "user=current"], cancellationToken);
+            return result.ExitCode == 0;
+        }
+        finally
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
     }
 
     public async Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default)
@@ -123,6 +143,54 @@ public sealed partial class NetshWifiClient : IWifiClient
     private static IEnumerable<string> SplitLines(string value)
     {
         return value.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
+    }
+
+    public static string BuildWlanProfileXml(string ssid, string? password, string authentication)
+    {
+        var escapedSsid = SecurityElement.Escape(ssid) ?? ssid;
+        var isOpen = string.IsNullOrWhiteSpace(password)
+            || authentication.Contains("Open", StringComparison.OrdinalIgnoreCase)
+            || authentication.Contains("开放", StringComparison.OrdinalIgnoreCase);
+
+        var security = isOpen
+            ? """
+                    <authEncryption>
+                        <authentication>open</authentication>
+                        <encryption>none</encryption>
+                        <useOneX>false</useOneX>
+                    </authEncryption>
+              """
+            : $"""
+                    <authEncryption>
+                        <authentication>WPA2PSK</authentication>
+                        <encryption>AES</encryption>
+                        <useOneX>false</useOneX>
+                    </authEncryption>
+                    <sharedKey>
+                        <keyType>passPhrase</keyType>
+                        <protected>false</protected>
+                        <keyMaterial>{SecurityElement.Escape(password) ?? password}</keyMaterial>
+                    </sharedKey>
+              """;
+
+        return $$"""
+            <?xml version="1.0"?>
+            <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+                <name>{{escapedSsid}}</name>
+                <SSIDConfig>
+                    <SSID>
+                        <name>{{escapedSsid}}</name>
+                    </SSID>
+                </SSIDConfig>
+                <connectionType>ESS</connectionType>
+                <connectionMode>manual</connectionMode>
+                <MSM>
+                    <security>
+            {{security}}
+                    </security>
+                </MSM>
+            </WLANProfile>
+            """;
     }
 
     private static async Task<(int ExitCode, string Output)> RunNetshAsync(string[] arguments, CancellationToken cancellationToken)
