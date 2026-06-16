@@ -1,0 +1,11 @@
+[project]
+name = "netguardian"
+version = "0.1.0"
+description = "Windows Wi-Fi connectivity monitor and recovery desktop MVP."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
