@@ -1,6 +1,7 @@
 using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Models;
 
@@ -22,7 +23,8 @@ public sealed class AddWifiDialog : Window
         MinHeight = 360;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ResizeMode = ResizeMode.NoResize;
-        Background = System.Windows.Media.Brushes.White;
+        Background = Brush("#181D17");
+        Foreground = Brush("#F4F1E8");
 
         var root = new Grid { Margin = new Thickness(22) };
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -37,6 +39,7 @@ public sealed class AddWifiDialog : Window
             Text = localizer.T("AddWifi"),
             FontSize = 20,
             FontWeight = FontWeights.SemiBold,
+            Foreground = Brush("#F4F1E8"),
             Margin = new Thickness(0, 0, 0, 18)
         };
         root.Children.Add(title);
@@ -48,7 +51,11 @@ public sealed class AddWifiDialog : Window
         _ssidBox.Text = network?.Ssid ?? "";
         _authBox.Text = network?.Authentication ?? "";
         _passwordBox.ToolTip = localizer.T("PasswordHint");
+        StyleInput(_ssidBox);
+        StyleInput(_authBox);
+        StyleInput(_passwordBox);
         _saveToWindowsBox.Content = localizer.T("SaveToWindows");
+        _saveToWindowsBox.Foreground = Brush("#F4F1E8");
         _saveToWindowsBox.IsChecked = true;
         _saveToWindowsBox.Margin = new Thickness(0, 12, 0, 0);
         Grid.SetRow(_saveToWindowsBox, 4);
@@ -61,8 +68,10 @@ public sealed class AddWifiDialog : Window
             Margin = new Thickness(0, 20, 0, 0)
         };
         var cancelButton = new Button { Content = "Cancel", MinWidth = 86, Margin = new Thickness(4) };
+        StyleButton(cancelButton, false);
         cancelButton.Click += (_, _) => DialogResult = false;
         var okButton = new Button { Content = "OK", MinWidth = 86, Margin = new Thickness(4) };
+        StyleButton(okButton, true);
         okButton.Click += (_, _) => DialogResult = true;
         buttons.Children.Add(cancelButton);
         buttons.Children.Add(okButton);
@@ -84,11 +93,34 @@ public sealed class AddWifiDialog : Window
         {
             Text = label,
             FontWeight = FontWeights.SemiBold,
+            Foreground = Brush("#DADDD3"),
             Margin = new Thickness(0, 0, 0, 5)
         });
         control.MinHeight = 34;
         panel.Children.Add(control);
         Grid.SetRow(panel, row);
         root.Children.Add(panel);
+    }
+
+    private static void StyleInput(Control control)
+    {
+        control.Foreground = Brush("#F4F1E8");
+        control.Background = Brush("#20251F");
+        control.BorderBrush = Brush("#4A5146");
+        control.Padding = new Thickness(8, 4, 8, 4);
+    }
+
+    private static void StyleButton(Button button, bool primary)
+    {
+        button.Foreground = Brush(primary ? "#101510" : "#F4F1E8");
+        button.Background = Brush(primary ? "#69D18B" : "#30362E");
+        button.BorderBrush = Brush(primary ? "#69D18B" : "#42483F");
+        button.Padding = new Thickness(14, 7, 14, 7);
+        button.MinHeight = 36;
+    }
+
+    private static SolidColorBrush Brush(string value)
+    {
+        return new SolidColorBrush((Color)ColorConverter.ConvertFromString(value));
     }
 }

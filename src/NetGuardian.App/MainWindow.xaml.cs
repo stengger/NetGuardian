@@ -97,6 +97,34 @@ public partial class MainWindow : Window
         await AddWifiProfileAsync(null);
     }
 
+    private async void SetPassword_Click(object sender, RoutedEventArgs e)
+    {
+        if (ProfileGrid.SelectedItem is WifiProfile profile)
+        {
+            await ConfigureProfileCredentialAsync(profile);
+        }
+        else if (NearbyGrid.SelectedItem is WifiNetwork network)
+        {
+            await AddWifiProfileAsync(network);
+        }
+    }
+
+    private async void NearbyGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (NearbyGrid.SelectedItem is WifiNetwork network)
+        {
+            await AddWifiProfileAsync(network);
+        }
+    }
+
+    private async void ProfileGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (ProfileGrid.SelectedItem is WifiProfile profile)
+        {
+            await ConfigureProfileCredentialAsync(profile);
+        }
+    }
+
     private void MoveUp_Click(object sender, RoutedEventArgs e) => MoveSelectedProfile(-1);
     private void MoveDown_Click(object sender, RoutedEventArgs e) => MoveSelectedProfile(1);
 
@@ -265,8 +293,10 @@ public partial class MainWindow : Window
         }
 
         var ssid = dialog.Ssid.Trim();
-        if (_profiles.Any(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase)))
+        var existing = _profiles.FirstOrDefault(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
+        if (existing is not null)
         {
+            await ConfigureProfileCredentialAsync(existing);
             return;
         }
 
@@ -287,6 +317,43 @@ public partial class MainWindow : Window
             AutoConnect = true
         });
         RenumberProfiles();
+        SaveSettings();
+    }
+
+    private async Task ConfigureProfileCredentialAsync(WifiProfile profile)
+    {
+        var network = new WifiNetwork(
+            profile.Ssid,
+            0,
+            string.IsNullOrWhiteSpace(profile.Security) ? "WPA2-Personal" : profile.Security,
+            "",
+            true,
+            true);
+        var dialog = new AddWifiDialog(_localizer, network) { Owner = this };
+        if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.Ssid))
+        {
+            return;
+        }
+
+        var ssid = dialog.Ssid.Trim();
+        if (!ssid.Equals(profile.Ssid, StringComparison.OrdinalIgnoreCase)
+            && _profiles.Any(item => item.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase)))
+        {
+            Log($"Wi-Fi profile already exists: {ssid}");
+            return;
+        }
+
+        var credentialSaved = profile.CredentialSaved;
+        if (dialog.SaveToWindows)
+        {
+            credentialSaved = await _wifi.SaveProfileAsync(ssid, dialog.Password, dialog.Authentication);
+            Log(credentialSaved ? $"Wi-Fi credential saved to Windows: {ssid}" : $"Failed to save Wi-Fi credential: {ssid}");
+        }
+
+        profile.Ssid = ssid;
+        profile.Security = dialog.Authentication;
+        profile.CredentialSaved = credentialSaved;
+        ProfileGrid.Items.Refresh();
         SaveSettings();
     }
 
@@ -499,7 +566,6 @@ public partial class MainWindow : Window
         CheckNowButton.Content = _localizer.T("CheckNow");
         StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StopButton.Content = _localizer.T("Stop");
-        SidebarStateLabel.Text = _localizer.T("Status");
         HealthStateLabel.Text = _localizer.T("HealthState");
         MonitorStateLabel.Text = _localizer.T("Monitoring");
         NextCheckLabel.Text = _localizer.T("NextCheck");
@@ -517,8 +583,9 @@ public partial class MainWindow : Window
         MoveUpButton.Content = _localizer.T("MoveUp");
         MoveDownButton.Content = _localizer.T("MoveDown");
         RemoveButton.Content = _localizer.T("Remove");
+        SetPasswordButton.Content = _localizer.T("SetPassword");
         ConnectButton.Content = _localizer.T("Connect");
-        DragHintText.Text = _localizer.T("DragHint");
+        DragHintText.Text = _localizer.T("DoubleClickWifiHint");
         NearbyNetworksTitle.Text = _localizer.T("NearbyNetworks");
         PriorityListTitle.Text = _localizer.T("PriorityList");
         NearbySsidColumn.Header = _localizer.T("Ssid");
@@ -587,7 +654,10 @@ public partial class MainWindow : Window
     {
         var state = overrideState ?? (_isMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped"));
         MonitorStateText.Text = state;
-        SidebarStateText.Text = state;
+        HeaderStateText.Text = state;
+        StatusDot.Fill = overrideState == _localizer.T("Checking")
+            ? FindBrush("Warning")
+            : _isMonitoring ? FindBrush("Success") : FindBrush("Danger");
         StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StartMonitorButton.IsEnabled = !_isMonitoring || !_isChecking;
         StopButton.IsEnabled = _isMonitoring;
