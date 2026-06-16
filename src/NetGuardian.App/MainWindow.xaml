@@ -23,7 +23,12 @@
         <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Title="NetGuardian" Icon="Assets/app-icon-256.png" />
 
         <Grid Grid.Row="1">
-            <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ui:NavigationView Grid.Column="0" x:Name="RootNavigation" PaneDisplayMode="Left" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
                 <ui:NavigationView.MenuItems>
                     <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" />
                     <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi424}" Tag="WifiPanel" />
@@ -36,7 +41,7 @@
                 </ui:NavigationView.FooterMenuItems>
             </ui:NavigationView>
 
-            <Grid Margin="55,10,24,24">
+            <Grid Grid.Column="1" Margin="20,10,24,24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />

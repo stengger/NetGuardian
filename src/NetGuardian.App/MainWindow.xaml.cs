@@ -766,10 +766,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
+    private bool _isCloseDialogShowing = false;
+
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
         if (_forceExit)
         {
+            _notifyIcon.Visible = false;
+            _notifyIcon.Dispose();
             return;
         }
 
@@ -782,28 +786,38 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         if (_settings.CloseBehavior == "ask")
         {
-            var result = MessageBox.Show(
-                _localizer.T("ClosePrompt"),
-                _localizer.T("ClosePromptTitle"),
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
-
-            if (result == MessageBoxResult.Cancel)
-            {
-                e.Cancel = true;
-                return;
-            }
-
-            if (result == MessageBoxResult.Yes)
-            {
-                e.Cancel = true;
-                HideToTray();
-                return;
-            }
+            e.Cancel = true;
+            if (_isCloseDialogShowing) return;
+            _isCloseDialogShowing = true;
+            ShowCloseDialogAsync();
         }
+    }
 
-        _notifyIcon.Visible = false;
-        _notifyIcon.Dispose();
+    private async void ShowCloseDialogAsync()
+    {
+        var messageBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = _localizer.T("ClosePromptTitle"),
+            Content = _localizer.T("ClosePrompt"),
+            PrimaryButtonText = "后台运行",
+            SecondaryButtonText = "直接退出",
+            CloseButtonText = "取消",
+            IsPrimaryButtonEnabled = true,
+            IsSecondaryButtonEnabled = true
+        };
+
+        var result = await messageBox.ShowDialogAsync();
+        _isCloseDialogShowing = false;
+
+        if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+        {
+            HideToTray();
+        }
+        else if (result == Wpf.Ui.Controls.MessageBoxResult.Secondary)
+        {
+            _forceExit = true;
+            Application.Current.Shutdown();
+        }
     }
 
     private sealed record ProbeRow(string Name, bool Ok, string LatencyText, string Detail);
