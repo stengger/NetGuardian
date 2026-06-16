@@ -26,8 +26,8 @@
             <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
                 <ui:NavigationView.MenuItems>
                     <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" />
-                    <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi24}" Tag="WifiPanel" />
-                    <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon DocumentHeart24}" Tag="PolicyPanel" />
+                    <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi424}" Tag="WifiPanel" />
+                    <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Document24}" Tag="PolicyPanel" />
                     <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Wrench24}" Tag="ToolsPanel" />
                     <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon Document24}" Tag="LogPanel" />
                 </ui:NavigationView.MenuItems>
@@ -50,8 +50,8 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border x:Name="HeaderStatusPill" Background="#272C25" BorderBrush="#3A4037" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,14,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="{StaticResource Danger}" Margin="0,0,8,0" />
-                            <TextBlock x:Name="HeaderStateText" Foreground="{StaticResource Ink}" FontWeight="SemiBold" />
+                            <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="Red" Margin="0,0,8,0" />
+                            <TextBlock x:Name="HeaderStateText" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" />
                         </StackPanel>
                     </Border>
                     <Button x:Name="CheckNowButton" Click="CheckNow_Click" />
@@ -77,7 +77,7 @@
                     <Border Grid.Column="0" Margin="0,0,12,12">
                         <StackPanel>
                             <TextBlock x:Name="HealthStateLabel" />
-                            <TextBlock x:Name="HealthStateText" FontSize="34" FontWeight="Bold" Foreground="{StaticResource Primary}" Margin="0,4,0,8" />
+                            <TextBlock x:Name="HealthStateText" FontSize="34" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,4,0,8" />
                             <TextBlock x:Name="SummaryText" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
