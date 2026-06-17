@@ -9,7 +9,12 @@ public sealed class NativeWifiScanner
     private const uint WlanClientVersion = 2;
     private const uint WlanAvailableNetworkIncludeAllAdhocProfiles = 0x00000001;
     private const uint WlanAvailableNetworkIncludeAllManualHiddenProfiles = 0x00000002;
+    private const uint WlanNotificationSourceAcm = 0x00000008;
+    private const uint WlanNotificationAcmScanComplete = 7;
+    private const uint WlanNotificationAcmScanFail = 8;
     private const uint ErrorSuccess = 0;
+    private static readonly TimeSpan ScanFallbackDelay = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan ScanNotificationTimeout = TimeSpan.FromSeconds(4);
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
     {
@@ -22,13 +27,7 @@ public sealed class NativeWifiScanner
         try
         {
             var interfaces = EnumerateInterfaces(handle);
-            foreach (var wlanInterface in interfaces)
-            {
-                var interfaceGuid = wlanInterface.InterfaceGuid;
-                WlanScan(handle, ref interfaceGuid, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
-            }
-
-            await Task.Delay(TimeSpan.FromSeconds(3), cancellationToken);
+            await ScanAndWaitAsync(handle, interfaces, cancellationToken);
 
             var networks = new List<WifiNetwork>();
             foreach (var wlanInterface in interfaces)
@@ -154,6 +153,101 @@ public sealed class NativeWifiScanner
         }
     }
 
+    private static async Task ScanAndWaitAsync(
+        IntPtr handle,
+        IReadOnlyList<WlanInterfaceInfo> interfaces,
+        CancellationToken cancellationToken)
+    {
+        if (interfaces.Count == 0)
+        {
+            return;
+        }
+
+        var pending = interfaces.Select(wlanInterface => wlanInterface.InterfaceGuid).ToHashSet();
+        var syncRoot = new object();
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        WlanNotificationCallback? callback = (ref WlanNotificationData notificationData, IntPtr _) =>
+        {
+            if ((notificationData.NotificationSource & WlanNotificationSourceAcm) == 0)
+            {
+                return;
+            }
+
+            if (notificationData.NotificationCode is not (WlanNotificationAcmScanComplete or WlanNotificationAcmScanFail))
+            {
+                return;
+            }
+
+            lock (syncRoot)
+            {
+                if (pending.Remove(notificationData.InterfaceGuid) && pending.Count == 0)
+                {
+                    completion.TrySetResult(true);
+                }
+            }
+        };
+
+        var notificationResult = WlanRegisterNotification(
+            handle,
+            WlanNotificationSourceAcm,
+            false,
+            callback,
+            IntPtr.Zero,
+            IntPtr.Zero,
+            out _);
+        var notificationRegistered = notificationResult == ErrorSuccess;
+
+        try
+        {
+            foreach (var wlanInterface in interfaces)
+            {
+                var interfaceGuid = wlanInterface.InterfaceGuid;
+                var scanResult = WlanScan(handle, ref interfaceGuid, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                if (scanResult != ErrorSuccess)
+                {
+                    lock (syncRoot)
+                    {
+                        pending.Remove(interfaceGuid);
+                    }
+                }
+            }
+
+            lock (syncRoot)
+            {
+                if (pending.Count == 0)
+                {
+                    completion.TrySetResult(true);
+                }
+            }
+
+            if (!notificationRegistered)
+            {
+                await Task.Delay(ScanFallbackDelay, cancellationToken);
+                return;
+            }
+
+            using var timeout = new CancellationTokenSource(ScanNotificationTimeout);
+            using var timeoutRegistration = timeout.Token.Register(
+                static state => ((TaskCompletionSource<bool>)state!).TrySetResult(true),
+                completion);
+            using var cancellationRegistration = cancellationToken.Register(
+                static state => ((TaskCompletionSource<bool>)state!).TrySetCanceled(),
+                completion);
+
+            await completion.Task.ConfigureAwait(false);
+        }
+        finally
+        {
+            if (notificationRegistered)
+            {
+                WlanRegisterNotification(handle, 0, false, null, IntPtr.Zero, IntPtr.Zero, out _);
+            }
+
+            GC.KeepAlive(callback);
+        }
+    }
+
     internal static string DecodeSsid(Dot11Ssid ssid)
     {
         var length = Math.Min((int)ssid.SsidLength, ssid.SsidBytes.Length);
@@ -238,6 +332,18 @@ public sealed class NativeWifiScanner
     [DllImport("wlanapi.dll")]
     private static extern void WlanFreeMemory(IntPtr memory);
 
+    [DllImport("wlanapi.dll")]
+    private static extern uint WlanRegisterNotification(
+        IntPtr clientHandle,
+        uint notificationSource,
+        bool ignoreDuplicate,
+        WlanNotificationCallback? notificationCallback,
+        IntPtr callbackContext,
+        IntPtr reserved,
+        out uint previousNotificationSource);
+
+    private delegate void WlanNotificationCallback(ref WlanNotificationData notificationData, IntPtr context);
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct WlanInterfaceInfo
     {
@@ -247,6 +353,16 @@ public sealed class NativeWifiScanner
         public string InterfaceDescription;
 
         public uint InterfaceState;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct WlanNotificationData
+    {
+        public uint NotificationSource;
+        public uint NotificationCode;
+        public Guid InterfaceGuid;
+        public uint DataSize;
+        public IntPtr DataPtr;
     }
 
     [StructLayout(LayoutKind.Sequential)]
