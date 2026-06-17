@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Security;
 using System.Text.RegularExpressions;
 using NetGuardian.Core.Models;
@@ -17,6 +18,44 @@ public sealed partial class NetshWifiClient : IWifiClient
     {
         var result = await RunNetshAsync(["wlan", "show", "interfaces"], cancellationToken);
         return ParseCurrentSsid(result.Output);
+    }
+
+    public async Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default)
+    {
+        var adapter = GetPrimaryWifiInterface();
+        var result = await RunNetshAsync(["wlan", "show", "interfaces"], cancellationToken);
+        var parsed = ParseInterfaceDiagnostics(result.Output);
+        var adapterName = parsed.AdapterName ?? adapter?.Name;
+        var adapterPresent = adapter is not null || !string.IsNullOrWhiteSpace(parsed.AdapterName);
+        var adapterUp = adapter?.OperationalStatus == OperationalStatus.Up
+            || parsed.State?.Equals("connected", StringComparison.OrdinalIgnoreCase) == true
+            || parsed.State?.Equals("已连接", StringComparison.OrdinalIgnoreCase) == true;
+
+        return new WifiAdapterDiagnostics(
+            adapterName,
+            adapterPresent,
+            adapterUp,
+            parsed.HardwareRadioOn,
+            parsed.SoftwareRadioOn,
+            parsed.State,
+            result.ExitCode == 0 ? "" : "Wi-Fi diagnostics require administrator permission.");
+    }
+
+    public async Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
+    {
+        var name = string.IsNullOrWhiteSpace(adapterName) ? GetPrimaryWifiInterface()?.Name : adapterName.Trim();
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return false;
+        }
+
+        var result = await RunNetshAsync(["interface", "set", "interface", $"name={name}", "admin=enabled"], cancellationToken);
+        if (result.ExitCode == 0)
+        {
+            await RunNetshAsync(["wlan", "set", "autoconfig", "enabled=yes", $"interface={name}"], cancellationToken);
+        }
+
+        return result.ExitCode == 0;
     }
 
     public async Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
@@ -88,6 +127,53 @@ public sealed partial class NetshWifiClient : IWifiClient
         }
 
         return null;
+    }
+
+    public static WifiAdapterDiagnostics ParseInterfaceDiagnostics(string output)
+    {
+        string? adapterName = null;
+        string? state = null;
+        bool? hardwareRadioOn = null;
+        bool? softwareRadioOn = null;
+
+        foreach (var rawLine in SplitLines(output))
+        {
+            var line = rawLine.Trim();
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                continue;
+            }
+
+            if (line.Contains(':'))
+            {
+                var parts = line.Split(':', 2);
+                var key = parts[0].Trim();
+                var value = parts[1].Trim();
+                if (key.Equals("Name", StringComparison.OrdinalIgnoreCase)
+                    || key.Equals("名称", StringComparison.OrdinalIgnoreCase))
+                {
+                    adapterName = string.IsNullOrWhiteSpace(value) ? null : value;
+                }
+                else if (key.Equals("State", StringComparison.OrdinalIgnoreCase)
+                    || key.Equals("状态", StringComparison.OrdinalIgnoreCase))
+                {
+                    state = string.IsNullOrWhiteSpace(value) ? null : value;
+                }
+            }
+
+            hardwareRadioOn ??= ParseRadioFlag(line, "Hardware", "硬件");
+            softwareRadioOn ??= ParseRadioFlag(line, "Software", "软件");
+        }
+
+        return new WifiAdapterDiagnostics(
+            adapterName,
+            !string.IsNullOrWhiteSpace(adapterName),
+            state?.Equals("connected", StringComparison.OrdinalIgnoreCase) == true
+                || state?.Equals("已连接", StringComparison.OrdinalIgnoreCase) == true,
+            hardwareRadioOn,
+            softwareRadioOn,
+            state,
+            "");
     }
 
     public static IReadOnlyList<WifiNetwork> ParseScanOutput(string output)
@@ -228,6 +314,41 @@ public sealed partial class NetshWifiClient : IWifiClient
         return value.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
     }
 
+    private static bool? ParseRadioFlag(string line, string englishKey, string chineseKey)
+    {
+        if (!line.Contains(englishKey, StringComparison.OrdinalIgnoreCase)
+            && !line.Contains(chineseKey, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        if (line.Contains("On", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("打开", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("开启", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("启用", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (line.Contains("Off", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("关闭", StringComparison.OrdinalIgnoreCase)
+            || line.Contains("禁用", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return null;
+    }
+
+    private static NetworkInterface? GetPrimaryWifiInterface()
+    {
+        return NetworkInterface.GetAllNetworkInterfaces()
+            .Where(item => item.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
+            .OrderByDescending(item => item.OperationalStatus == OperationalStatus.Up)
+            .ThenBy(item => item.Name)
+            .FirstOrDefault();
+    }
+
     public static string BuildWlanProfileXml(string ssid, string? password, string authentication)
     {
         var escapedSsid = SecurityElement.Escape(ssid) ?? ssid;
@@ -312,3 +433,12 @@ public sealed partial class NetshWifiClient : IWifiClient
         public string Encryption { get; set; } = "";
     }
 }
+
+public sealed record WifiAdapterDiagnostics(
+    string? AdapterName,
+    bool AdapterPresent,
+    bool AdapterUp,
+    bool? HardwareRadioOn,
+    bool? SoftwareRadioOn,
+    string? State,
+    string Detail);

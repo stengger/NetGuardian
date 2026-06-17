@@ -30,6 +30,16 @@ public sealed class WifiClient : IWifiClient
         return _netsh.GetCurrentSsidAsync(cancellationToken);
     }
 
+    public Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default)
+    {
+        return _netsh.GetAdapterDiagnosticsAsync(cancellationToken);
+    }
+
+    public Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
+    {
+        return _netsh.TryEnableWifiAdapterAsync(adapterName, cancellationToken);
+    }
+
     public Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
     {
         return _netsh.GetSavedPasswordAsync(ssid, cancellationToken);

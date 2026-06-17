@@ -6,7 +6,7 @@ $publishedExe = Join-Path $root "dist\NetGuardian\NetGuardian.exe"
 $exe = Join-Path $root "src\NetGuardian.App\bin\Debug\net8.0-windows\NetGuardian.exe"
 
 if (Test-Path -LiteralPath $publishedExe) {
-    Start-Process -FilePath $publishedExe
+    Start-Process -FilePath $publishedExe -Verb RunAs
     return
 }
 
@@ -15,7 +15,7 @@ if (-not (Test-Path -LiteralPath $exe)) {
 }
 
 if (Test-Path -LiteralPath $exe) {
-    Start-Process -FilePath $exe
+    Start-Process -FilePath $exe -Verb RunAs
 } else {
-    Start-Process -FilePath $dotnet -ArgumentList @("run", "--project", (Join-Path $root "src\NetGuardian.App\NetGuardian.App.csproj"), "--no-restore") -WindowStyle Hidden
+    Start-Process -FilePath $dotnet -ArgumentList @("run", "--project", (Join-Path $root "src\NetGuardian.App\NetGuardian.App.csproj"), "--no-restore") -Verb RunAs -WindowStyle Hidden
 }

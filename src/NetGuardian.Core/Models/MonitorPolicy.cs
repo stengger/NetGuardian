@@ -6,6 +6,7 @@ public sealed class MonitorPolicy
     public int ConsecutiveFailuresBeforeRecovery { get; set; } = 3;
     public bool EnableAutoSwitch { get; set; } = true;
     public bool EnableCurrentWifiReconnect { get; set; } = true;
+    public bool EnableWifiAdapterAutoEnable { get; set; } = true;
     public bool EnableDnsFlush { get; set; }
     public bool EnableWlanServiceRestart { get; set; }
     public bool EnableAdapterRestart { get; set; }
@@ -20,4 +21,3 @@ public sealed class MonitorPolicy
         ProbeTimeoutSeconds = Math.Max(0.5, ProbeTimeoutSeconds);
     }
 }
-

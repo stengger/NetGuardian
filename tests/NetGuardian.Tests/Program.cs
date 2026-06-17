@@ -6,6 +6,8 @@ using NetGuardian.Core.Wifi;
 var tests = new List<(string Name, Action Body)>
 {
     ("parse current SSID", ParseCurrentSsid),
+    ("parse Wi-Fi adapter diagnostics", ParseWifiAdapterDiagnostics),
+    ("parse Chinese Wi-Fi adapter diagnostics", ParseChineseWifiAdapterDiagnostics),
     ("parse saved Wi-Fi password", ParseSavedWifiPassword),
     ("parse Wi-Fi profile names", ParseWifiProfileNames),
     ("parse Wi-Fi profile SSID", ParseWifiProfileSsid),
@@ -62,6 +64,43 @@ static void ParseScanOutput()
     AssertEqual(2, networks.Count);
     AssertEqual("Office-5G", networks[0].Ssid);
     AssertEqual(86, networks[0].SignalPercent);
+}
+
+static void ParseWifiAdapterDiagnostics()
+{
+    const string output = """
+        Name                   : Wi-Fi
+        Description            : Intel(R) Wi-Fi
+        State                  : connected
+        SSID                   : Office-5G
+        Radio status           : Hardware On
+                                 Software On
+        """;
+
+    var diagnostics = NetshWifiClient.ParseInterfaceDiagnostics(output);
+    AssertEqual("Wi-Fi", diagnostics.AdapterName);
+    AssertEqual(true, diagnostics.AdapterPresent);
+    AssertEqual(true, diagnostics.AdapterUp);
+    AssertEqual(true, diagnostics.HardwareRadioOn);
+    AssertEqual(true, diagnostics.SoftwareRadioOn);
+}
+
+static void ParseChineseWifiAdapterDiagnostics()
+{
+    const string output = """
+        名称                   : WLAN
+        描述                   : Intel(R) Wi-Fi
+        状态                   : 已断开连接
+        无线电状态             : 硬件 打开
+                                 软件 关闭
+        """;
+
+    var diagnostics = NetshWifiClient.ParseInterfaceDiagnostics(output);
+    AssertEqual("WLAN", diagnostics.AdapterName);
+    AssertEqual(true, diagnostics.AdapterPresent);
+    AssertEqual(false, diagnostics.AdapterUp);
+    AssertEqual(true, diagnostics.HardwareRadioOn);
+    AssertEqual(false, diagnostics.SoftwareRadioOn);
 }
 
 static void ParseSavedWifiPassword()

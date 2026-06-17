@@ -402,9 +402,19 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateMonitorStatus();
         try
         {
+            var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
+            if (ShouldTryEnableWifi(wifiDiagnostics))
+            {
+                Log(string.Format(_localizer.T("TryingEnableWifiAdapter"), wifiDiagnostics.AdapterName ?? "Wi-Fi"));
+                var enabled = await _wifi.TryEnableWifiAdapterAsync(wifiDiagnostics.AdapterName);
+                Log(enabled ? _localizer.T("WifiAdapterEnabled") : _localizer.T("WifiAdapterEnableFailed"));
+                await Task.Delay(TimeSpan.FromSeconds(2));
+                wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
+            }
+
             var currentSsid = await _wifi.GetCurrentSsidAsync();
             var tester = new ConnectivityTester(_settings.Policy);
-            var report = await tester.RunFullCheckAsync(currentSsid);
+            var report = await tester.RunFullCheckAsync(currentSsid, wifiDiagnostics);
             ApplyReport(report);
             _failureStreak = report.Ok ? 0 : _failureStreak + 1;
             Log($"{report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {report.State}: {report.Summary}");
@@ -426,6 +436,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _isChecking = false;
             UpdateMonitorStatus();
         }
+    }
+
+    private bool ShouldTryEnableWifi(WifiAdapterDiagnostics diagnostics)
+    {
+        if (!_settings.Policy.EnableWifiAdapterAutoEnable || !diagnostics.AdapterPresent)
+        {
+            return false;
+        }
+
+        if (diagnostics.HardwareRadioOn == false)
+        {
+            return false;
+        }
+
+        return !diagnostics.AdapterUp || diagnostics.SoftwareRadioOn == false;
     }
 
     private async Task ScanWifiAsync()
@@ -677,6 +702,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return state switch
         {
             NetworkState.Healthy => _localizer.T("Healthy"),
+            NetworkState.WifiDisabled => _localizer.T("WifiDisabled"),
+            NetworkState.WifiDisconnected => _localizer.T("WifiDisconnected"),
             NetworkState.Disconnected => _localizer.T("Disconnected"),
             NetworkState.GatewayIssue => _localizer.T("GatewayIssue"),
             NetworkState.DnsIssue => _localizer.T("DnsIssue"),
@@ -699,6 +726,31 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return _localizer.T("GatewayPing");
         }
 
+        if (name.Equals("Wi-Fi adapter", StringComparison.OrdinalIgnoreCase))
+        {
+            return _localizer.T("WifiAdapter");
+        }
+
+        if (name.Equals("Wi-Fi status", StringComparison.OrdinalIgnoreCase))
+        {
+            return _localizer.T("WifiStatus");
+        }
+
+        if (name.Equals("Wi-Fi connection", StringComparison.OrdinalIgnoreCase))
+        {
+            return _localizer.T("WifiConnection");
+        }
+
+        if (name.Equals("Wi-Fi hardware radio", StringComparison.OrdinalIgnoreCase))
+        {
+            return _localizer.T("WifiHardwareRadio");
+        }
+
+        if (name.Equals("Wi-Fi software radio", StringComparison.OrdinalIgnoreCase))
+        {
+            return _localizer.T("WifiSoftwareRadio");
+        }
+
         return name;
     }
 
@@ -714,6 +766,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return summary switch
         {
             "No active IPv4 address." => _localizer.T("NoActiveIpv4"),
+            "No Wi-Fi adapter detected." => _localizer.T("NoWifiAdapterDetected"),
+            "Wi-Fi adapter is disabled." => _localizer.T("WifiAdapterDisabledSummary"),
+            "Wi-Fi hardware radio is off." => _localizer.T("WifiHardwareRadioOff"),
+            "Wi-Fi software radio is off." => _localizer.T("WifiSoftwareRadioOff"),
+            "Wi-Fi is not connected." => _localizer.T("WifiNotConnected"),
             "Gateway is not reachable." => _localizer.T("GatewayNotReachable"),
             "DNS resolution failed." => _localizer.T("DnsResolutionFailed"),
             "Network is healthy." => _localizer.T("NetworkHealthySummary"),
@@ -729,6 +786,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         FailuresTextBox.Text = _settings.Policy.ConsecutiveFailuresBeforeRecovery.ToString();
         AutoSwitchCheckBox.IsChecked = _settings.Policy.EnableAutoSwitch;
         SoftReconnectCheckBox.IsChecked = _settings.Policy.EnableCurrentWifiReconnect;
+        WifiAutoEnableCheckBox.IsChecked = _settings.Policy.EnableWifiAdapterAutoEnable;
         DnsFlushCheckBox.IsChecked = _settings.Policy.EnableDnsFlush;
         StartMonitoringOnLaunchCheckBox.IsChecked = _settings.StartMonitoringOnLaunch;
         StartMinimizedToTrayCheckBox.IsChecked = _settings.StartMinimizedToTray;
@@ -755,6 +813,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         _settings.Policy.EnableAutoSwitch = AutoSwitchCheckBox.IsChecked == true;
         _settings.Policy.EnableCurrentWifiReconnect = SoftReconnectCheckBox.IsChecked == true;
+        _settings.Policy.EnableWifiAdapterAutoEnable = WifiAutoEnableCheckBox.IsChecked == true;
         _settings.Policy.EnableDnsFlush = DnsFlushCheckBox.IsChecked == true;
         _settings.Policy.Normalize();
         ApplySettingsToUi();
@@ -848,6 +907,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         CooldownLabel.Text = _localizer.T("CooldownValue");
         AutoSwitchCheckBox.Content = _localizer.T("AutoSwitch");
         SoftReconnectCheckBox.Content = _localizer.T("SoftReconnect");
+        WifiAutoEnableCheckBox.Content = _localizer.T("WifiAutoEnable");
         DnsFlushCheckBox.Content = _localizer.T("DnsFlush");
         SavePolicyButton.Content = _localizer.T("Save");
         ToolsTitle.Text = _localizer.T("SystemNetworkTools");
@@ -1310,8 +1370,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         try
         {
             var currentSsid = await _wifi.GetCurrentSsidAsync();
+            var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
             var tester = new ConnectivityTester(_settings.Policy);
-            var report = await tester.RunFullCheckAsync(currentSsid);
+            var report = await tester.RunFullCheckAsync(currentSsid, wifiDiagnostics);
             ApplyQualityReport(report);
             Log($"{_localizer.T("QualityTools")}: {QualityScoreText.Text} - {report.Summary}");
         }
@@ -1361,6 +1422,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             NetworkState.InternetIssue => 65,
             NetworkState.DnsIssue => 45,
             NetworkState.GatewayIssue => 35,
+            NetworkState.WifiDisconnected => 15,
+            NetworkState.WifiDisabled => 0,
             NetworkState.Disconnected => 0,
             _ => 25
         };
@@ -1531,8 +1594,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         try
         {
             var currentSsid = await _wifi.GetCurrentSsidAsync();
+            var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
             var tester = new ConnectivityTester(_settings.Policy);
-            var report = await tester.RunFullCheckAsync(currentSsid);
+            var report = await tester.RunFullCheckAsync(currentSsid, wifiDiagnostics);
             var score = CalculateQualityScore(report);
 
             _reportRows.Clear();
@@ -1573,6 +1637,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return state switch
         {
             NetworkState.Healthy => _localizer.T("NoActionNeeded"),
+            NetworkState.WifiDisabled => _localizer.T("CheckWifiSwitch"),
+            NetworkState.WifiDisconnected => _localizer.T("ConnectWifi"),
             NetworkState.Disconnected => _localizer.T("CheckAdapter"),
             NetworkState.GatewayIssue => _localizer.T("CheckRouter"),
             NetworkState.DnsIssue => _localizer.T("TryDnsSettings"),

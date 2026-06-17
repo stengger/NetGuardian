@@ -275,6 +275,7 @@
                         </Grid>
                         <ui:ToggleSwitch x:Name="AutoSwitchCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="SoftReconnectCheckBox" Margin="0,9" />
+                        <ui:ToggleSwitch x:Name="WifiAutoEnableCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="DnsFlushCheckBox" Margin="0,9" />
                         <Button x:Name="SavePolicyButton" HorizontalAlignment="Left" Margin="0,18,0,0" Click="SavePolicy_Click" />
                     </StackPanel>
