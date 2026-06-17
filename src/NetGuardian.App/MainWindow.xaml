@@ -14,6 +14,7 @@
         Closing="Window_Closing"
         StateChanged="Window_StateChanged">
     <ui:FluentWindow.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <Style x:Key="SectionBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="#11161A" />
             <Setter Property="BorderBrush" Value="#2A3038" />
@@ -62,32 +63,50 @@
         <Style x:Key="GridCenteredTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
             <Setter Property="TextAlignment" Value="Center" />
         </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CanUserResizeRows" Value="False" />
+            <Setter Property="GridLinesVisibility" Value="None" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="RowBackground" Value="Transparent" />
+            <Setter Property="RowHeaderWidth" Value="0" />
+            <Setter Property="SelectionUnit" Value="FullRow" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
         <Style x:Key="GridRowStyle" TargetType="DataGridRow">
             <Setter Property="Height" Value="40" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background" Value="#202733" />
-                    <Setter Property="BorderBrush" Value="#526173" />
-                    <Setter Property="Effect">
+                    <Setter Property="Background">
                         <Setter.Value>
-                            <DropShadowEffect Color="#5B8DEF" BlurRadius="12" ShadowDepth="0" Opacity="0.24" />
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#1C2633" Offset="0" />
+                                <GradientStop Color="#202A38" Offset="0.52" />
+                                <GradientStop Color="#19222E" Offset="1" />
+                            </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background" Value="#263145" />
-                    <Setter Property="BorderBrush" Value="#6EA8FF" />
-                    <Setter Property="Foreground" Value="#F4F7FB" />
-                    <Setter Property="Effect">
+                    <Setter Property="Background">
                         <Setter.Value>
-                            <DropShadowEffect Color="#6EA8FF" BlurRadius="16" ShadowDepth="0" Opacity="0.34" />
+                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                <GradientStop Color="#22314A" Offset="0" />
+                                <GradientStop Color="#263653" Offset="0.5" />
+                                <GradientStop Color="#1F2D44" Offset="1" />
+                            </LinearGradientBrush>
                         </Setter.Value>
                     </Setter>
+                    <Setter Property="Foreground" Value="#F4F7FB" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -105,9 +124,41 @@
         <Style TargetType="Button">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="Padding" Value="12,6" />
-            <Setter Property="Background" Value="#1A2028" />
-            <Setter Property="BorderBrush" Value="#303946" />
+            <Setter Property="Background" Value="#171D25" />
+            <Setter Property="BorderBrush" Value="#2B3440" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="Foreground" Value="#F2F5F8" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="9"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="{TemplateBinding VerticalContentAlignment}"
+                                              RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#1D2430" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#364252" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="#223047" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#485A70" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.52" />
+                                <Setter TargetName="Chrome" Property="Background" Value="#151A20" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </ui:FluentWindow.Resources>
 
@@ -125,8 +176,18 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <Grid Grid.Column="0" Width="216">
-                <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="216" OpenPaneLength="216" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
+            <Grid Grid.Column="0">
+                <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
+                    <ui:NavigationView.Style>
+                        <Style TargetType="{x:Type ui:NavigationView}">
+                            <Setter Property="Width" Value="216" />
+                            <Style.Triggers>
+                                <Trigger Property="IsPaneOpen" Value="False">
+                                    <Setter Property="Width" Value="56" />
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ui:NavigationView.Style>
                     <ui:NavigationView.MenuItems>
                         <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                         <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon WifiSettings20}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
@@ -142,10 +203,10 @@
                     </ui:NavigationView.FooterMenuItems>
                 </ui:NavigationView>
 
-                <Border x:Name="SidebarSpeedCard" Width="184" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,64" Background="#171D25" BorderBrush="#2E3744" BorderThickness="1" CornerRadius="8" Padding="12" Panel.ZIndex="2">
+                <Border x:Name="SidebarSpeedCard" Width="184" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,64" Background="Transparent" BorderThickness="0" Padding="10,0,10,10" Panel.ZIndex="2" Visibility="{Binding IsPaneOpen, ElementName=RootNavigation, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock x:Name="SidebarSpeedTitle" FontSize="12" FontWeight="SemiBold" Foreground="#D8E0EA" />
-                        <Canvas Width="158" Height="42" Margin="0,10,0,12">
+                        <Canvas Width="158" Height="38" Margin="0,10,0,10">
                             <Polyline x:Name="SidebarDownloadLine" Stroke="#6EA8FF" StrokeThickness="1.8" StrokeLineJoin="Round" />
                             <Polyline x:Name="SidebarUploadLine" Stroke="#F59E0B" StrokeThickness="1.6" StrokeLineJoin="Round" />
                         </Canvas>
@@ -158,7 +219,6 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="24" />
                                 <RowDefinition Height="24" />
-                                <RowDefinition Height="24" />
                             </Grid.RowDefinitions>
                             <TextBlock Text="↓" Foreground="#6EA8FF" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <TextBlock x:Name="SidebarDownloadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
@@ -166,9 +226,6 @@
                             <TextBlock Grid.Row="1" Text="↑" Foreground="#F59E0B" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <TextBlock x:Name="SidebarUploadSpeedText" Grid.Row="1" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
                             <TextBlock x:Name="SidebarUploadUnitText" Grid.Row="1" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
-                            <TextBlock Grid.Row="2" Text="Σ" Foreground="#9AA7B8" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarSessionTrafficText" Grid.Row="2" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarSessionTrafficUnitText" Grid.Row="2" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
                         </Grid>
                     </StackPanel>
                 </Border>

@@ -67,8 +67,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private DateTimeOffset? _lastSidebarSpeedSampleAt;
     private long? _lastSidebarReceivedBytes;
     private long? _lastSidebarSentBytes;
-    private long _sidebarSessionReceivedBytes;
-    private long _sidebarSessionSentBytes;
     private Point _dragStartPoint;
     private WifiProfile? _draggedProfile;
 
@@ -1456,8 +1454,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             var sentDelta = Math.Max(0, sentBytes - _lastSidebarSentBytes.Value);
             downloadBytesPerSecond = receivedDelta / elapsedSeconds;
             uploadBytesPerSecond = sentDelta / elapsedSeconds;
-            _sidebarSessionReceivedBytes += receivedDelta;
-            _sidebarSessionSentBytes += sentDelta;
         }
 
         _lastSidebarSpeedSampleAt = now;
@@ -1468,7 +1464,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         PushSpeedSample(_uploadSpeedSamples, uploadBytesPerSecond);
         SetRateText(SidebarDownloadSpeedText, SidebarDownloadUnitText, downloadBytesPerSecond);
         SetRateText(SidebarUploadSpeedText, SidebarUploadUnitText, uploadBytesPerSecond);
-        SetBytesText(SidebarSessionTrafficText, SidebarSessionTrafficUnitText, _sidebarSessionReceivedBytes + _sidebarSessionSentBytes);
         DrawSidebarSpeedLines();
     }
 
@@ -1509,8 +1504,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         var max = _downloadSpeedSamples.Concat(_uploadSpeedSamples).DefaultIfEmpty(1).Max();
         max = Math.Max(1, max);
-        SidebarDownloadLine.Points = BuildSparklinePoints(_downloadSpeedSamples, 158, 42, max);
-        SidebarUploadLine.Points = BuildSparklinePoints(_uploadSpeedSamples, 158, 42, max);
+        SidebarDownloadLine.Points = BuildSparklinePoints(_downloadSpeedSamples, 158, 38, max);
+        SidebarUploadLine.Points = BuildSparklinePoints(_uploadSpeedSamples, 158, 38, max);
     }
 
     private static PointCollection BuildSparklinePoints(IEnumerable<double> samples, double width, double height, double max)
@@ -1546,31 +1541,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         unitText.Text = unit;
     }
 
-    private static void SetBytesText(TextBlock valueText, TextBlock unitText, long bytes)
-    {
-        var (value, unit) = FormatByteParts(bytes);
-        valueText.Text = value;
-        unitText.Text = unit;
-    }
-
     private static (string Value, string Unit) FormatRateParts(double bytesPerSecond)
     {
         var units = new[] { "B/s", "KB/s", "MB/s", "GB/s" };
         var value = Math.Max(0, bytesPerSecond);
-        var unitIndex = 0;
-        while (value >= 1024 && unitIndex < units.Length - 1)
-        {
-            value /= 1024;
-            unitIndex++;
-        }
-
-        return (value >= 10 || unitIndex == 0 ? $"{value:F0}" : $"{value:F1}", units[unitIndex]);
-    }
-
-    private static (string Value, string Unit) FormatByteParts(long bytes)
-    {
-        var units = new[] { "B", "KB", "MB", "GB", "TB" };
-        var value = Math.Max(0, (double)bytes);
         var unitIndex = 0;
         while (value >= 1024 && unitIndex < units.Length - 1)
         {
