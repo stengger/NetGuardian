@@ -1464,6 +1464,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         PushSpeedSample(_uploadSpeedSamples, uploadBytesPerSecond);
         SetRateText(SidebarDownloadSpeedText, SidebarDownloadUnitText, downloadBytesPerSecond);
         SetRateText(SidebarUploadSpeedText, SidebarUploadUnitText, uploadBytesPerSecond);
+        SetRateText(SidebarCompactDownloadSpeedText, SidebarCompactDownloadUnitText, downloadBytesPerSecond);
+        SetRateText(SidebarCompactUploadSpeedText, SidebarCompactUploadUnitText, uploadBytesPerSecond);
         DrawSidebarSpeedLines();
     }
 

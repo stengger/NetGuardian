@@ -231,6 +231,41 @@
                         </Grid>
                     </StackPanel>
                 </Border>
+
+                <Border x:Name="SidebarSpeedCompact" Width="56" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,72" Background="Transparent" BorderThickness="0" Padding="4,0" Panel.ZIndex="2">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsPaneOpen, ElementName=RootNavigation}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <StackPanel>
+                        <Grid Height="21">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="16" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="↑" Foreground="#F59E0B" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarCompactUploadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="SidebarCompactUploadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="8.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                        <Grid Height="21">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="24" />
+                                <ColumnDefinition Width="16" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="↓" Foreground="#6EA8FF" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarCompactDownloadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="SidebarCompactDownloadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="8.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </Grid>
 
             <Grid Grid.Column="1" Margin="20,10,24,24">
@@ -478,46 +513,80 @@
                                 </StackPanel>
                             </TabItem>
                             <TabItem x:Name="SpeedToolsTab">
-                                <StackPanel Margin="0,12,0,0">
-                                    <WrapPanel>
-                                        <Button x:Name="SpeedRunButton" Click="SpeedRun_Click" Margin="0,0,8,8" />
-                                    </WrapPanel>
-                                    <Grid Margin="0,8,0,14">
+                                <Grid Margin="0,14,0,0">
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                    </Grid.RowDefinitions>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="1.25*" />
+                                        <ColumnDefinition Width="0.95*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.RowSpan="2" Background="#0E141B" BorderBrush="#253349" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,0,14,0">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="*" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <DockPanel Margin="0,0,0,10" LastChildFill="False">
+                                                <StackPanel DockPanel.Dock="Left">
+                                                    <TextBlock x:Name="SpeedGaugePhaseText" Foreground="#DDE6F2" FontWeight="SemiBold" />
+                                                    <TextBlock x:Name="SpeedStatusText" Foreground="#8FA0B5" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                </StackPanel>
+                                                <Button x:Name="SpeedRunButton" DockPanel.Dock="Right" Click="SpeedRun_Click" MinWidth="96" />
+                                            </DockPanel>
+                                            <Canvas Grid.Row="1" Width="420" Height="270" HorizontalAlignment="Center" Margin="0,2,0,0">
+                                                <Path Stroke="#223149" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
+                                                <Path Stroke="#182231" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
+                                                <Path x:Name="SpeedGaugeArc" Stroke="#55E6D5" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                <Line x:Name="SpeedGaugeNeedle" X1="210" Y1="210" X2="210" Y2="86" Stroke="#F5F0E6" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                <Ellipse Width="22" Height="22" Fill="#F5F0E6" Canvas.Left="199" Canvas.Top="199" />
+                                                <Ellipse Width="8" Height="8" Fill="#0E141B" Canvas.Left="206" Canvas.Top="206" />
+                                                <TextBlock Text="0" Canvas.Left="88" Canvas.Top="206" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="10" Canvas.Left="112" Canvas.Top="143" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="50" Canvas.Left="154" Canvas.Top="100" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="100" Canvas.Left="195" Canvas.Top="80" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="250" Canvas.Left="254" Canvas.Top="100" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="500" Canvas.Left="291" Canvas.Top="143" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="1000" Canvas.Left="300" Canvas.Top="206" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock x:Name="SpeedGaugeValueText" Width="160" Canvas.Left="130" Canvas.Top="168" FontSize="36" FontWeight="Light" Foreground="#F7FAFF" TextAlignment="Center" />
+                                                <TextBlock Text="Mbps" Width="160" Canvas.Left="130" Canvas.Top="211" Foreground="#91A2B8" FontSize="12" TextAlignment="Center" />
+                                            </Canvas>
+                                            <Border Grid.Row="2" Height="1" Background="#26364A" Opacity="0.7" Margin="34,0" />
+                                        </Grid>
+                                    </Border>
+
+                                    <Grid Grid.Column="1">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="1*" />
-                                            <ColumnDefinition Width="1*" />
-                                            <ColumnDefinition Width="1*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <StackPanel Margin="0,0,8,0">
-                                            <TextBlock x:Name="DownloadSpeedLabel" />
-                                            <TextBlock x:Name="DownloadSpeedText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="1" Margin="4,0,4,0">
-                                            <TextBlock x:Name="UploadSpeedLabel" />
-                                            <TextBlock x:Name="UploadSpeedText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2" Margin="8,0,0,0">
-                                            <TextBlock x:Name="SpeedLatencyLabel" />
-                                            <TextBlock x:Name="SpeedLatencyText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
-                                        </StackPanel>
+                                        <Border Background="#111820" BorderBrush="#2C3B50" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
+                                            <StackPanel>
+                                                <TextBlock x:Name="DownloadSpeedLabel" Foreground="#9FB0C4" FontSize="12" />
+                                                <TextBlock x:Name="DownloadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="#F4F8FF" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
+                                                <Border Height="3" Background="#6EA8FF" CornerRadius="2" Margin="0,14,34,0" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border Grid.Column="1" Background="#111820" BorderBrush="#2C3B50" BorderThickness="1" CornerRadius="8" Padding="14" Margin="8,0,0,0">
+                                            <StackPanel>
+                                                <TextBlock x:Name="UploadSpeedLabel" Foreground="#9FB0C4" FontSize="12" />
+                                                <TextBlock x:Name="UploadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="#F4F8FF" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
+                                                <Border Height="3" Background="#F59E0B" CornerRadius="2" Margin="0,14,34,0" />
+                                            </StackPanel>
+                                        </Border>
                                     </Grid>
-                                    <Canvas Width="420" Height="270" HorizontalAlignment="Center" Margin="0,2,0,14">
-                                        <Path Stroke="#26364A" StrokeThickness="28" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
-                                        <Path x:Name="SpeedGaugeArc" Stroke="#55E6D5" StrokeThickness="28" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                        <Line x:Name="SpeedGaugeNeedle" X1="210" Y1="210" X2="210" Y2="86" Stroke="#F4F1E8" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                        <Ellipse Width="18" Height="18" Fill="#F4F1E8" Canvas.Left="201" Canvas.Top="201" />
-                                        <TextBlock Text="0" Canvas.Left="88" Canvas.Top="206" FontWeight="SemiBold" Opacity="0.72" />
-                                        <TextBlock Text="10" Canvas.Left="112" Canvas.Top="143" FontWeight="SemiBold" Opacity="0.72" />
-                                        <TextBlock Text="50" Canvas.Left="154" Canvas.Top="100" FontWeight="SemiBold" Opacity="0.72" />
-                                        <TextBlock Text="100" Canvas.Left="195" Canvas.Top="80" FontWeight="SemiBold" Opacity="0.72" />
-                                        <TextBlock Text="250" Canvas.Left="254" Canvas.Top="100" FontWeight="SemiBold" Opacity="0.72" />
-                                        <TextBlock Text="500" Canvas.Left="291" Canvas.Top="143" FontWeight="SemiBold" Opacity="0.72" />
-                                        <TextBlock Text="1000" Canvas.Left="300" Canvas.Top="206" FontWeight="SemiBold" Opacity="0.72" />
-                                        <TextBlock x:Name="SpeedGaugeValueText" Width="160" Canvas.Left="130" Canvas.Top="168" FontSize="34" FontWeight="Light" TextAlignment="Center" />
-                                        <TextBlock x:Name="SpeedGaugePhaseText" Width="160" Canvas.Left="130" Canvas.Top="210" TextAlignment="Center" Opacity="0.72" />
-                                    </Canvas>
-                                    <TextBlock x:Name="SpeedStatusText" TextWrapping="Wrap" />
-                                </StackPanel>
+
+                                    <Border Grid.Row="1" Grid.Column="1" Background="#111820" BorderBrush="#2C3B50" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,14,0,0">
+                                        <StackPanel>
+                                            <TextBlock x:Name="SpeedLatencyLabel" Foreground="#9FB0C4" FontSize="12" />
+                                            <TextBlock x:Name="SpeedLatencyText" FontSize="30" FontWeight="SemiBold" Foreground="#F4F8FF" Margin="0,8,0,0" />
+                                            <Border Height="3" Background="#55E6D5" CornerRadius="2" Margin="0,14,64,0" />
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
                             </TabItem>
                             <TabItem x:Name="WebsiteToolsTab">
                                 <StackPanel Margin="0,12,0,0">
