@@ -10,6 +10,9 @@ public interface IWifiClient
     Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default);
     Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default);
     Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default);
+    Task<bool> SaveProfileAsync(string profileName, string ssid, string? password, string authentication, CancellationToken cancellationToken = default);
     Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default);
+    Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default);
+    Task<bool> DeleteProfileAsync(string profileName, CancellationToken cancellationToken = default);
     Task<bool> DisconnectAsync(CancellationToken cancellationToken = default);
 }

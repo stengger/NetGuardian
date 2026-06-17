@@ -51,6 +51,11 @@ public sealed class NativeWifiScanner
 
     public bool SaveProfile(string ssid, string? password, string authentication)
     {
+        return SaveProfile(ssid, ssid, password, authentication);
+    }
+
+    public bool SaveProfile(string profileName, string ssid, string? password, string authentication)
+    {
         var openResult = WlanOpenHandle(WlanClientVersion, IntPtr.Zero, out _, out var handle);
         if (openResult != ErrorSuccess)
         {
@@ -65,7 +70,7 @@ public sealed class NativeWifiScanner
                 return false;
             }
 
-            var xml = NetshWifiClient.BuildWlanProfileXml(ssid, password, authentication);
+            var xml = NetshWifiClient.BuildWlanProfileXml(profileName, ssid, password, authentication);
             var interfaceGuid = interfaces[0].InterfaceGuid;
 
             var result = WlanSetProfile(

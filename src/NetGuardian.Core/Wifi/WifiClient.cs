@@ -47,12 +47,27 @@ public sealed class WifiClient : IWifiClient
 
     public Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
     {
-        return Task.Run(() => _nativeScanner.SaveProfile(ssid, password, authentication), cancellationToken);
+        return SaveProfileAsync(ssid, ssid, password, authentication, cancellationToken);
+    }
+
+    public Task<bool> SaveProfileAsync(string profileName, string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
+    {
+        return Task.Run(() => _nativeScanner.SaveProfile(profileName, ssid, password, authentication), cancellationToken);
     }
 
     public Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default)
     {
         return _netsh.ConnectAsync(ssid, cancellationToken);
+    }
+
+    public Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default)
+    {
+        return _netsh.ConnectProfileAsync(profileName, ssid, cancellationToken);
+    }
+
+    public Task<bool> DeleteProfileAsync(string profileName, CancellationToken cancellationToken = default)
+    {
+        return _netsh.DeleteProfileAsync(profileName, cancellationToken);
     }
 
     public Task<bool> DisconnectAsync(CancellationToken cancellationToken = default)

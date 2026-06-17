@@ -26,6 +26,8 @@ namespace NetGuardian.App;
 public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
     private const int MaxLogLines = 500;
+    private static readonly TimeSpan WifiValidationTimeout = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan WifiRestoreTimeout = TimeSpan.FromSeconds(10);
     private readonly SettingsStore _store = new();
     private readonly AppSettings _settings;
     private readonly Localizer _localizer = new();
@@ -579,18 +581,23 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var credentialSaved = false;
-        if (dialog.SaveToWindows)
+        if (!dialog.SaveToWindows)
         {
-            credentialSaved = await _wifi.SaveProfileAsync(ssid, dialog.Password, dialog.Authentication);
-            Log(credentialSaved ? $"Wi-Fi profile saved to Windows: {ssid}" : $"Failed to save Wi-Fi profile: {ssid}");
+            SetWifiSelectionMessage(_localizer.T("WifiCredentialMustSave"));
+            Log(_localizer.T("WifiCredentialMustSave"));
+            return;
+        }
+
+        if (!await ValidateAndSaveWifiProfileAsync(ssid, dialog.Password, dialog.Authentication))
+        {
+            return;
         }
 
         _profiles.Add(new WifiProfile
         {
             Ssid = ssid,
             Priority = _profiles.Count + 1,
-            CredentialSaved = credentialSaved,
+            CredentialSaved = true,
             Security = dialog.Authentication,
             Enabled = true,
             AutoConnect = true
@@ -624,19 +631,140 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var credentialSaved = profile.CredentialSaved;
-        if (dialog.SaveToWindows)
+        if (!dialog.SaveToWindows)
         {
-            credentialSaved = await _wifi.SaveProfileAsync(ssid, dialog.Password, dialog.Authentication);
-            Log(credentialSaved ? $"Wi-Fi credential saved to Windows: {ssid}" : $"Failed to save Wi-Fi credential: {ssid}");
+            SetWifiSelectionMessage(_localizer.T("WifiCredentialMustSave"));
+            Log(_localizer.T("WifiCredentialMustSave"));
+            return;
+        }
+
+        if (!await ValidateAndSaveWifiProfileAsync(ssid, dialog.Password, dialog.Authentication))
+        {
+            return;
         }
 
         profile.Ssid = ssid;
         profile.Security = dialog.Authentication;
-        profile.CredentialSaved = credentialSaved;
+        profile.CredentialSaved = true;
         ProfileGrid.Items.Refresh();
         SaveSettings();
         UpdateWifiSelectionUi();
+    }
+
+    private async Task<bool> ValidateAndSaveWifiProfileAsync(string ssid, string? password, string authentication)
+    {
+        var tempProfileName = $"NetGuardian-Verify-{Guid.NewGuid():N}";
+        var previousSsid = await _wifi.GetCurrentSsidAsync();
+        var connected = false;
+        var touchedConnection = false;
+
+        SetWifiSelectionMessage(string.Format(_localizer.T("WifiCredentialValidating"), ssid));
+        Log(string.Format(_localizer.T("WifiCredentialValidating"), ssid));
+
+        try
+        {
+            var tempSaved = await _wifi.SaveProfileAsync(tempProfileName, ssid, password, authentication);
+            if (!tempSaved)
+            {
+                SetWifiSelectionMessage(string.Format(_localizer.T("WifiCredentialTempSaveFailed"), ssid));
+                Log(string.Format(_localizer.T("WifiCredentialTempSaveFailed"), ssid));
+                return false;
+            }
+
+            if (SsidEquals(previousSsid, ssid))
+            {
+                touchedConnection = true;
+                await _wifi.DisconnectAsync();
+                await Task.Delay(TimeSpan.FromSeconds(1));
+            }
+
+            touchedConnection = true;
+            var commandSent = await _wifi.ConnectProfileAsync(tempProfileName, ssid);
+            if (!commandSent)
+            {
+                SetWifiSelectionMessage(string.Format(_localizer.T("WifiCredentialValidationFailed"), ssid));
+                Log(string.Format(_localizer.T("WifiCredentialValidationFailed"), ssid));
+                return false;
+            }
+
+            connected = await WaitForSsidAsync(ssid, WifiValidationTimeout);
+            if (!connected)
+            {
+                SetWifiSelectionMessage(string.Format(_localizer.T("WifiCredentialValidationFailed"), ssid));
+                Log(string.Format(_localizer.T("WifiCredentialValidationFailed"), ssid));
+                return false;
+            }
+
+            var saved = await _wifi.SaveProfileAsync(ssid, password, authentication);
+            if (!saved)
+            {
+                SetWifiSelectionMessage(string.Format(_localizer.T("WifiCredentialSaveFailed"), ssid));
+                Log(string.Format(_localizer.T("WifiCredentialSaveFailed"), ssid));
+                return false;
+            }
+
+            SetWifiSelectionMessage(string.Format(_localizer.T("WifiCredentialValidated"), ssid));
+            Log(string.Format(_localizer.T("WifiCredentialValidated"), ssid));
+            return true;
+        }
+        finally
+        {
+            await _wifi.DeleteProfileAsync(tempProfileName);
+            if (touchedConnection || connected)
+            {
+                await RestoreWifiAfterValidationAsync(previousSsid, ssid, connected);
+            }
+        }
+    }
+
+    private async Task RestoreWifiAfterValidationAsync(string? previousSsid, string validatedSsid, bool validationConnected)
+    {
+        if (string.IsNullOrWhiteSpace(previousSsid))
+        {
+            if (validationConnected)
+            {
+                await _wifi.ConnectAsync(validatedSsid);
+            }
+
+            return;
+        }
+
+        if (SsidEquals(previousSsid, validatedSsid) && validationConnected)
+        {
+            return;
+        }
+
+        Log(string.Format(_localizer.T("WifiRestoringPrevious"), previousSsid));
+        var commandSent = await _wifi.ConnectAsync(previousSsid);
+        var restored = commandSent && await WaitForSsidAsync(previousSsid, WifiRestoreTimeout);
+        if (!restored)
+        {
+            Log(string.Format(_localizer.T("WifiRestorePreviousFailed"), previousSsid));
+        }
+    }
+
+    private async Task<bool> WaitForSsidAsync(string ssid, TimeSpan timeout)
+    {
+        var deadline = DateTimeOffset.Now.Add(timeout);
+        while (DateTimeOffset.Now < deadline)
+        {
+            var currentSsid = await _wifi.GetCurrentSsidAsync();
+            if (SsidEquals(currentSsid, ssid))
+            {
+                return true;
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        }
+
+        return false;
+    }
+
+    private static bool SsidEquals(string? left, string? right)
+    {
+        return !string.IsNullOrWhiteSpace(left)
+            && !string.IsNullOrWhiteSpace(right)
+            && left.Trim().Equals(right.Trim(), StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task ImportSelectedWifiPasswordAsync()

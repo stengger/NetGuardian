@@ -97,9 +97,25 @@ public sealed partial class NetshWifiClient : IWifiClient
         throw new NotSupportedException("Netsh profile saving is deprecated due to plaintext password risk. Use NativeWifiScanner instead.");
     }
 
+    public Task<bool> SaveProfileAsync(string profileName, string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException("Netsh profile saving is deprecated due to plaintext password risk. Use NativeWifiScanner instead.");
+    }
+
     public async Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default)
     {
-        var result = await RunNetshAsync(["wlan", "connect", $"name={ssid}", $"ssid={ssid}"], cancellationToken);
+        return await ConnectProfileAsync(ssid, ssid, cancellationToken);
+    }
+
+    public async Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default)
+    {
+        var result = await RunNetshAsync(["wlan", "connect", $"name={profileName}", $"ssid={ssid}"], cancellationToken);
+        return result.ExitCode == 0;
+    }
+
+    public async Task<bool> DeleteProfileAsync(string profileName, CancellationToken cancellationToken = default)
+    {
+        var result = await RunNetshAsync(["wlan", "delete", "profile", $"name={profileName}"], cancellationToken);
         return result.ExitCode == 0;
     }
 
@@ -351,6 +367,12 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     public static string BuildWlanProfileXml(string ssid, string? password, string authentication)
     {
+        return BuildWlanProfileXml(ssid, ssid, password, authentication);
+    }
+
+    public static string BuildWlanProfileXml(string profileName, string ssid, string? password, string authentication)
+    {
+        var escapedProfileName = SecurityElement.Escape(profileName) ?? profileName;
         var escapedSsid = SecurityElement.Escape(ssid) ?? ssid;
         var isOpen = string.IsNullOrWhiteSpace(password)
             || authentication.Contains("Open", StringComparison.OrdinalIgnoreCase)
@@ -380,7 +402,7 @@ public sealed partial class NetshWifiClient : IWifiClient
         return $$"""
             <?xml version="1.0"?>
             <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
-                <name>{{escapedSsid}}</name>
+                <name>{{escapedProfileName}}</name>
                 <SSIDConfig>
                     <SSID>
                         <name>{{escapedSsid}}</name>

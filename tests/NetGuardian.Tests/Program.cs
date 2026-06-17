@@ -13,6 +13,7 @@ var tests = new List<(string Name, Action Body)>
     ("parse Wi-Fi profile SSID", ParseWifiProfileSsid),
     ("parse scan output", ParseScanOutput),
     ("build WLAN profile XML", BuildWlanProfileXml),
+    ("build WLAN profile XML with profile name", BuildWlanProfileXmlWithProfileName),
     ("normalize website URL", NormalizeWebsiteUrl),
     ("settings round trip", SettingsRoundTrip),
     ("settings restore backup", SettingsRestoreBackup),
@@ -243,6 +244,15 @@ static void BuildWlanProfileXml()
     if (!xml.Contains("A&amp;B") || !xml.Contains("pa&lt;ss&gt;"))
     {
         throw new InvalidOperationException("WLAN profile XML did not escape SSID/password.");
+    }
+}
+
+static void BuildWlanProfileXmlWithProfileName()
+{
+    var xml = NetshWifiClient.BuildWlanProfileXml("NetGuardian-Verify", "Office-5G", "secret", "WPA2-Personal");
+    if (!xml.Contains("<name>NetGuardian-Verify</name>") || !xml.Contains("<name>Office-5G</name>"))
+    {
+        throw new InvalidOperationException("WLAN profile XML did not preserve separate profile and SSID names.");
     }
 }
 
