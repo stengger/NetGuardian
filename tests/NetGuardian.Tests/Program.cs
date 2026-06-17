@@ -1,4 +1,5 @@
 using NetGuardian.Core.Models;
+using NetGuardian.Core.Network;
 using NetGuardian.Core.Settings;
 using NetGuardian.Core.Wifi;
 
@@ -7,6 +8,7 @@ var tests = new List<(string Name, Action Body)>
     ("parse current SSID", ParseCurrentSsid),
     ("parse scan output", ParseScanOutput),
     ("build WLAN profile XML", BuildWlanProfileXml),
+    ("normalize website URL", NormalizeWebsiteUrl),
     ("settings round trip", SettingsRoundTrip)
 };
 
@@ -96,6 +98,12 @@ static void BuildWlanProfileXml()
     {
         throw new InvalidOperationException("WLAN profile XML did not escape SSID/password.");
     }
+}
+
+static void NormalizeWebsiteUrl()
+{
+    AssertEqual("https://example.com", WebsiteTestService.NormalizeUrl("example.com"));
+    AssertEqual("http://example.com", WebsiteTestService.NormalizeUrl("http://example.com"));
 }
 
 static void AssertEqual<T>(T expected, T actual)

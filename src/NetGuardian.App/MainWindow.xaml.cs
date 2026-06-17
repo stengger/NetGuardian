@@ -29,6 +29,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly Localizer _localizer = new();
     private readonly IWifiClient _wifi = new WifiClient();
     private readonly NetworkConfigurationService _networkConfiguration = new();
+    private readonly WebsiteTestService _websiteTester = new();
+    private readonly PublicIpInfoService _publicIpInfo = new();
+    private readonly NetworkSpeedTestService _speedTester = new();
     private readonly ObservableCollection<WifiNetwork> _nearbyNetworks = [];
     private readonly ObservableCollection<WifiProfile> _profiles = [];
     private readonly ObservableCollection<string> _recentEvents = [];
@@ -36,6 +39,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ObservableCollection<DnsAdapterOption> _dnsAdapterOptions = [];
     private readonly ObservableCollection<AdapterRow> _adapterRows = [];
     private readonly ObservableCollection<QualityProbeRow> _qualityRows = [];
+    private readonly ObservableCollection<WebsiteTestRow> _websiteRows = [];
+    private readonly ObservableCollection<IpInfoRow> _ipInfoRows = [];
+    private readonly ObservableCollection<DiagnosticReportRow> _reportRows = [];
     private readonly DispatcherTimer _monitorTimer = new();
     private readonly DispatcherTimer _countdownTimer = new();
     private readonly Forms.NotifyIcon _notifyIcon;
@@ -67,6 +73,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         DnsAdapterComboBox.DisplayMemberPath = nameof(DnsAdapterOption.Name);
         AdapterGrid.ItemsSource = _adapterRows;
         QualityProbeGrid.ItemsSource = _qualityRows;
+        WebsiteGrid.ItemsSource = _websiteRows;
+        IpInfoGrid.ItemsSource = _ipInfoRows;
+        ReportGrid.ItemsSource = _reportRows;
 
         _monitorTimer.Tick += async (_, _) => await RunCheckAsync();
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
@@ -78,6 +87,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ApplyLanguage();
         InitializeDnsControls();
         ResetQualityUi();
+        ResetSpeedUi();
+        ResetIpInfoUi();
+        ResetReportUi();
         RefreshDnsInfo();
         RefreshAdapterInfo();
         ShowPanel(StatusPanel);
@@ -237,6 +249,35 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         await RunUiActionAsync(RunQualityCheckAsync);
     }
 
+    private async void SpeedRun_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(RunSpeedTestAsync);
+    }
+
+    private async void WebsiteRun_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(() => RunWebsiteTestAsync(_localizer.T("CustomWebsite"), WebsiteUrlTextBox.Text));
+    }
+
+    private async void WebsitePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button button && button.Tag is string url)
+        {
+            WebsiteUrlTextBox.Text = url;
+            await RunUiActionAsync(() => RunWebsiteTestAsync(button.Content?.ToString() ?? url, url));
+        }
+    }
+
+    private async void IpInfoRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(RefreshPublicIpInfoAsync);
+    }
+
+    private async void ReportRun_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(RunDiagnosticReportAsync);
+    }
+
     private void ToolsNetworkSettings_Click(object sender, RoutedEventArgs e)
     {
         Process.Start(new ProcessStartInfo
@@ -316,6 +357,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             "ToolsPanel" => ToolsPanel,
             "DnsPanel" => DnsPanel,
             "QualityPanel" => QualityPanel,
+            "SpeedPanel" => SpeedPanel,
+            "WebsitePanel" => WebsitePanel,
+            "IpInfoPanel" => IpInfoPanel,
+            "ReportPanel" => ReportPanel,
             "NetworkPanel" => NetworkPanel,
             "LogPanel" => LogPanel,
             "SettingsPanel" => SettingsPanel,
@@ -725,6 +770,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ToolsNavButton.Content = _localizer.T("Tools");
         DnsNavButton.Content = _localizer.T("DnsTools");
         QualityNavButton.Content = _localizer.T("QualityTools");
+        SpeedNavButton.Content = _localizer.T("SpeedTools");
+        WebsiteNavButton.Content = _localizer.T("WebsiteTools");
+        IpInfoNavButton.Content = _localizer.T("IpInfoTools");
+        ReportNavButton.Content = _localizer.T("ReportTools");
         AdapterNavButton.Content = _localizer.T("AdapterTools");
         LogNavButton.Content = _localizer.T("Log");
         SettingsNavButton.Content = _localizer.T("Settings");
@@ -800,6 +849,33 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityResultColumn.Header = _localizer.T("Result");
         QualityLatencyColumn.Header = _localizer.T("Latency");
         QualityDetailColumn.Header = _localizer.T("Detail");
+        SpeedToolsTitle.Text = _localizer.T("SpeedTools");
+        SpeedRunButton.Content = _localizer.T("RunSpeedTest");
+        DownloadSpeedLabel.Text = _localizer.T("DownloadSpeed");
+        UploadSpeedLabel.Text = _localizer.T("UploadSpeed");
+        SpeedLatencyLabel.Text = _localizer.T("Latency");
+        WebsiteToolsTitle.Text = _localizer.T("WebsiteTools");
+        WebsiteRunButton.Content = _localizer.T("Test");
+        WebsiteAppleButton.Content = "Apple";
+        WebsiteGitHubButton.Content = "GitHub";
+        WebsiteGoogleButton.Content = "Google";
+        WebsiteYouTubeButton.Content = "YouTube";
+        WebsiteNameColumn.Header = _localizer.T("Website");
+        WebsiteStatusColumn.Header = _localizer.T("StatusColumn");
+        WebsiteHttpColumn.Header = "HTTP";
+        WebsiteDnsColumn.Header = "DNS";
+        WebsiteLatencyColumn.Header = _localizer.T("Latency");
+        WebsiteAddressColumn.Header = "IP";
+        WebsiteDetailColumn.Header = _localizer.T("Detail");
+        IpInfoToolsTitle.Text = _localizer.T("IpInfoTools");
+        IpInfoRefreshButton.Content = _localizer.T("RefreshStatus");
+        IpInfoNameColumn.Header = _localizer.T("Item");
+        IpInfoValueColumn.Header = _localizer.T("Value");
+        ReportToolsTitle.Text = _localizer.T("ReportTools");
+        ReportRunButton.Content = _localizer.T("RunDiagnosticReport");
+        ReportItemColumn.Header = _localizer.T("Item");
+        ReportResultColumn.Header = _localizer.T("Result");
+        ReportAdviceColumn.Header = _localizer.T("Advice");
         AdapterToolsTitle.Text = _localizer.T("AdapterTools");
         AdapterRefreshButton.Content = _localizer.T("RefreshStatus");
         AdapterRenewDhcpButton.Content = _localizer.T("RenewDhcp");
@@ -839,7 +915,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ShowPanel(UIElement panel)
     {
-        foreach (var item in new UIElement[] { StatusPanel, WifiPanel, PolicyPanel, ToolsPanel, DnsPanel, QualityPanel, NetworkPanel, LogPanel, SettingsPanel })
+        foreach (var item in new UIElement[] { StatusPanel, WifiPanel, PolicyPanel, ToolsPanel, DnsPanel, QualityPanel, SpeedPanel, WebsitePanel, IpInfoPanel, ReportPanel, NetworkPanel, LogPanel, SettingsPanel })
         {
             item.Visibility = item == panel ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -850,6 +926,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             : panel == ToolsPanel ? _localizer.T("Tools")
             : panel == DnsPanel ? _localizer.T("DnsTools")
             : panel == QualityPanel ? _localizer.T("QualityTools")
+            : panel == SpeedPanel ? _localizer.T("SpeedTools")
+            : panel == WebsitePanel ? _localizer.T("WebsiteTools")
+            : panel == IpInfoPanel ? _localizer.T("IpInfoTools")
+            : panel == ReportPanel ? _localizer.T("ReportTools")
             : panel == NetworkPanel ? _localizer.T("AdapterTools")
             : panel == LogPanel ? _localizer.T("Log")
             : _localizer.T("Settings");
@@ -948,6 +1028,26 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (QualityPanel.Visibility == Visibility.Visible)
         {
             QualityStatusText.Text = text;
+        }
+
+        if (SpeedPanel.Visibility == Visibility.Visible)
+        {
+            SpeedStatusText.Text = text;
+        }
+
+        if (WebsitePanel.Visibility == Visibility.Visible)
+        {
+            WebsiteStatusText.Text = text;
+        }
+
+        if (IpInfoPanel.Visibility == Visibility.Visible)
+        {
+            IpInfoStatusText.Text = text;
+        }
+
+        if (ReportPanel.Visibility == Visibility.Visible)
+        {
+            ReportStatusText.Text = text;
         }
     }
 
@@ -1295,6 +1395,198 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityStatusText.Text = _localizer.T("NotChecked");
     }
 
+    private async Task RunSpeedTestAsync()
+    {
+        SpeedRunButton.IsEnabled = false;
+        SpeedStatusText.Text = _localizer.T("SpeedTesting");
+        try
+        {
+            var result = await _speedTester.RunAsync();
+            DownloadSpeedText.Text = FormatMbps(result.DownloadMbps);
+            UploadSpeedText.Text = FormatMbps(result.UploadMbps);
+            SpeedLatencyText.Text = result.LatencyMs.HasValue ? $"{result.LatencyMs.Value:F0} ms" : "-";
+            SpeedStatusText.Text = string.Format(_localizer.T("SpeedTestDone"), result.CheckedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+            Log($"{_localizer.T("SpeedTools")}: {DownloadSpeedText.Text} / {UploadSpeedText.Text} / {SpeedLatencyText.Text}");
+        }
+        catch (Exception ex)
+        {
+            SpeedStatusText.Text = ex.Message;
+            Log(ex.Message);
+        }
+        finally
+        {
+            SpeedRunButton.IsEnabled = true;
+        }
+    }
+
+    private async Task RunWebsiteTestAsync(string name, string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            WebsiteStatusText.Text = _localizer.T("EnterWebsiteUrl");
+            return;
+        }
+
+        WebsiteRunButton.IsEnabled = false;
+        WebsiteStatusText.Text = _localizer.T("WebsiteTesting");
+        try
+        {
+            var result = await _websiteTester.TestAsync(name, url);
+            var row = new WebsiteTestRow(
+                string.IsNullOrWhiteSpace(name) ? result.Host : name,
+                result.Success ? _localizer.T("Pass") : _localizer.T("Fail"),
+                result.StatusCode?.ToString() ?? "-",
+                FormatLatency(result.DnsLatencyMs),
+                FormatLatency(result.HttpLatencyMs),
+                string.IsNullOrWhiteSpace(result.Address) ? "-" : result.Address,
+                string.IsNullOrWhiteSpace(result.Detail) ? result.Url : result.Detail);
+            _websiteRows.Insert(0, row);
+            while (_websiteRows.Count > 20)
+            {
+                _websiteRows.RemoveAt(_websiteRows.Count - 1);
+            }
+
+            WebsiteStatusText.Text = string.Format(_localizer.T("WebsiteTestDone"), row.Name, row.Status, row.HttpLatency);
+            Log($"{_localizer.T("WebsiteTools")}: {row.Name} {row.Status} {row.HttpLatency}");
+        }
+        catch (Exception ex)
+        {
+            WebsiteStatusText.Text = ex.Message;
+            Log(ex.Message);
+        }
+        finally
+        {
+            WebsiteRunButton.IsEnabled = true;
+        }
+    }
+
+    private async Task RefreshPublicIpInfoAsync()
+    {
+        IpInfoRefreshButton.IsEnabled = false;
+        IpInfoStatusText.Text = _localizer.T("Checking");
+        try
+        {
+            var info = await _publicIpInfo.GetAsync();
+            _ipInfoRows.Clear();
+            AddIpInfoRow("PublicIp", info.Ip);
+            AddIpInfoRow("CountryRegion", $"{info.Country} ({info.CountryCode})");
+            AddIpInfoRow("City", string.Join(", ", new[] { info.Region, info.City }.Where(item => !string.IsNullOrWhiteSpace(item) && item != "-")));
+            AddIpInfoRow("Isp", info.Isp);
+            AddIpInfoRow("Organization", info.Organization);
+            AddIpInfoRow("AutonomousSystem", info.AutonomousSystem);
+            AddIpInfoRow("Timezone", info.Timezone);
+            AddIpInfoRow("Coordinates", $"{info.Longitude:F4}, {info.Latitude:F4}");
+            AddIpInfoRow("LastRefresh", info.RefreshedAt.ToString("yyyy-MM-dd HH:mm:ss"));
+            IpInfoStatusText.Text = string.Format(_localizer.T("IpInfoRefreshed"), info.Ip);
+            Log($"{_localizer.T("IpInfoTools")}: {info.Ip}");
+        }
+        catch (Exception ex)
+        {
+            IpInfoStatusText.Text = ex.Message;
+            Log(ex.Message);
+        }
+        finally
+        {
+            IpInfoRefreshButton.IsEnabled = true;
+        }
+    }
+
+    private async Task RunDiagnosticReportAsync()
+    {
+        ReportRunButton.IsEnabled = false;
+        ReportStatusText.Text = _localizer.T("Checking");
+        try
+        {
+            var currentSsid = await _wifi.GetCurrentSsidAsync();
+            var tester = new ConnectivityTester(_settings.Policy);
+            var report = await tester.RunFullCheckAsync(currentSsid);
+            var score = CalculateQualityScore(report);
+
+            _reportRows.Clear();
+            AddReportRow("HealthState", $"{score}/100 - {StateText(report.State)}", AdviceForState(report.State));
+            AddReportRow("CurrentNetwork", string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid, _localizer.T("CheckWifiPriority"));
+            AddReportRow("IPv4", string.IsNullOrWhiteSpace(report.Ipv4) ? "-" : report.Ipv4, string.IsNullOrWhiteSpace(report.Ipv4) ? _localizer.T("CheckAdapter") : _localizer.T("NoActionNeeded"));
+            AddReportRow("Gateway", string.IsNullOrWhiteSpace(report.Gateway) ? "-" : report.Gateway, report.State == NetworkState.GatewayIssue ? _localizer.T("CheckRouter") : _localizer.T("NoActionNeeded"));
+            AddReportRow("DnsTools", ProbeSummary(report, "DNS"), report.State == NetworkState.DnsIssue ? _localizer.T("TryDnsSettings") : _localizer.T("NoActionNeeded"));
+            AddReportRow("Internet", ProbeSummary(report, "HTTPS"), report.State == NetworkState.InternetIssue ? _localizer.T("CheckProxyOrIsp") : _localizer.T("NoActionNeeded"));
+            AddReportRow("FailureStreak", _failureStreak.ToString(), _failureStreak > 0 ? _localizer.T("WatchNextCheck") : _localizer.T("NoActionNeeded"));
+
+            ReportStatusText.Text = $"{StateText(report.State)} - {LocalizeSummary(report.Summary)}";
+            Log($"{_localizer.T("ReportTools")}: {ReportStatusText.Text}");
+        }
+        catch (Exception ex)
+        {
+            ReportStatusText.Text = ex.Message;
+            Log(ex.Message);
+        }
+        finally
+        {
+            ReportRunButton.IsEnabled = true;
+        }
+    }
+
+    private void AddIpInfoRow(string key, string value)
+    {
+        _ipInfoRows.Add(new IpInfoRow(_localizer.T(key), string.IsNullOrWhiteSpace(value) ? "-" : value));
+    }
+
+    private void AddReportRow(string key, string result, string advice)
+    {
+        _reportRows.Add(new DiagnosticReportRow(_localizer.T(key), result, advice));
+    }
+
+    private string AdviceForState(NetworkState state)
+    {
+        return state switch
+        {
+            NetworkState.Healthy => _localizer.T("NoActionNeeded"),
+            NetworkState.Disconnected => _localizer.T("CheckAdapter"),
+            NetworkState.GatewayIssue => _localizer.T("CheckRouter"),
+            NetworkState.DnsIssue => _localizer.T("TryDnsSettings"),
+            NetworkState.InternetIssue => _localizer.T("CheckProxyOrIsp"),
+            _ => _localizer.T("RunAgainLater")
+        };
+    }
+
+    private string ProbeSummary(ConnectivityReport report, string prefix)
+    {
+        var probes = report.Probes.Where(probe => probe.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList();
+        if (probes.Count == 0)
+        {
+            return "-";
+        }
+
+        return $"{probes.Count(probe => probe.Ok)}/{probes.Count}";
+    }
+
+    private void ResetSpeedUi()
+    {
+        DownloadSpeedText.Text = "-";
+        UploadSpeedText.Text = "-";
+        SpeedLatencyText.Text = "-";
+        SpeedStatusText.Text = _localizer.T("NotChecked");
+    }
+
+    private void ResetIpInfoUi()
+    {
+        IpInfoStatusText.Text = _localizer.T("NotChecked");
+    }
+
+    private void ResetReportUi()
+    {
+        ReportStatusText.Text = _localizer.T("NotChecked");
+    }
+
+    private static string FormatMbps(double mbps)
+    {
+        return $"{mbps:F1} Mbps";
+    }
+
+    private static string FormatLatency(double? latencyMs)
+    {
+        return latencyMs.HasValue ? $"{latencyMs.Value:F0} ms" : "-";
+    }
+
     private string LocalizeOperationalStatus(OperationalStatus status)
     {
         return status switch
@@ -1445,6 +1737,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private sealed record ProbeRow(string Name, string ResultText, string LatencyText, string Detail);
     private sealed record QualityProbeRow(string Name, string ResultText, string LatencyText, string Detail);
+    private sealed record WebsiteTestRow(string Name, string Status, string HttpStatus, string DnsLatency, string HttpLatency, string Address, string Detail);
+    private sealed record IpInfoRow(string Name, string Value);
+    private sealed record DiagnosticReportRow(string Item, string Result, string Advice);
     private sealed record DnsAdapterOption(string Name);
     private sealed record DnsServerRow(string Adapter, string Servers, string Source, string Status);
     private sealed record AdapterRow(string Name, string Type, string Status, string Ipv4, string Gateway, string DnsServers);
