@@ -71,7 +71,7 @@
                     <ui:NavigationViewItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon GlobeSearch20}" Tag="DnsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="QualityNavButton" Content="Quality" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="QualityPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="AdapterNavButton" Content="Adapter" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="NetworkPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon ClipboardBulletList24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon DocumentBulletList24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                 </ui:NavigationView.MenuItems>
                 <ui:NavigationView.FooterMenuItems>
                     <ui:NavigationViewItem x:Name="SettingsNavButton" Content="Settings" Icon="{ui:SymbolIcon Settings24}" Tag="SettingsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
