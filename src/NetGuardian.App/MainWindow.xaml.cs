@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -36,7 +37,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly WebsiteTestService _websiteTester = new();
     private readonly PublicIpInfoService _publicIpInfo = new();
     private readonly NetworkSpeedTestService _speedTester = new();
-    private readonly ObservableCollection<WifiNetwork> _nearbyNetworks = [];
+    private readonly ObservableCollection<NearbyWifiRow> _nearbyNetworks = [];
     private readonly ObservableCollection<WifiProfile> _profiles = [];
     private readonly ObservableCollection<string> _recentEvents = [];
     private readonly ObservableCollection<DnsServerRow> _dnsRows = [];
@@ -48,6 +49,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ObservableCollection<DiagnosticReportRow> _reportRows = [];
     private readonly DispatcherTimer _monitorTimer = new();
     private readonly DispatcherTimer _countdownTimer = new();
+    private readonly DispatcherTimer _sidebarSpeedTimer = new();
+    private readonly Queue<double> _downloadSpeedSamples = new();
+    private readonly Queue<double> _uploadSpeedSamples = new();
     private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly Forms.NotifyIcon _notifyIcon;
     private bool _isChecking;
@@ -60,6 +64,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private int _logLineCount;
     private int _failureStreak;
     private DateTimeOffset? _nextCheckAt;
+    private DateTimeOffset? _lastSidebarSpeedSampleAt;
+    private long? _lastSidebarReceivedBytes;
+    private long? _lastSidebarSentBytes;
+    private long _sidebarSessionReceivedBytes;
+    private long _sidebarSessionSentBytes;
     private Point _dragStartPoint;
     private WifiProfile? _draggedProfile;
 
@@ -90,6 +99,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
         _countdownTimer.Tick += (_, _) => UpdateMonitorStatus();
         _countdownTimer.Start();
+        _sidebarSpeedTimer.Interval = TimeSpan.FromSeconds(1);
+        _sidebarSpeedTimer.Tick += (_, _) => UpdateSidebarSpeed();
+        _sidebarSpeedTimer.Start();
 
         _notifyIcon = CreateNotifyIcon();
         ApplySettingsToUi();
@@ -103,6 +115,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RefreshAdapterInfo();
         ShowPanel(StatusPanel);
         UpdateMonitorStatus();
+        UpdateSidebarSpeed();
 
         if (_settings.StartMonitoringOnLaunch)
         {
@@ -139,7 +152,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void AddSelected_Click(object sender, RoutedEventArgs e)
     {
-        if (NearbyGrid.SelectedItem is WifiNetwork network)
+        if (NearbyGrid.SelectedItem is NearbyWifiRow network)
         {
             await RunUiActionAsync(() => AddWifiProfileAsync(network));
             return;
@@ -159,7 +172,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             await RunUiActionAsync(() => ConfigureProfileCredentialAsync(profile));
         }
-        else if (NearbyGrid.SelectedItem is WifiNetwork network)
+        else if (NearbyGrid.SelectedItem is NearbyWifiRow network)
         {
             await RunUiActionAsync(() => AddWifiProfileAsync(network));
             return;
@@ -175,7 +188,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void NearbyGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (GetRowItemAtPoint<WifiNetwork>(NearbyGrid, e.GetPosition(NearbyGrid)) is WifiNetwork network)
+        if (GetRowItemAtPoint<NearbyWifiRow>(NearbyGrid, e.GetPosition(NearbyGrid)) is NearbyWifiRow network)
         {
             await RunUiActionAsync(() => AddWifiProfileAsync(network));
         }
@@ -239,6 +252,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _profiles.Remove(profile);
         RenumberProfiles();
         SaveSettings();
+        RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
     }
 
@@ -548,9 +562,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _nearbyNetworks.Clear();
             foreach (var network in networks)
             {
-                _nearbyNetworks.Add(network);
+                _nearbyNetworks.Add(CreateNearbyWifiRow(network));
             }
 
+            RefreshNearbyPriorityMarkers();
             UpdateWifiSelectionUi();
             Log(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
             SetToolOutput(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
@@ -565,9 +580,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private async Task AddWifiProfileAsync(WifiNetwork? network, string? initialPassword = null)
+    private async Task AddWifiProfileAsync(NearbyWifiRow? network, string? initialPassword = null)
     {
-        var dialog = new AddWifiDialog(_localizer, network, initialPassword) { Owner = this };
+        var dialog = new AddWifiDialog(_localizer, network is null ? null : ToWifiNetwork(network), initialPassword) { Owner = this };
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.Ssid))
         {
             return;
@@ -604,6 +619,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         });
         RenumberProfiles();
         SaveSettings();
+        RefreshNearbyPriorityMarkers();
         ProfileGrid.SelectedItem = _profiles.FirstOrDefault(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
         UpdateWifiSelectionUi();
     }
@@ -648,6 +664,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         profile.CredentialSaved = true;
         ProfileGrid.Items.Refresh();
         SaveSettings();
+        RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
     }
 
@@ -783,7 +800,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        if (NearbyGrid.SelectedItem is WifiNetwork network)
+        if (NearbyGrid.SelectedItem is NearbyWifiRow network)
         {
             var password = await _wifi.GetSavedPasswordAsync(network.Ssid);
             if (string.IsNullOrWhiteSpace(password))
@@ -820,6 +837,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RenumberProfiles();
         ProfileGrid.SelectedItem = profile;
         SaveSettings();
+        RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
     }
 
@@ -896,9 +914,53 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProfileGrid.Items.Refresh();
     }
 
+    private NearbyWifiRow CreateNearbyWifiRow(WifiNetwork network)
+    {
+        var row = new NearbyWifiRow(
+            network.Ssid,
+            network.SignalPercent,
+            network.Authentication,
+            network.Encryption,
+            network.IsSecure,
+            network.IsConnectable);
+        ApplyNearbyPriorityMarker(row);
+        return row;
+    }
+
+    private WifiNetwork ToWifiNetwork(NearbyWifiRow row)
+    {
+        return new WifiNetwork(
+            row.Ssid,
+            row.SignalPercent,
+            row.Authentication,
+            row.Encryption,
+            row.IsSecure,
+            row.IsConnectable);
+    }
+
+    private void RefreshNearbyPriorityMarkers()
+    {
+        foreach (var row in _nearbyNetworks)
+        {
+            ApplyNearbyPriorityMarker(row);
+        }
+
+        NearbyGrid.Items.Refresh();
+    }
+
+    private void ApplyNearbyPriorityMarker(NearbyWifiRow row)
+    {
+        var profile = _profiles.FirstOrDefault(item => item.Ssid.Equals(row.Ssid, StringComparison.OrdinalIgnoreCase));
+        row.IsInPriorityList = profile is not null;
+        row.Priority = profile?.Priority;
+        row.PriorityBadge = profile is null
+            ? _localizer.T("NotInPriority")
+            : string.Format(_localizer.T("InPriorityFormat"), profile.Priority);
+    }
+
     private void UpdateWifiSelectionUi()
     {
-        var nearby = NearbyGrid.SelectedItem as WifiNetwork;
+        var nearby = NearbyGrid.SelectedItem as NearbyWifiRow;
         var profile = ProfileGrid.SelectedItem as WifiProfile;
         var hasNearby = nearby is not null;
         var hasProfile = profile is not null;
@@ -946,8 +1008,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void SetWifiSelectionVisual(bool hasSelection)
     {
-        WifiSelectionBar.Background = new SolidColorBrush(hasSelection ? Color.FromRgb(34, 48, 38) : Color.FromRgb(32, 40, 31));
-        WifiSelectionBar.BorderBrush = new SolidColorBrush(hasSelection ? Color.FromRgb(105, 209, 139) : Color.FromRgb(62, 75, 61));
+        WifiSelectionBar.Background = new SolidColorBrush(hasSelection ? Color.FromRgb(30, 40, 58) : Color.FromRgb(23, 29, 37));
+        WifiSelectionBar.BorderBrush = new SolidColorBrush(hasSelection ? Color.FromRgb(110, 168, 255) : Color.FromRgb(48, 57, 70));
     }
 
     private string DisplaySsid(string ssid)
@@ -960,10 +1022,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         HealthStateText.Text = StateText(report.State);
         HealthStateText.Foreground = report.State switch
         {
-            NetworkState.Healthy => new SolidColorBrush(Color.FromRgb(105, 209, 139)),
-            NetworkState.Recovering => new SolidColorBrush(Color.FromRgb(93, 174, 120)),
-            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => new SolidColorBrush(Color.FromRgb(217, 164, 65)),
-            _ => new SolidColorBrush(Color.FromRgb(239, 107, 91))
+            NetworkState.Healthy => new SolidColorBrush(Color.FromRgb(110, 168, 255)),
+            NetworkState.Recovering => new SolidColorBrush(Color.FromRgb(96, 165, 250)),
+            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => new SolidColorBrush(Color.FromRgb(245, 158, 11)),
+            _ => new SolidColorBrush(Color.FromRgb(244, 114, 137))
         };
         SummaryText.Text = LocalizeSummary(report.Summary);
         CurrentSsidText.Text = string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid;
@@ -1178,6 +1240,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProfileCredentialColumn.Header = _localizer.T("CredentialSaved");
         ProfileEnabledColumn.Header = _localizer.T("Enabled");
         ProfileFailuresColumn.Header = _localizer.T("Failures");
+        NearbyPriorityColumn.Header = _localizer.T("PriorityState");
         PolicyTitle.Text = _localizer.T("Policy");
         IntervalLabel.Text = _localizer.T("IntervalValue");
         FailuresBeforeRecoveryLabel.Text = _localizer.T("FailuresBeforeRecovery");
@@ -1273,12 +1336,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ((ComboBoxItem)CloseBehaviorComboBox.Items[0]).Content = _localizer.T("CloseAsk");
         ((ComboBoxItem)CloseBehaviorComboBox.Items[1]).Content = _localizer.T("CloseExit");
         ((ComboBoxItem)CloseBehaviorComboBox.Items[2]).Content = _localizer.T("CloseTray");
+        SidebarSpeedTitle.Text = _localizer.T("RealtimeSpeed");
         if (HealthStateText.Text == "" || HealthStateText.Text == "尚未检测" || HealthStateText.Text == "Not checked")
         {
             HealthStateText.Text = _localizer.T("NotChecked");
         }
 
         ApplyTooltips();
+        RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
         UpdateMonitorStatus();
         UpdateTrayText();
@@ -1355,8 +1420,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         MonitorStateText.Text = monitorState;
         HeaderStateText.Text = activityState;
         StatusDot.Fill = _isChecking
-            ? new SolidColorBrush(Color.FromRgb(217, 164, 65))
-            : new SolidColorBrush(Color.FromRgb(142, 150, 137));
+            ? new SolidColorBrush(Color.FromRgb(245, 158, 11))
+            : new SolidColorBrush(Color.FromRgb(154, 167, 184));
         StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StartMonitorButton.IsEnabled = !_isMonitoring || !_isChecking;
         StopButton.IsEnabled = _isMonitoring;
@@ -1373,6 +1438,147 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         UpdateTrayText();
+    }
+
+    private void UpdateSidebarSpeed()
+    {
+        var now = DateTimeOffset.Now;
+        var (receivedBytes, sentBytes) = ReadNetworkByteTotals();
+        var downloadBytesPerSecond = 0d;
+        var uploadBytesPerSecond = 0d;
+
+        if (_lastSidebarSpeedSampleAt.HasValue
+            && _lastSidebarReceivedBytes.HasValue
+            && _lastSidebarSentBytes.HasValue)
+        {
+            var elapsedSeconds = Math.Max(0.1, (now - _lastSidebarSpeedSampleAt.Value).TotalSeconds);
+            var receivedDelta = Math.Max(0, receivedBytes - _lastSidebarReceivedBytes.Value);
+            var sentDelta = Math.Max(0, sentBytes - _lastSidebarSentBytes.Value);
+            downloadBytesPerSecond = receivedDelta / elapsedSeconds;
+            uploadBytesPerSecond = sentDelta / elapsedSeconds;
+            _sidebarSessionReceivedBytes += receivedDelta;
+            _sidebarSessionSentBytes += sentDelta;
+        }
+
+        _lastSidebarSpeedSampleAt = now;
+        _lastSidebarReceivedBytes = receivedBytes;
+        _lastSidebarSentBytes = sentBytes;
+
+        PushSpeedSample(_downloadSpeedSamples, downloadBytesPerSecond);
+        PushSpeedSample(_uploadSpeedSamples, uploadBytesPerSecond);
+        SetRateText(SidebarDownloadSpeedText, SidebarDownloadUnitText, downloadBytesPerSecond);
+        SetRateText(SidebarUploadSpeedText, SidebarUploadUnitText, uploadBytesPerSecond);
+        SetBytesText(SidebarSessionTrafficText, SidebarSessionTrafficUnitText, _sidebarSessionReceivedBytes + _sidebarSessionSentBytes);
+        DrawSidebarSpeedLines();
+    }
+
+    private static (long ReceivedBytes, long SentBytes) ReadNetworkByteTotals()
+    {
+        long receivedBytes = 0;
+        long sentBytes = 0;
+        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces()
+            .Where(item => item.OperationalStatus == OperationalStatus.Up
+                && item.NetworkInterfaceType != NetworkInterfaceType.Loopback
+                && item.NetworkInterfaceType != NetworkInterfaceType.Tunnel))
+        {
+            try
+            {
+                var statistics = networkInterface.GetIPv4Statistics();
+                receivedBytes += statistics.BytesReceived;
+                sentBytes += statistics.BytesSent;
+            }
+            catch (NetworkInformationException)
+            {
+            }
+        }
+
+        return (receivedBytes, sentBytes);
+    }
+
+    private static void PushSpeedSample(Queue<double> samples, double value)
+    {
+        const int sampleLimit = 28;
+        samples.Enqueue(Math.Max(0, value));
+        while (samples.Count > sampleLimit)
+        {
+            samples.Dequeue();
+        }
+    }
+
+    private void DrawSidebarSpeedLines()
+    {
+        var max = _downloadSpeedSamples.Concat(_uploadSpeedSamples).DefaultIfEmpty(1).Max();
+        max = Math.Max(1, max);
+        SidebarDownloadLine.Points = BuildSparklinePoints(_downloadSpeedSamples, 158, 42, max);
+        SidebarUploadLine.Points = BuildSparklinePoints(_uploadSpeedSamples, 158, 42, max);
+    }
+
+    private static PointCollection BuildSparklinePoints(IEnumerable<double> samples, double width, double height, double max)
+    {
+        var values = samples.ToList();
+        var points = new PointCollection();
+        if (values.Count == 0)
+        {
+            return points;
+        }
+
+        if (values.Count == 1)
+        {
+            points.Add(new Point(0, height));
+            points.Add(new Point(width, height - (values[0] / max * height)));
+            return points;
+        }
+
+        for (var index = 0; index < values.Count; index++)
+        {
+            var x = width * index / (values.Count - 1);
+            var y = height - (values[index] / max * height);
+            points.Add(new Point(x, Math.Clamp(y, 0, height)));
+        }
+
+        return points;
+    }
+
+    private static void SetRateText(TextBlock valueText, TextBlock unitText, double bytesPerSecond)
+    {
+        var (value, unit) = FormatRateParts(bytesPerSecond);
+        valueText.Text = value;
+        unitText.Text = unit;
+    }
+
+    private static void SetBytesText(TextBlock valueText, TextBlock unitText, long bytes)
+    {
+        var (value, unit) = FormatByteParts(bytes);
+        valueText.Text = value;
+        unitText.Text = unit;
+    }
+
+    private static (string Value, string Unit) FormatRateParts(double bytesPerSecond)
+    {
+        var units = new[] { "B/s", "KB/s", "MB/s", "GB/s" };
+        var value = Math.Max(0, bytesPerSecond);
+        var unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return (value >= 10 || unitIndex == 0 ? $"{value:F0}" : $"{value:F1}", units[unitIndex]);
+    }
+
+    private static (string Value, string Unit) FormatByteParts(long bytes)
+    {
+        var units = new[] { "B", "KB", "MB", "GB", "TB" };
+        var value = Math.Max(0, (double)bytes);
+        var unitIndex = 0;
+        while (value >= 1024 && unitIndex < units.Length - 1)
+        {
+            value /= 1024;
+            unitIndex++;
+        }
+
+        return (value >= 10 || unitIndex == 0 ? $"{value:F0}" : $"{value:F1}", units[unitIndex]);
     }
 
     private async Task RunUiActionAsync(Func<Task> action)
@@ -1742,9 +1948,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityScoreText.Text = $"{score}/100";
         QualityScoreText.Foreground = score switch
         {
-            >= 85 => new SolidColorBrush(Color.FromRgb(105, 209, 139)),
-            >= 60 => new SolidColorBrush(Color.FromRgb(217, 164, 65)),
-            _ => new SolidColorBrush(Color.FromRgb(239, 107, 91))
+            >= 85 => new SolidColorBrush(Color.FromRgb(110, 168, 255)),
+            >= 60 => new SolidColorBrush(Color.FromRgb(245, 158, 11)),
+            _ => new SolidColorBrush(Color.FromRgb(244, 114, 137))
         };
         QualityLatencyText.Text = successfulLatencies.Count == 0
             ? "-"
@@ -2272,6 +2478,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _resourcesCleaned = true;
         _monitorTimer.Stop();
         _countdownTimer.Stop();
+        _sidebarSpeedTimer.Stop();
         DisposeNotifyIcon();
     }
 
@@ -2303,4 +2510,23 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private sealed record DnsAdapterOption(string Name);
     private sealed record DnsServerRow(string Adapter, string Servers, string Source, string Status);
     private sealed record AdapterRow(string Name, string Type, string Status, string Ipv4, string Gateway, string DnsServers);
+
+    private sealed class NearbyWifiRow(
+        string ssid,
+        int signalPercent,
+        string authentication,
+        string encryption,
+        bool isSecure,
+        bool isConnectable)
+    {
+        public string Ssid { get; } = ssid;
+        public int SignalPercent { get; } = signalPercent;
+        public string Authentication { get; } = authentication;
+        public string Encryption { get; } = encryption;
+        public bool IsSecure { get; } = isSecure;
+        public bool IsConnectable { get; } = isConnectable;
+        public bool IsInPriorityList { get; set; }
+        public int? Priority { get; set; }
+        public string PriorityBadge { get; set; } = "";
+    }
 }
