@@ -13,6 +13,40 @@
         WindowBackdropType="Mica"
         Closing="Window_Closing"
         StateChanged="Window_StateChanged">
+    <ui:FluentWindow.Resources>
+        <Style x:Key="SectionBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="#151B14" />
+            <Setter Property="BorderBrush" Value="#344034" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="14" />
+        </Style>
+        <Style x:Key="GridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="#10170F" />
+            <Setter Property="Foreground" Value="#EAF2E6" />
+            <Setter Property="BorderBrush" Value="#2D3A2C" />
+            <Setter Property="BorderThickness" Value="0,0,1,1" />
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="GridCenteredHeaderStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource GridHeaderStyle}">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="GridTextStyle" TargetType="TextBlock">
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="10,0" />
+        </Style>
+        <Style x:Key="GridCenteredTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="GridRowStyle" TargetType="DataGridRow">
+            <Setter Property="Height" Value="38" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+    </ui:FluentWindow.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -28,16 +62,18 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <ui:NavigationView Grid.Column="0" x:Name="RootNavigation" PaneDisplayMode="Left" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
+            <ui:NavigationView Grid.Column="0" x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="False" CompactPaneLength="56" OpenPaneLength="208" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
                 <ui:NavigationView.MenuItems>
-                    <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" />
-                    <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi424}" Tag="WifiPanel" />
-                    <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Document24}" Tag="PolicyPanel" />
-                    <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Wrench24}" Tag="ToolsPanel" />
-                    <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon Document24}" Tag="LogPanel" />
+                    <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon WifiSettings20}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Document24}" Tag="PolicyPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Wrench24}" Tag="ToolsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon GlobeSearch20}" Tag="DnsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="AdapterNavButton" Content="Adapter" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="NetworkPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon Document24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                 </ui:NavigationView.MenuItems>
                 <ui:NavigationView.FooterMenuItems>
-                    <ui:NavigationViewItem x:Name="SettingsNavButton" Content="Settings" Icon="{ui:SymbolIcon Settings24}" Tag="SettingsPanel" />
+                    <ui:NavigationViewItem x:Name="SettingsNavButton" Content="Settings" Icon="{ui:SymbolIcon Settings24}" Tag="SettingsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                 </ui:NavigationView.FooterMenuItems>
             </ui:NavigationView>
 
@@ -79,7 +115,7 @@
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
 
-                    <Border Grid.Column="0" Margin="0,0,12,12">
+                    <Border Grid.Column="0" Margin="0,0,12,12" Style="{StaticResource SectionBorderStyle}">
                         <StackPanel>
                             <TextBlock x:Name="HealthStateLabel" />
                             <TextBlock x:Name="HealthStateText" FontSize="34" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,4,0,8" />
@@ -87,7 +123,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Column="1" Margin="6,0,6,12">
+                    <Border Grid.Column="1" Margin="6,0,6,12" Style="{StaticResource SectionBorderStyle}">
                         <StackPanel>
                             <TextBlock x:Name="MonitorStateLabel" />
                             <TextBlock x:Name="MonitorStateText" FontSize="22" FontWeight="SemiBold" Margin="0,5,0,12" />
@@ -96,7 +132,7 @@
                         </StackPanel>
                     </Border>
 
-                    <Border Grid.Column="2" Margin="12,0,0,12">
+                    <Border Grid.Column="2" Margin="12,0,0,12" Style="{StaticResource SectionBorderStyle}">
                         <StackPanel>
                             <TextBlock x:Name="CurrentNetworkLabel" />
                             <TextBlock x:Name="CurrentSsidText" FontSize="20" FontWeight="SemiBold" Margin="0,5,0,12" />
@@ -110,20 +146,20 @@
                             <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="1*" />
                         </Grid.ColumnDefinitions>
-                        <Border Margin="0,0,12,0">
+                        <Border Margin="0,0,12,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="ProbeTitleText" DockPanel.Dock="Top" />
-                                <DataGrid x:Name="ProbeGrid">
+                                <DataGrid x:Name="ProbeGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn x:Name="ProbeNameColumn" Binding="{Binding Name}" Width="2*" />
-                                        <DataGridTextColumn x:Name="ProbeOkColumn" Binding="{Binding Ok}" Width="80" />
-                                        <DataGridTextColumn x:Name="ProbeLatencyColumn" Binding="{Binding LatencyText}" Width="110" />
-                                        <DataGridTextColumn x:Name="ProbeDetailColumn" Binding="{Binding Detail}" Width="3*" />
+                                        <DataGridTextColumn x:Name="ProbeNameColumn" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTextColumn x:Name="ProbeOkColumn" Binding="{Binding ResultText}" Width="90" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="ProbeLatencyColumn" Binding="{Binding LatencyText}" Width="110" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTextColumn x:Name="ProbeDetailColumn" Binding="{Binding Detail}" Width="3*" ElementStyle="{StaticResource GridTextStyle}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </DockPanel>
                         </Border>
-                        <Border Grid.Column="1" Margin="12,0,0,0">
+                        <Border Grid.Column="1" Margin="12,0,0,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="RecentEventsTitle" DockPanel.Dock="Top" />
                                 <ListBox x:Name="RecentEventsList" BorderThickness="0" />
@@ -135,49 +171,60 @@
                 <Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="WifiPanel" Visibility="Collapsed">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <DockPanel Margin="0,0,0,12">
-                        <TextBlock x:Name="DragHintText" DockPanel.Dock="Right" VerticalAlignment="Center" />
-                        <StackPanel Orientation="Horizontal">
-                            <Button x:Name="ScanButton" Click="Scan_Click" />
-                            <Button x:Name="AddSelectedButton" Click="AddSelected_Click" />
-                            <Button x:Name="SetPasswordButton" Click="SetPassword_Click" />
-                            <Button x:Name="AddManualButton" Click="AddManual_Click" />
-                            <Button x:Name="MoveUpButton" Click="MoveUp_Click" />
-                            <Button x:Name="MoveDownButton" Click="MoveDown_Click" />
-                            <Button x:Name="RemoveButton" Click="Remove_Click" />
-                            <Button x:Name="ConnectButton" Click="Connect_Click" />
-                        </StackPanel>
-                    </DockPanel>
-                    <Grid Grid.Row="1">
+                    <WrapPanel Margin="0,0,0,8">
+                        <Button x:Name="ScanButton" Click="Scan_Click" Margin="0,0,6,6" />
+                        <Button x:Name="AddSelectedButton" Click="AddSelected_Click" Margin="0,0,6,6" />
+                        <Button x:Name="SetPasswordButton" Click="SetPassword_Click" Margin="0,0,6,6" />
+                        <Button x:Name="AddManualButton" Click="AddManual_Click" Margin="0,0,6,6" />
+                        <Button x:Name="MoveUpButton" Click="MoveUp_Click" Margin="0,0,6,6" />
+                        <Button x:Name="MoveDownButton" Click="MoveDown_Click" Margin="0,0,6,6" />
+                        <Button x:Name="RemoveButton" Click="Remove_Click" Margin="0,0,6,6" />
+                        <Button x:Name="ConnectButton" Click="Connect_Click" Margin="0,0,6,6" />
+                    </WrapPanel>
+                    <TextBlock x:Name="DragHintText" Grid.Row="1" Margin="0,0,0,12" Opacity="0.72" TextWrapping="Wrap" />
+                    <Grid Grid.Row="2">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="1.05*" />
                             <ColumnDefinition Width="1.25*" />
                         </Grid.ColumnDefinitions>
-                        <Border Margin="0,0,10,0">
+                        <Border Margin="0,0,10,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
-                                <TextBlock x:Name="NearbyNetworksTitle" DockPanel.Dock="Top" />
-                                <DataGrid x:Name="NearbyGrid" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
+                                <TextBlock x:Name="NearbyNetworksTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
+                                <DataGrid x:Name="NearbyGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" />
-                                        <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" />
-                                        <DataGridTextColumn x:Name="NearbySecurityColumn" Binding="{Binding Authentication}" Width="140" />
+                                        <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="NearbySecurityColumn" Binding="{Binding Authentication}" Width="140" ElementStyle="{StaticResource GridTextStyle}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </DockPanel>
                         </Border>
-                        <Border Grid.Column="1" Margin="10,0,0,0">
+                        <Border Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
-                                <TextBlock x:Name="PriorityListTitle" DockPanel.Dock="Top" />
-                                <DataGrid x:Name="ProfileGrid" IsReadOnly="False" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
+                                <TextBlock x:Name="PriorityListTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
+                                <DataGrid x:Name="ProfileGrid" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" IsReadOnly="True" />
-                                        <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" />
-                                        <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="74" />
-                                        <DataGridCheckBoxColumn x:Name="ProfileCredentialColumn" Binding="{Binding CredentialSaved}" IsReadOnly="True" Width="88" />
-                                        <DataGridCheckBoxColumn x:Name="ProfileEnabledColumn" Binding="{Binding Enabled}" IsReadOnly="False" Width="78" />
-                                        <DataGridTextColumn x:Name="ProfileFailuresColumn" Binding="{Binding FailureCount}" IsReadOnly="True" Width="78" />
+                                        <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" IsReadOnly="True" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="74" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTemplateColumn x:Name="ProfileCredentialColumn" IsReadOnly="True" Width="88" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <ui:ToggleSwitch IsChecked="{Binding CredentialSaved}" IsEnabled="False" HorizontalAlignment="Center" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTemplateColumn x:Name="ProfileEnabledColumn" Width="78" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                            <DataGridTemplateColumn.CellTemplate>
+                                                <DataTemplate>
+                                                    <ui:ToggleSwitch IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" Checked="ProfileEnabledToggle_Changed" Unchecked="ProfileEnabledToggle_Changed" />
+                                                </DataTemplate>
+                                            </DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
+                                        <DataGridTextColumn x:Name="ProfileFailuresColumn" Binding="{Binding FailureCount}" IsReadOnly="True" Width="88" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </DockPanel>
@@ -185,7 +232,7 @@
                     </Grid>
                 </Grid>
 
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="PolicyPanel" Visibility="Collapsed">
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="PolicyPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <StackPanel MaxWidth="720" HorizontalAlignment="Left">
                         <TextBlock x:Name="PolicyTitle" />
                         <Grid Margin="0,0,0,14">
@@ -224,33 +271,87 @@
                                 <ComboBoxItem Tag="3600" />
                             </ComboBox>
                         </Grid>
-                        <CheckBox x:Name="AutoSwitchCheckBox" Margin="0,7" />
-                        <CheckBox x:Name="SoftReconnectCheckBox" Margin="0,7" />
-                        <CheckBox x:Name="DnsFlushCheckBox" Margin="0,7" />
+                        <ui:ToggleSwitch x:Name="AutoSwitchCheckBox" Margin="0,9" />
+                        <ui:ToggleSwitch x:Name="SoftReconnectCheckBox" Margin="0,9" />
+                        <ui:ToggleSwitch x:Name="DnsFlushCheckBox" Margin="0,9" />
                         <Button x:Name="SavePolicyButton" HorizontalAlignment="Left" Margin="0,18,0,0" Click="SavePolicy_Click" />
                     </StackPanel>
                 </Border>
 
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ToolsPanel" Visibility="Collapsed">
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ToolsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <StackPanel>
-                        <Button x:Name="ToolsCheckButton" HorizontalAlignment="Left" Click="CheckNow_Click" />
-                        <Button x:Name="ToolsScanButton" HorizontalAlignment="Left" Click="Scan_Click" />
-                        <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Margin="0,18,0,0" />
+                        <TextBlock x:Name="ToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <WrapPanel>
+                            <Button x:Name="ToolsCheckButton" Click="CheckNow_Click" Margin="0,0,8,8" />
+                            <Button x:Name="ToolsScanButton" Click="Scan_Click" Margin="0,0,8,8" />
+                            <Button x:Name="ToolsNetworkSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
+                        </WrapPanel>
+                        <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
+                        <TextBlock x:Name="ToolsOutputText" Margin="0,14,0,0" TextWrapping="Wrap" />
                     </StackPanel>
                 </Border>
 
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="LogPanel" Visibility="Collapsed">
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="DnsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
+                    <StackPanel>
+                        <TextBlock x:Name="DnsToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <WrapPanel>
+                            <Button x:Name="DnsRefreshButton" Click="DnsRefresh_Click" Margin="0,0,8,8" />
+                            <Button x:Name="DnsFlushButton" Click="ToolsFlushDns_Click" Margin="0,0,8,8" />
+                        </WrapPanel>
+                        <TextBlock x:Name="DnsToolsHint" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
+                        <TextBlock x:Name="DnsStatusText" Margin="0,14,0,10" TextWrapping="Wrap" />
+                        <DataGrid x:Name="DnsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="260">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="DnsAdapterColumn" Binding="{Binding Adapter}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="DnsServersColumn" Binding="{Binding Servers}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="DnsSourceColumn" Binding="{Binding Source}" Width="120" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                <DataGridTextColumn x:Name="DnsStatusColumn" Binding="{Binding Status}" Width="120" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="NetworkPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
+                    <StackPanel>
+                        <TextBlock x:Name="AdapterToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <WrapPanel>
+                            <Button x:Name="AdapterRefreshButton" Click="AdapterRefresh_Click" Margin="0,0,8,8" />
+                            <Button x:Name="AdapterRenewDhcpButton" Click="ToolsRenewDhcp_Click" Margin="0,0,8,8" />
+                            <Button x:Name="AdapterSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
+                        </WrapPanel>
+                        <TextBlock x:Name="AdapterToolsHint" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
+                        <TextBlock x:Name="AdapterStatusText" Margin="0,14,0,10" TextWrapping="Wrap" />
+                        <DataGrid x:Name="AdapterGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="320">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="AdapterNameColumn" Binding="{Binding Name}" Width="1.8*" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="AdapterTypeColumn" Binding="{Binding Type}" Width="130" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="AdapterStatusColumn" Binding="{Binding Status}" Width="110" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                <DataGridTextColumn x:Name="AdapterIpv4Column" Binding="{Binding Ipv4}" Width="150" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="AdapterGatewayColumn" Binding="{Binding Gateway}" Width="150" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="AdapterDnsColumn" Binding="{Binding DnsServers}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="LogPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <TextBox x:Name="LogTextBox" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
                 </Border>
 
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="SettingsPanel" Visibility="Collapsed">
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="SettingsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <StackPanel MaxWidth="620" HorizontalAlignment="Left">
                         <TextBlock x:Name="SettingsTitle" />
-                        <TextBlock x:Name="LanguageLabel" />
-                        <ComboBox x:Name="LanguageComboBox" Margin="0,6,0,18" Width="240" HorizontalAlignment="Left" SelectionChanged="LanguageComboBox_SelectionChanged">
-                            <ComboBoxItem Tag="zh-CN" />
-                            <ComboBoxItem Tag="en-US" />
-                        </ComboBox>
+                        <Grid Margin="0,12,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="240" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="LanguageLabel" VerticalAlignment="Center" />
+                            <ComboBox x:Name="LanguageComboBox" Grid.Column="1" Width="240" HorizontalAlignment="Left" SelectionChanged="LanguageComboBox_SelectionChanged">
+                                <ComboBoxItem Tag="zh-CN" />
+                                <ComboBoxItem Tag="en-US" />
+                            </ComboBox>
+                        </Grid>
                         <TextBlock x:Name="TrayTitle" Margin="0,8,0,10" />
                         <TextBlock x:Name="CloseBehaviorLabel" />
                         <ComboBox x:Name="CloseBehaviorComboBox" Margin="0,6,0,14" Width="260" HorizontalAlignment="Left" SelectionChanged="CloseBehaviorComboBox_SelectionChanged">
@@ -258,8 +359,8 @@
                             <ComboBoxItem Tag="exit" />
                             <ComboBoxItem Tag="tray" />
                         </ComboBox>
-                        <CheckBox x:Name="StartMonitoringOnLaunchCheckBox" Margin="0,7" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
-                        <CheckBox x:Name="StartMinimizedToTrayCheckBox" Margin="0,7" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
+                        <ui:ToggleSwitch x:Name="StartMonitoringOnLaunchCheckBox" Margin="0,9" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
+                        <ui:ToggleSwitch x:Name="StartMinimizedToTrayCheckBox" Margin="0,9" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                     </StackPanel>
                 </Border>
             

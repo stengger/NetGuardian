@@ -18,10 +18,10 @@ public sealed class AddWifiDialog : Window
     public AddWifiDialog(Localizer localizer, WifiNetwork? network)
     {
         Title = localizer.T("AddWifi");
-        Width = 440;
-        Height = 360;
-        MinWidth = 440;
-        MinHeight = 360;
+        Width = 480;
+        Height = 430;
+        MinWidth = 480;
+        MinHeight = 430;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
@@ -29,26 +29,32 @@ public sealed class AddWifiDialog : Window
         Foreground = Brush("#F4F1E8");
 
         var shell = new Grid();
-        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(30) });
+        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(38) });
         shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-        var titleBar = new Border { Background = Brush("#181D17") };
+        var titleBar = new Border
+        {
+            Background = Brush("#181D17"),
+            BorderBrush = Brush("#344034"),
+            BorderThickness = new Thickness(0, 0, 0, 1)
+        };
         titleBar.MouseLeftButtonDown += (_, _) => DragMove();
         var titleGrid = new Grid();
         titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+        titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
         titleGrid.Children.Add(new TextBlock
         {
             Text = localizer.T("AddWifi"),
             Foreground = Brush("#DADDD3"),
-            FontSize = 12,
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(12, 0, 0, 0)
+            Margin = new Thickness(16, 0, 0, 0)
         });
         var closeButton = new Button
         {
-            Content = "×",
-            MinHeight = 30,
+            Content = "x",
+            MinHeight = 38,
             Padding = new Thickness(0),
             Margin = new Thickness(0),
             BorderThickness = new Thickness(0),
@@ -61,7 +67,8 @@ public sealed class AddWifiDialog : Window
         titleBar.Child = titleGrid;
         shell.Children.Add(titleBar);
 
-        var root = new Grid { Margin = new Thickness(22) };
+        var root = new Grid { Margin = new Thickness(24, 22, 24, 22) };
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -75,7 +82,7 @@ public sealed class AddWifiDialog : Window
             FontSize = 20,
             FontWeight = FontWeights.SemiBold,
             Foreground = Brush("#F4F1E8"),
-            Margin = new Thickness(0, 0, 0, 18)
+            Margin = new Thickness(0, 0, 0, 20)
         };
         root.Children.Add(title);
 
@@ -92,25 +99,35 @@ public sealed class AddWifiDialog : Window
         _saveToWindowsBox.Content = localizer.T("SaveToWindows");
         _saveToWindowsBox.Foreground = Brush("#F4F1E8");
         _saveToWindowsBox.IsChecked = true;
-        _saveToWindowsBox.Margin = new Thickness(0, 12, 0, 0);
+        _saveToWindowsBox.Margin = new Thickness(0, 4, 0, 8);
         Grid.SetRow(_saveToWindowsBox, 4);
         root.Children.Add(_saveToWindowsBox);
+
+        var hint = new TextBlock
+        {
+            Text = localizer.T("PasswordHint"),
+            Foreground = Brush("#AEB8AA"),
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 18)
+        };
+        Grid.SetRow(hint, 5);
+        root.Children.Add(hint);
 
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             HorizontalAlignment = HorizontalAlignment.Right,
-            Margin = new Thickness(0, 20, 0, 0)
+            VerticalAlignment = VerticalAlignment.Bottom
         };
-        var cancelButton = new Button { Content = "Cancel", MinWidth = 86, Margin = new Thickness(4) };
+        var cancelButton = new Button { Content = localizer.T("Cancel"), Width = 96, Height = 38, Margin = new Thickness(0, 0, 8, 0) };
         StyleButton(cancelButton, false);
         cancelButton.Click += (_, _) => DialogResult = false;
-        var okButton = new Button { Content = "OK", MinWidth = 86, Margin = new Thickness(4) };
+        var okButton = new Button { Content = localizer.T("Save"), Width = 96, Height = 38 };
         StyleButton(okButton, true);
         okButton.Click += (_, _) => DialogResult = true;
         buttons.Children.Add(cancelButton);
         buttons.Children.Add(okButton);
-        Grid.SetRow(buttons, 5);
+        Grid.SetRow(buttons, 6);
         root.Children.Add(buttons);
 
         Grid.SetRow(root, 1);
@@ -125,7 +142,7 @@ public sealed class AddWifiDialog : Window
 
     private static void AddLabeledControl(Grid root, int row, string label, Control control)
     {
-        var panel = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+        var panel = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
         panel.Children.Add(new TextBlock
         {
             Text = label,
@@ -133,7 +150,7 @@ public sealed class AddWifiDialog : Window
             Foreground = Brush("#DADDD3"),
             Margin = new Thickness(0, 0, 0, 5)
         });
-        control.MinHeight = 34;
+        control.MinHeight = 36;
         panel.Children.Add(control);
         Grid.SetRow(panel, row);
         root.Children.Add(panel);

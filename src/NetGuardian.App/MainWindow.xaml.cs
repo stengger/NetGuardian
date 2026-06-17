@@ -1,7 +1,10 @@
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,6 +29,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ObservableCollection<WifiNetwork> _nearbyNetworks = [];
     private readonly ObservableCollection<WifiProfile> _profiles = [];
     private readonly ObservableCollection<string> _recentEvents = [];
+    private readonly ObservableCollection<DnsServerRow> _dnsRows = [];
+    private readonly ObservableCollection<AdapterRow> _adapterRows = [];
     private readonly DispatcherTimer _monitorTimer = new();
     private readonly DispatcherTimer _countdownTimer = new();
     private readonly Forms.NotifyIcon _notifyIcon;
@@ -51,6 +56,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyGrid.ItemsSource = _nearbyNetworks;
         ProfileGrid.ItemsSource = _profiles;
         RecentEventsList.ItemsSource = _recentEvents;
+        DnsGrid.ItemsSource = _dnsRows;
+        AdapterGrid.ItemsSource = _adapterRows;
 
         _monitorTimer.Tick += async (_, _) => await RunCheckAsync();
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
@@ -60,6 +67,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _notifyIcon = CreateNotifyIcon();
         ApplySettingsToUi();
         ApplyLanguage();
+        RefreshDnsInfo();
+        RefreshAdapterInfo();
         ShowPanel(StatusPanel);
         UpdateMonitorStatus();
 
@@ -82,46 +91,46 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         StopMonitoring();
     }
 
-    private async void Scan_Click(object sender, RoutedEventArgs e) => await ScanWifiAsync();
+    private async void Scan_Click(object sender, RoutedEventArgs e) => await RunUiActionAsync(ScanWifiAsync);
 
     private async void AddSelected_Click(object sender, RoutedEventArgs e)
     {
         if (NearbyGrid.SelectedItem is WifiNetwork network)
         {
-            await AddWifiProfileAsync(network);
+            await RunUiActionAsync(() => AddWifiProfileAsync(network));
         }
     }
 
     private async void AddManual_Click(object sender, RoutedEventArgs e)
     {
-        await AddWifiProfileAsync(null);
+        await RunUiActionAsync(() => AddWifiProfileAsync(null));
     }
 
     private async void SetPassword_Click(object sender, RoutedEventArgs e)
     {
         if (ProfileGrid.SelectedItem is WifiProfile profile)
         {
-            await ConfigureProfileCredentialAsync(profile);
+            await RunUiActionAsync(() => ConfigureProfileCredentialAsync(profile));
         }
         else if (NearbyGrid.SelectedItem is WifiNetwork network)
         {
-            await AddWifiProfileAsync(network);
+            await RunUiActionAsync(() => AddWifiProfileAsync(network));
         }
     }
 
     private async void NearbyGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (NearbyGrid.SelectedItem is WifiNetwork network)
+        if (GetRowItemAtPoint<WifiNetwork>(NearbyGrid, e.GetPosition(NearbyGrid)) is WifiNetwork network)
         {
-            await AddWifiProfileAsync(network);
+            await RunUiActionAsync(() => AddWifiProfileAsync(network));
         }
     }
 
     private async void ProfileGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
-        if (ProfileGrid.SelectedItem is WifiProfile profile)
+        if (GetRowItemAtPoint<WifiProfile>(ProfileGrid, e.GetPosition(ProfileGrid)) is WifiProfile profile)
         {
-            await ConfigureProfileCredentialAsync(profile);
+            await RunUiActionAsync(() => ConfigureProfileCredentialAsync(profile));
         }
     }
 
@@ -147,9 +156,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        Log($"Connecting to {profile.Ssid}.");
-        var ok = await _wifi.ConnectAsync(profile.Ssid);
-        Log(ok ? $"Connection command sent: {profile.Ssid}" : $"Connection command failed: {profile.Ssid}");
+        await RunUiActionAsync(async () =>
+        {
+            Log($"Connecting to {profile.Ssid}.");
+            var ok = await _wifi.ConnectAsync(profile.Ssid);
+            Log(ok ? $"Connection command sent: {profile.Ssid}" : $"Connection command failed: {profile.Ssid}");
+        });
     }
 
     private void SavePolicy_Click(object sender, RoutedEventArgs e)
@@ -158,6 +170,40 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SaveSettings();
         Log("Policy saved.");
         UpdateMonitorStatus();
+    }
+
+    private async void ToolsFlushDns_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", "/flushdns", _localizer.T("FlushDns")));
+        RefreshDnsInfo();
+    }
+
+    private void DnsRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshDnsInfo();
+        SetToolOutput(_localizer.T("DnsRefreshed"));
+    }
+
+    private async void ToolsRenewDhcp_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", "/renew", _localizer.T("RenewDhcp")));
+        RefreshAdapterInfo();
+    }
+
+    private void AdapterRefresh_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshAdapterInfo();
+        SetToolOutput(_localizer.T("AdapterRefreshed"));
+    }
+
+    private void ToolsNetworkSettings_Click(object sender, RoutedEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = "ms-settings:network-status",
+            UseShellExecute = true
+        });
+        SetToolOutput(_localizer.T("OpenNetworkSettings"));
     }
 
     private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -194,20 +240,45 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SaveSettings();
     }
 
+    private void ProfileEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded)
+        {
+            return;
+        }
+
+        SaveSettings();
+    }
+
     private void RootNavigation_SelectionChanged(Wpf.Ui.Controls.NavigationView sender, RoutedEventArgs args)
     {
-        if (sender.SelectedItem is Wpf.Ui.Controls.NavigationViewItem item && item.Tag is string tag)
+        if (sender.SelectedItem is Wpf.Ui.Controls.NavigationViewItem item)
         {
-            ShowPanel(tag switch
-            {
-                "WifiPanel" => WifiPanel,
-                "PolicyPanel" => PolicyPanel,
-                "ToolsPanel" => ToolsPanel,
-                "LogPanel" => LogPanel,
-                "SettingsPanel" => SettingsPanel,
-                _ => StatusPanel
-            });
+            ShowPanelByTag(item.Tag?.ToString());
         }
+    }
+
+    private void NavigationItem_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is Wpf.Ui.Controls.NavigationViewItem item)
+        {
+            ShowPanelByTag(item.Tag?.ToString());
+        }
+    }
+
+    private void ShowPanelByTag(string? tag)
+    {
+        ShowPanel(tag switch
+        {
+            "WifiPanel" => WifiPanel,
+            "PolicyPanel" => PolicyPanel,
+            "ToolsPanel" => ToolsPanel,
+            "DnsPanel" => DnsPanel,
+            "NetworkPanel" => NetworkPanel,
+            "LogPanel" => LogPanel,
+            "SettingsPanel" => SettingsPanel,
+            _ => StatusPanel
+        });
     }
 
     private async Task StartMonitoringAsync()
@@ -240,7 +311,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         _isChecking = true;
         CheckNowButton.IsEnabled = false;
-        UpdateMonitorStatus(_localizer.T("Checking"));
+        UpdateMonitorStatus();
         try
         {
             var currentSsid = await _wifi.GetCurrentSsidAsync();
@@ -249,6 +320,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             ApplyReport(report);
             _failureStreak = report.Ok ? 0 : _failureStreak + 1;
             Log($"{report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {report.State}: {report.Summary}");
+            SetToolOutput($"{StateText(report.State)}{Environment.NewLine}{report.Summary}");
         }
         catch (Exception ex)
         {
@@ -282,6 +354,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             }
 
             Log(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
+            SetToolOutput(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
         }
         catch (Exception ex)
         {
@@ -435,13 +508,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private WifiProfile? GetRowItemAtPoint(Point point)
     {
-        var element = ProfileGrid.InputHitTest(point) as DependencyObject;
+        return GetRowItemAtPoint<WifiProfile>(ProfileGrid, point);
+    }
+
+    private static T? GetRowItemAtPoint<T>(DataGrid grid, Point point) where T : class
+    {
+        var element = grid.InputHitTest(point) as DependencyObject;
         while (element is not null and not DataGridRow)
         {
             element = VisualTreeHelper.GetParent(element);
         }
 
-        return element is DataGridRow row ? row.Item as WifiProfile : null;
+        return element is DataGridRow row ? row.Item as T : null;
     }
 
     private void RenumberProfiles()
@@ -467,10 +545,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SummaryText.Text = report.Summary;
         CurrentSsidText.Text = string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid;
         ProbeGrid.ItemsSource = report.Probes.Select(probe => new ProbeRow(
-            probe.Name,
-            probe.Ok,
+            LocalizeProbeName(probe.Name),
+            probe.Ok ? _localizer.T("Pass") : _localizer.T("Fail"),
             probe.LatencyMs.HasValue ? $"{probe.LatencyMs.Value:F0} ms" : "-",
-            probe.Detail));
+            LocalizeProbeDetail(probe.Detail)));
     }
 
     private string StateText(NetworkState state)
@@ -486,6 +564,28 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             NetworkState.Failed => _localizer.T("Failed"),
             _ => state.ToString()
         };
+    }
+
+    private string LocalizeProbeName(string name)
+    {
+        if (name.Equals("Default gateway", StringComparison.OrdinalIgnoreCase))
+        {
+            return _localizer.T("DefaultGateway");
+        }
+
+        if (name.Equals("Gateway ping", StringComparison.OrdinalIgnoreCase))
+        {
+            return _localizer.T("GatewayPing");
+        }
+
+        return name;
+    }
+
+    private string LocalizeProbeDetail(string detail)
+    {
+        return detail.Equals("Resolved", StringComparison.OrdinalIgnoreCase)
+            ? _localizer.T("Resolved")
+            : detail;
     }
 
     private void ApplySettingsToUi()
@@ -568,22 +668,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         WifiNavButton.Content = _localizer.T("Wifi");
         PolicyNavButton.Content = _localizer.T("Policy");
         ToolsNavButton.Content = _localizer.T("Tools");
+        DnsNavButton.Content = _localizer.T("DnsTools");
+        AdapterNavButton.Content = _localizer.T("AdapterTools");
         LogNavButton.Content = _localizer.T("Log");
         SettingsNavButton.Content = _localizer.T("Settings");
         CheckNowButton.Content = _localizer.T("CheckNow");
         StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StopButton.Content = _localizer.T("Stop");
         HealthStateLabel.Text = _localizer.T("HealthState");
-        MonitorStateLabel.Text = _localizer.T("Monitoring");
+        MonitorStateLabel.Text = _localizer.T("MonitorStatus");
         NextCheckLabel.Text = _localizer.T("NextCheck");
         CurrentNetworkLabel.Text = _localizer.T("CurrentNetwork");
         FailureStreakLabel.Text = _localizer.T("FailureStreak");
         ProbeTitleText.Text = _localizer.T("CheckNow");
         RecentEventsTitle.Text = _localizer.T("RecentEvents");
-        ProbeNameColumn.Header = "Probe";
-        ProbeOkColumn.Header = "OK";
-        ProbeLatencyColumn.Header = "Latency";
-        ProbeDetailColumn.Header = "Detail";
+        ProbeNameColumn.Header = _localizer.T("Probe");
+        ProbeOkColumn.Header = _localizer.T("Result");
+        ProbeLatencyColumn.Header = _localizer.T("Latency");
+        ProbeDetailColumn.Header = _localizer.T("Detail");
         ScanButton.Content = _localizer.T("Scan");
         AddSelectedButton.Content = _localizer.T("AddSelected");
         AddManualButton.Content = _localizer.T("AddManual");
@@ -612,10 +714,31 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SoftReconnectCheckBox.Content = _localizer.T("SoftReconnect");
         DnsFlushCheckBox.Content = _localizer.T("DnsFlush");
         SavePolicyButton.Content = _localizer.T("Save");
+        ToolsTitle.Text = _localizer.T("SystemNetworkTools");
         ToolsCheckButton.Content = _localizer.T("CheckNow");
         ToolsScanButton.Content = _localizer.T("Scan");
+        ToolsNetworkSettingsButton.Content = _localizer.T("OpenNetworkSettings");
         HighRiskText.Text = _localizer.T("HighRiskReserved");
-        SettingsTitle.Text = _localizer.T("Settings");
+        DnsToolsTitle.Text = _localizer.T("DnsTools");
+        DnsRefreshButton.Content = _localizer.T("RefreshStatus");
+        DnsFlushButton.Content = _localizer.T("FlushDns");
+        DnsToolsHint.Text = _localizer.T("DnsToolsHint");
+        DnsAdapterColumn.Header = _localizer.T("Adapter");
+        DnsServersColumn.Header = _localizer.T("DnsServers");
+        DnsSourceColumn.Header = _localizer.T("Source");
+        DnsStatusColumn.Header = _localizer.T("StatusColumn");
+        AdapterToolsTitle.Text = _localizer.T("AdapterTools");
+        AdapterRefreshButton.Content = _localizer.T("RefreshStatus");
+        AdapterRenewDhcpButton.Content = _localizer.T("RenewDhcp");
+        AdapterSettingsButton.Content = _localizer.T("OpenNetworkSettings");
+        AdapterToolsHint.Text = _localizer.T("AdapterToolsHint");
+        AdapterNameColumn.Header = _localizer.T("Adapter");
+        AdapterTypeColumn.Header = _localizer.T("Type");
+        AdapterStatusColumn.Header = _localizer.T("StatusColumn");
+        AdapterIpv4Column.Header = "IPv4";
+        AdapterGatewayColumn.Header = _localizer.T("Gateway");
+        AdapterDnsColumn.Header = _localizer.T("DnsServers");
+        SettingsTitle.Text = _localizer.T("Preferences");
         LanguageLabel.Text = _localizer.T("Language");
         TrayTitle.Text = _localizer.T("Tray");
         CloseBehaviorLabel.Text = _localizer.T("CloseBehavior");
@@ -643,7 +766,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ShowPanel(UIElement panel)
     {
-        foreach (var item in new UIElement[] { StatusPanel, WifiPanel, PolicyPanel, ToolsPanel, LogPanel, SettingsPanel })
+        foreach (var item in new UIElement[] { StatusPanel, WifiPanel, PolicyPanel, ToolsPanel, DnsPanel, NetworkPanel, LogPanel, SettingsPanel })
         {
             item.Visibility = item == panel ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -652,19 +775,22 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             : panel == WifiPanel ? _localizer.T("Wifi")
             : panel == PolicyPanel ? _localizer.T("Policy")
             : panel == ToolsPanel ? _localizer.T("Tools")
+            : panel == DnsPanel ? _localizer.T("DnsTools")
+            : panel == NetworkPanel ? _localizer.T("AdapterTools")
             : panel == LogPanel ? _localizer.T("Log")
             : _localizer.T("Settings");
         PageSubtitleText.Text = panel == StatusPanel ? _localizer.T("Summary") : "";
     }
 
-    private void UpdateMonitorStatus(string? overrideState = null)
+    private void UpdateMonitorStatus()
     {
-        var state = overrideState ?? (_isMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped"));
-        MonitorStateText.Text = state;
-        HeaderStateText.Text = state;
-        StatusDot.Fill = overrideState == _localizer.T("Checking")
+        var monitorState = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped");
+        var activityState = _isChecking ? _localizer.T("Checking") : _localizer.T("Ready");
+        MonitorStateText.Text = monitorState;
+        HeaderStateText.Text = activityState;
+        StatusDot.Fill = _isChecking
             ? new SolidColorBrush(Color.FromRgb(217, 164, 65))
-            : _isMonitoring ? new SolidColorBrush(Color.FromRgb(105, 209, 139)) : new SolidColorBrush(Color.FromRgb(239, 107, 91));
+            : new SolidColorBrush(Color.FromRgb(142, 150, 137));
         StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StartMonitorButton.IsEnabled = !_isMonitoring || !_isChecking;
         StopButton.IsEnabled = _isMonitoring;
@@ -681,6 +807,145 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         UpdateTrayText();
+    }
+
+    private async Task RunUiActionAsync(Func<Task> action)
+    {
+        try
+        {
+            await action();
+        }
+        catch (Exception ex)
+        {
+            Log(ex.Message);
+        }
+    }
+
+    private async Task RunSystemNetworkCommandAsync(string fileName, string arguments, string label)
+    {
+        Log($"{label}...");
+        SetToolOutput($"{label}...");
+        using var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            Arguments = arguments,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        process.Start();
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var output = (await outputTask + await errorTask).Trim();
+        var status = process.ExitCode == 0
+            ? string.Format(_localizer.T("CommandDone"), label)
+            : string.Format(_localizer.T("CommandFailed"), label, process.ExitCode);
+        Log(status);
+
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            Log(output);
+        }
+
+        SetToolOutput(string.IsNullOrWhiteSpace(output) ? status : $"{status}{Environment.NewLine}{Environment.NewLine}{output}");
+    }
+
+    private void SetToolOutput(string text)
+    {
+        if (ToolsPanel.Visibility == Visibility.Visible)
+        {
+            ToolsOutputText.Text = text;
+        }
+
+        if (DnsPanel.Visibility == Visibility.Visible)
+        {
+            DnsStatusText.Text = text;
+        }
+
+        if (NetworkPanel.Visibility == Visibility.Visible)
+        {
+            AdapterStatusText.Text = text;
+        }
+    }
+
+    private void RefreshDnsInfo()
+    {
+        _dnsRows.Clear();
+        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces()
+            .Where(item => item.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .OrderByDescending(item => item.OperationalStatus == OperationalStatus.Up)
+            .ThenBy(item => item.Name))
+        {
+            var properties = networkInterface.GetIPProperties();
+            var servers = properties.DnsAddresses
+                .Where(address => address.AddressFamily is AddressFamily.InterNetwork or AddressFamily.InterNetworkV6)
+                .Select(address => address.ToString())
+                .ToList();
+
+            if (servers.Count == 0 && networkInterface.OperationalStatus != OperationalStatus.Up)
+            {
+                continue;
+            }
+
+            _dnsRows.Add(new DnsServerRow(
+                networkInterface.Name,
+                servers.Count == 0 ? "-" : string.Join(", ", servers),
+                _localizer.T("SystemConfigured"),
+                LocalizeOperationalStatus(networkInterface.OperationalStatus)));
+        }
+
+        DnsStatusText.Text = _dnsRows.Count == 0
+            ? _localizer.T("NoDnsServers")
+            : string.Format(_localizer.T("DnsServerCount"), _dnsRows.Count);
+    }
+
+    private void RefreshAdapterInfo()
+    {
+        _adapterRows.Clear();
+        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces()
+            .Where(item => item.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .OrderByDescending(item => item.OperationalStatus == OperationalStatus.Up)
+            .ThenBy(item => item.Name))
+        {
+            var properties = networkInterface.GetIPProperties();
+            var ipv4 = properties.UnicastAddresses
+                .Where(item => item.Address.AddressFamily == AddressFamily.InterNetwork)
+                .Select(item => item.Address.ToString())
+                .ToList();
+            var gateways = properties.GatewayAddresses
+                .Where(item => item.Address.AddressFamily == AddressFamily.InterNetwork)
+                .Select(item => item.Address.ToString())
+                .ToList();
+            var dns = properties.DnsAddresses
+                .Where(item => item.AddressFamily == AddressFamily.InterNetwork)
+                .Select(item => item.ToString())
+                .ToList();
+
+            _adapterRows.Add(new AdapterRow(
+                networkInterface.Name,
+                networkInterface.NetworkInterfaceType.ToString(),
+                LocalizeOperationalStatus(networkInterface.OperationalStatus),
+                ipv4.Count == 0 ? "-" : string.Join(", ", ipv4),
+                gateways.Count == 0 ? "-" : string.Join(", ", gateways),
+                dns.Count == 0 ? "-" : string.Join(", ", dns)));
+        }
+
+        AdapterStatusText.Text = string.Format(_localizer.T("AdapterCount"), _adapterRows.Count);
+    }
+
+    private string LocalizeOperationalStatus(OperationalStatus status)
+    {
+        return status switch
+        {
+            OperationalStatus.Up => _localizer.T("AdapterUp"),
+            OperationalStatus.Down => _localizer.T("AdapterDown"),
+            OperationalStatus.Testing => _localizer.T("AdapterTesting"),
+            _ => status.ToString()
+        };
     }
 
     private static string FormatDuration(TimeSpan duration)
@@ -820,5 +1085,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private sealed record ProbeRow(string Name, bool Ok, string LatencyText, string Detail);
+    private sealed record ProbeRow(string Name, string ResultText, string LatencyText, string Detail);
+    private sealed record DnsServerRow(string Adapter, string Servers, string Source, string Status);
+    private sealed record AdapterRow(string Name, string Type, string Status, string Ipv4, string Gateway, string DnsServers);
 }
