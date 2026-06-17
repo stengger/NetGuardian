@@ -141,6 +141,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
+    private async void ImportPassword_Click(object sender, RoutedEventArgs e)
+    {
+        await RunUiActionAsync(ImportSelectedWifiPasswordAsync);
+    }
+
     private async void NearbyGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
     {
         if (GetRowItemAtPoint<WifiNetwork>(NearbyGrid, e.GetPosition(NearbyGrid)) is WifiNetwork network)
@@ -453,9 +458,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private async Task AddWifiProfileAsync(WifiNetwork? network)
+    private async Task AddWifiProfileAsync(WifiNetwork? network, string? initialPassword = null)
     {
-        var dialog = new AddWifiDialog(_localizer, network) { Owner = this };
+        var dialog = new AddWifiDialog(_localizer, network, initialPassword) { Owner = this };
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.Ssid))
         {
             return;
@@ -465,7 +470,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var existing = _profiles.FirstOrDefault(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
         if (existing is not null)
         {
-            await ConfigureProfileCredentialAsync(existing);
+            await ConfigureProfileCredentialAsync(existing, initialPassword);
             return;
         }
 
@@ -489,7 +494,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SaveSettings();
     }
 
-    private async Task ConfigureProfileCredentialAsync(WifiProfile profile)
+    private async Task ConfigureProfileCredentialAsync(WifiProfile profile, string? initialPassword = null)
     {
         var network = new WifiNetwork(
             profile.Ssid,
@@ -498,7 +503,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             "",
             true,
             true);
-        var dialog = new AddWifiDialog(_localizer, network) { Owner = this };
+        var dialog = new AddWifiDialog(_localizer, network, initialPassword) { Owner = this };
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.Ssid))
         {
             return;
@@ -524,6 +529,39 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         profile.CredentialSaved = credentialSaved;
         ProfileGrid.Items.Refresh();
         SaveSettings();
+    }
+
+    private async Task ImportSelectedWifiPasswordAsync()
+    {
+        if (ProfileGrid.SelectedItem is WifiProfile profile)
+        {
+            var password = await _wifi.GetSavedPasswordAsync(profile.Ssid);
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                Log(string.Format(_localizer.T("WifiPasswordImportFailed"), profile.Ssid));
+                return;
+            }
+
+            Log(string.Format(_localizer.T("WifiPasswordImported"), profile.Ssid));
+            await ConfigureProfileCredentialAsync(profile, password);
+            return;
+        }
+
+        if (NearbyGrid.SelectedItem is WifiNetwork network)
+        {
+            var password = await _wifi.GetSavedPasswordAsync(network.Ssid);
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                Log(string.Format(_localizer.T("WifiPasswordImportFailed"), network.Ssid));
+                return;
+            }
+
+            Log(string.Format(_localizer.T("WifiPasswordImported"), network.Ssid));
+            await AddWifiProfileAsync(network, password);
+            return;
+        }
+
+        Log(_localizer.T("SelectWifiForPasswordImport"));
     }
 
     private void MoveSelectedProfile(int direction)
@@ -798,6 +836,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         MoveDownButton.Content = _localizer.T("MoveDown");
         RemoveButton.Content = _localizer.T("Remove");
         SetPasswordButton.Content = _localizer.T("SetPassword");
+        ImportPasswordButton.Content = _localizer.T("ImportPassword");
         ConnectButton.Content = _localizer.T("Connect");
         DragHintText.Text = _localizer.T("DoubleClickWifiHint");
         NearbyNetworksTitle.Text = _localizer.T("NearbyNetworks");

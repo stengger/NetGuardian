@@ -183,6 +183,7 @@
                         <Button x:Name="ScanButton" Click="Scan_Click" Margin="0,0,6,6" />
                         <Button x:Name="AddSelectedButton" Click="AddSelected_Click" Margin="0,0,6,6" />
                         <Button x:Name="SetPasswordButton" Click="SetPassword_Click" Margin="0,0,6,6" />
+                        <Button x:Name="ImportPasswordButton" Click="ImportPassword_Click" Margin="0,0,6,6" />
                         <Button x:Name="AddManualButton" Click="AddManual_Click" Margin="0,0,6,6" />
                         <Button x:Name="MoveUpButton" Click="MoveUp_Click" Margin="0,0,6,6" />
                         <Button x:Name="MoveDownButton" Click="MoveDown_Click" Margin="0,0,6,6" />

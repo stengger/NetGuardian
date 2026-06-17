@@ -6,6 +6,7 @@ using NetGuardian.Core.Wifi;
 var tests = new List<(string Name, Action Body)>
 {
     ("parse current SSID", ParseCurrentSsid),
+    ("parse saved Wi-Fi password", ParseSavedWifiPassword),
     ("parse scan output", ParseScanOutput),
     ("build WLAN profile XML", BuildWlanProfileXml),
     ("normalize website URL", NormalizeWebsiteUrl),
@@ -59,6 +60,20 @@ static void ParseScanOutput()
     AssertEqual(2, networks.Count);
     AssertEqual("Office-5G", networks[0].Ssid);
     AssertEqual(86, networks[0].SignalPercent);
+}
+
+static void ParseSavedWifiPassword()
+{
+    const string output = """
+        Security settings
+        -----------------
+            Authentication         : WPA2-Personal
+            Cipher                 : CCMP
+            Security key           : Present
+            Key Content            : secret-12345
+        """;
+
+    AssertEqual("secret-12345", NetshWifiClient.ParseSavedPassword(output));
 }
 
 static void SettingsRoundTrip()

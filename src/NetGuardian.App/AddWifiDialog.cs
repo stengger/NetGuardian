@@ -15,7 +15,7 @@ public sealed class AddWifiDialog : Window
     private readonly PasswordBox _passwordBox = new();
     private readonly CheckBox _saveToWindowsBox = new();
 
-    public AddWifiDialog(Localizer localizer, WifiNetwork? network)
+    public AddWifiDialog(Localizer localizer, WifiNetwork? network, string? initialPassword = null)
     {
         Title = localizer.T("AddWifi");
         Width = 480;
@@ -92,6 +92,7 @@ public sealed class AddWifiDialog : Window
 
         _ssidBox.Text = network?.Ssid ?? "";
         _authBox.Text = network?.Authentication ?? "";
+        _passwordBox.Password = initialPassword ?? "";
         _passwordBox.ToolTip = localizer.T("PasswordHint");
         StyleInput(_ssidBox);
         StyleInput(_authBox);

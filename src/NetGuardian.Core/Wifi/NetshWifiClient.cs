@@ -19,6 +19,12 @@ public sealed partial class NetshWifiClient : IWifiClient
         return ParseCurrentSsid(result.Output);
     }
 
+    public async Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
+    {
+        var result = await RunNetshAsync(["wlan", "show", "profile", $"name={ssid}", "key=clear"], cancellationToken);
+        return result.ExitCode == 0 ? ParseSavedPassword(result.Output) : null;
+    }
+
     public Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
     {
         throw new NotSupportedException("Netsh profile saving is deprecated due to plaintext password risk. Use NativeWifiScanner instead.");
@@ -124,6 +130,30 @@ public sealed partial class NetshWifiClient : IWifiClient
                     true));
             }
         }
+    }
+
+    public static string? ParseSavedPassword(string output)
+    {
+        foreach (var rawLine in SplitLines(output))
+        {
+            var line = rawLine.Trim();
+            if (!line.Contains(':'))
+            {
+                continue;
+            }
+
+            var parts = line.Split(':', 2);
+            var key = parts[0].Trim();
+            var value = parts[1].Trim();
+            if (key.Contains("Key Content", StringComparison.OrdinalIgnoreCase)
+                || key.Contains("关键内容", StringComparison.OrdinalIgnoreCase)
+                || key.Contains("密钥内容", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.IsNullOrWhiteSpace(value) ? null : value;
+            }
+        }
+
+        return null;
     }
 
     private static IEnumerable<string> SplitLines(string value)

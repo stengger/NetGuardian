@@ -30,6 +30,11 @@ public sealed class WifiClient : IWifiClient
         return _netsh.GetCurrentSsidAsync(cancellationToken);
     }
 
+    public Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
+    {
+        return _netsh.GetSavedPasswordAsync(ssid, cancellationToken);
+    }
+
     public Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
     {
         return Task.Run(() => _nativeScanner.SaveProfile(ssid, password, authentication), cancellationToken);
