@@ -189,7 +189,7 @@
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0">
-                <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
+                <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="68" OpenPaneLength="216" BorderBrush="Transparent" BorderThickness="0" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
                     <ui:NavigationView.MenuItems>
                         <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                         <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon WifiSettings20}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
@@ -222,17 +222,17 @@
                                 <RowDefinition Height="24" />
                                 <RowDefinition Height="24" />
                             </Grid.RowDefinitions>
-                            <TextBlock Text="↓" Foreground="#6EA8FF" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarDownloadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarDownloadUnitText" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
-                            <TextBlock Grid.Row="1" Text="↑" Foreground="#F59E0B" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarUploadSpeedText" Grid.Row="1" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarUploadUnitText" Grid.Row="1" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
+                            <TextBlock Text="↑" Foreground="#F59E0B" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarUploadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarUploadUnitText" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
+                            <TextBlock Grid.Row="1" Text="↓" Foreground="#6EA8FF" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarDownloadSpeedText" Grid.Row="1" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarDownloadUnitText" Grid.Row="1" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
                         </Grid>
                     </StackPanel>
                 </Border>
 
-                <Border x:Name="SidebarSpeedCompact" Width="56" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,72" Background="Transparent" BorderThickness="0" Padding="4,0" Panel.ZIndex="2">
+                <Border x:Name="SidebarSpeedCompact" Width="68" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,72" Background="Transparent" BorderThickness="0" Padding="5,0" Panel.ZIndex="2">
                     <Border.Style>
                         <Style TargetType="Border">
                             <Setter Property="Visibility" Value="Visible" />
@@ -247,22 +247,22 @@
                         <Grid Height="21">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="26" />
                                 <ColumnDefinition Width="24" />
-                                <ColumnDefinition Width="16" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="↑" Foreground="#F59E0B" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarCompactUploadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="SidebarCompactUploadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="8.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="SidebarCompactUploadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="SidebarCompactUploadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="8.2" VerticalAlignment="Center" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
                         </Grid>
                         <Grid Height="21">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="26" />
                                 <ColumnDefinition Width="24" />
-                                <ColumnDefinition Width="16" />
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="↓" Foreground="#6EA8FF" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarCompactDownloadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="SidebarCompactDownloadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="8.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="SidebarCompactDownloadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="11.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="SidebarCompactDownloadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="8.2" VerticalAlignment="Center" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
                         </Grid>
                     </StackPanel>
                 </Border>
