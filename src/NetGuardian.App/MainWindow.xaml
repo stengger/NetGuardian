@@ -59,6 +59,15 @@
         <Style x:Key="GridTextStyle" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="10,0" />
+            <Setter Property="Foreground" Value="#CDD6E2" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Foreground" Value="#EEF4FF" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Foreground" Value="#FFFFFF" />
+                </DataTrigger>
+            </Style.Triggers>
         </Style>
         <Style x:Key="GridCenteredTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
             <Setter Property="TextAlignment" Value="Center" />
@@ -67,6 +76,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CanUserResizeRows" Value="False" />
+            <Setter Property="Foreground" Value="#CDD6E2" />
             <Setter Property="GridLinesVisibility" Value="None" />
             <Setter Property="HeadersVisibility" Value="Column" />
             <Setter Property="RowBackground" Value="Transparent" />
@@ -114,10 +124,12 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="#CDD6E2" />
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="Transparent" />
                     <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="Foreground" Value="#FFFFFF" />
                 </Trigger>
             </Style.Triggers>
         </Style>
@@ -178,16 +190,6 @@
 
             <Grid Grid.Column="0">
                 <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
-                    <ui:NavigationView.Style>
-                        <Style TargetType="{x:Type ui:NavigationView}">
-                            <Setter Property="Width" Value="216" />
-                            <Style.Triggers>
-                                <Trigger Property="IsPaneOpen" Value="False">
-                                    <Setter Property="Width" Value="56" />
-                                </Trigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ui:NavigationView.Style>
                     <ui:NavigationView.MenuItems>
                         <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                         <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon WifiSettings20}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
