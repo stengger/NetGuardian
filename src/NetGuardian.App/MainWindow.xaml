@@ -69,6 +69,7 @@
                     <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Document24}" Tag="PolicyPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Wrench24}" Tag="ToolsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon GlobeSearch20}" Tag="DnsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="QualityNavButton" Content="Quality" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="QualityPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="AdapterNavButton" Content="Adapter" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="NetworkPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon Document24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                 </ui:NavigationView.MenuItems>
@@ -294,10 +295,31 @@
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="DnsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <StackPanel>
                         <TextBlock x:Name="DnsToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <WrapPanel>
+                        <WrapPanel Margin="0,0,0,8">
                             <Button x:Name="DnsRefreshButton" Click="DnsRefresh_Click" Margin="0,0,8,8" />
                             <Button x:Name="DnsFlushButton" Click="ToolsFlushDns_Click" Margin="0,0,8,8" />
                         </WrapPanel>
+                        <Grid Margin="0,0,0,12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.2*" />
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="1*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <ComboBox x:Name="DnsAdapterComboBox" Grid.Column="0" Margin="0,0,8,0" SelectionChanged="DnsAdapterComboBox_SelectionChanged" />
+                            <ComboBox x:Name="DnsPresetComboBox" Grid.Column="1" Margin="0,0,8,0" SelectionChanged="DnsPresetComboBox_SelectionChanged">
+                                <ComboBoxItem Tag="automatic" />
+                                <ComboBoxItem Tag="ali" />
+                                <ComboBoxItem Tag="tencent" />
+                                <ComboBoxItem Tag="cloudflare" />
+                                <ComboBoxItem Tag="google" />
+                                <ComboBoxItem Tag="custom" />
+                            </ComboBox>
+                            <TextBox x:Name="DnsPrimaryTextBox" Grid.Column="2" Margin="0,0,8,0" />
+                            <TextBox x:Name="DnsSecondaryTextBox" Grid.Column="3" Margin="0,0,8,0" />
+                            <Button x:Name="DnsApplyButton" Grid.Column="4" Click="DnsApply_Click" />
+                        </Grid>
                         <TextBlock x:Name="DnsToolsHint" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
                         <TextBlock x:Name="DnsStatusText" Margin="0,14,0,10" TextWrapping="Wrap" />
                         <DataGrid x:Name="DnsGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="260">
@@ -306,6 +328,44 @@
                                 <DataGridTextColumn x:Name="DnsServersColumn" Binding="{Binding Servers}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="DnsSourceColumn" Binding="{Binding Source}" Width="120" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                 <DataGridTextColumn x:Name="DnsStatusColumn" Binding="{Binding Status}" Width="120" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
+
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="QualityPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
+                    <StackPanel>
+                        <TextBlock x:Name="QualityToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
+                        <WrapPanel>
+                            <Button x:Name="QualityRunButton" Click="QualityRun_Click" Margin="0,0,8,8" />
+                            <Button x:Name="QualityOpenSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
+                        </WrapPanel>
+                        <Grid Margin="0,8,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="190" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock x:Name="QualityScoreLabel" />
+                                <TextBlock x:Name="QualityScoreText" FontSize="34" FontWeight="Bold" Foreground="{DynamicResource SystemAccentColorPrimaryBrush}" Margin="0,4,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock x:Name="QualityLatencyLabel" />
+                                <TextBlock x:Name="QualityLatencyText" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock x:Name="QualityStateLabel" />
+                                <TextBlock x:Name="QualityStateText" FontSize="20" FontWeight="SemiBold" Margin="0,8,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock x:Name="QualityStatusText" Margin="0,0,0,10" TextWrapping="Wrap" />
+                        <DataGrid x:Name="QualityProbeGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="320">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn x:Name="QualityProbeColumn" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="QualityResultColumn" Binding="{Binding ResultText}" Width="110" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                <DataGridTextColumn x:Name="QualityLatencyColumn" Binding="{Binding LatencyText}" Width="130" ElementStyle="{StaticResource GridTextStyle}" />
+                                <DataGridTextColumn x:Name="QualityDetailColumn" Binding="{Binding Detail}" Width="3*" ElementStyle="{StaticResource GridTextStyle}" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </StackPanel>
