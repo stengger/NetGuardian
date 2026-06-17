@@ -45,6 +45,42 @@
         <Style x:Key="GridRowStyle" TargetType="DataGridRow">
             <Setter Property="Height" Value="38" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#253225" />
+                    <Setter Property="BorderBrush" Value="#5DAE78" />
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#69D18B" BlurRadius="14" ShadowDepth="0" Opacity="0.38" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#2B3D2E" />
+                    <Setter Property="BorderBrush" Value="#69D18B" />
+                    <Setter Property="Foreground" Value="#F4F1E8" />
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#69D18B" BlurRadius="18" ShadowDepth="0" Opacity="0.55" />
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                </Trigger>
+            </Style.Triggers>
         </Style>
     </ui:FluentWindow.Resources>
 
@@ -173,6 +209,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <WrapPanel Margin="0,0,0,8">
@@ -186,8 +223,11 @@
                         <Button x:Name="RemoveButton" Click="Remove_Click" Margin="0,0,6,6" />
                         <Button x:Name="ConnectButton" Click="Connect_Click" Margin="0,0,6,6" />
                     </WrapPanel>
-                    <TextBlock x:Name="DragHintText" Grid.Row="1" Margin="0,0,0,12" Opacity="0.72" TextWrapping="Wrap" />
-                    <Grid Grid.Row="2">
+                    <Border x:Name="WifiSelectionBar" Grid.Row="1" Background="#20281F" BorderBrush="#3E4B3D" BorderThickness="1" CornerRadius="6" Padding="10,7" Margin="0,0,0,8">
+                        <TextBlock x:Name="CurrentWifiSelectionText" TextWrapping="Wrap" />
+                    </Border>
+                    <TextBlock x:Name="DragHintText" Grid.Row="2" Margin="0,0,0,12" Opacity="0.72" TextWrapping="Wrap" />
+                    <Grid Grid.Row="3">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="1.05*" />
                             <ColumnDefinition Width="1.25*" />
@@ -195,7 +235,7 @@
                         <Border Margin="0,0,10,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="NearbyNetworksTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                <DataGrid x:Name="NearbyGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
+                                <DataGrid x:Name="NearbyGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
@@ -207,7 +247,7 @@
                         <Border Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="PriorityListTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                <DataGrid x:Name="ProfileGrid" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
+                                <DataGrid x:Name="ProfileGrid" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" IsReadOnly="True" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
@@ -278,6 +318,7 @@
                         <ui:ToggleSwitch x:Name="WifiAutoEnableCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="DnsFlushCheckBox" Margin="0,9" />
                         <Button x:Name="SavePolicyButton" HorizontalAlignment="Left" Margin="0,18,0,0" Click="SavePolicy_Click" />
+                        <TextBlock x:Name="PolicyStatusText" Margin="0,12,0,0" TextWrapping="Wrap" Opacity="0.78" />
                     </StackPanel>
                 </Border>
 

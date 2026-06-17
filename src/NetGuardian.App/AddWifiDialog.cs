@@ -14,6 +14,7 @@ public sealed class AddWifiDialog : Window
     private readonly TextBox _authBox = new();
     private readonly PasswordBox _passwordBox = new();
     private readonly CheckBox _saveToWindowsBox = new();
+    private readonly TextBlock _errorText = new();
 
     public AddWifiDialog(Localizer localizer, WifiNetwork? network, string? initialPassword = null)
     {
@@ -104,6 +105,11 @@ public sealed class AddWifiDialog : Window
         Grid.SetRow(_saveToWindowsBox, 4);
         root.Children.Add(_saveToWindowsBox);
 
+        _errorText.Foreground = Brush("#EF6B5B");
+        _errorText.TextWrapping = TextWrapping.Wrap;
+        _errorText.Margin = new Thickness(0, 0, 0, 8);
+        _errorText.Visibility = Visibility.Collapsed;
+
         var hint = new TextBlock
         {
             Text = localizer.T("PasswordHint"),
@@ -111,8 +117,11 @@ public sealed class AddWifiDialog : Window
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 18)
         };
-        Grid.SetRow(hint, 5);
-        root.Children.Add(hint);
+        var hintPanel = new StackPanel();
+        hintPanel.Children.Add(_errorText);
+        hintPanel.Children.Add(hint);
+        Grid.SetRow(hintPanel, 5);
+        root.Children.Add(hintPanel);
 
         var buttons = new StackPanel
         {
@@ -120,12 +129,23 @@ public sealed class AddWifiDialog : Window
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Bottom
         };
-        var cancelButton = new Button { Content = localizer.T("Cancel"), Width = 96, Height = 38, Margin = new Thickness(0, 0, 8, 0) };
+        var cancelButton = new Button { Content = localizer.T("Cancel"), Width = 96, Height = 38, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
         StyleButton(cancelButton, false);
         cancelButton.Click += (_, _) => DialogResult = false;
-        var okButton = new Button { Content = localizer.T("Save"), Width = 96, Height = 38 };
+        var okButton = new Button { Content = localizer.T("Save"), Width = 96, Height = 38, IsDefault = true };
         StyleButton(okButton, true);
-        okButton.Click += (_, _) => DialogResult = true;
+        okButton.Click += (_, _) =>
+        {
+            if (string.IsNullOrWhiteSpace(_ssidBox.Text))
+            {
+                _errorText.Text = localizer.T("SsidRequired");
+                _errorText.Visibility = Visibility.Visible;
+                _ssidBox.Focus();
+                return;
+            }
+
+            DialogResult = true;
+        };
         buttons.Children.Add(cancelButton);
         buttons.Children.Add(okButton);
         Grid.SetRow(buttons, 6);

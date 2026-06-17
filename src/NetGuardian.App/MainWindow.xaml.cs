@@ -52,6 +52,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _isMonitoring;
     private bool _forceExit;
     private bool _isSyncingDnsControls;
+    private bool _isSyncingWifiSelection;
     private bool _isNotifyIconDisposed;
     private bool _resourcesCleaned;
     private int _logLineCount;
@@ -139,7 +140,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (NearbyGrid.SelectedItem is WifiNetwork network)
         {
             await RunUiActionAsync(() => AddWifiProfileAsync(network));
+            return;
         }
+
+        SetWifiSelectionMessage(_localizer.T("SelectNearbyWifiFirst"));
     }
 
     private async void AddManual_Click(object sender, RoutedEventArgs e)
@@ -156,7 +160,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         else if (NearbyGrid.SelectedItem is WifiNetwork network)
         {
             await RunUiActionAsync(() => AddWifiProfileAsync(network));
+            return;
         }
+
+        SetWifiSelectionMessage(_localizer.T("SelectWifiFirst"));
     }
 
     private async void ImportPassword_Click(object sender, RoutedEventArgs e)
@@ -180,6 +187,42 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
+    private void NearbyGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isSyncingWifiSelection)
+        {
+            UpdateWifiSelectionUi();
+            return;
+        }
+
+        if (NearbyGrid.SelectedItem is not null && ProfileGrid.SelectedItem is not null)
+        {
+            _isSyncingWifiSelection = true;
+            ProfileGrid.SelectedItem = null;
+            _isSyncingWifiSelection = false;
+        }
+
+        UpdateWifiSelectionUi();
+    }
+
+    private void ProfileGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isSyncingWifiSelection)
+        {
+            UpdateWifiSelectionUi();
+            return;
+        }
+
+        if (ProfileGrid.SelectedItem is not null && NearbyGrid.SelectedItem is not null)
+        {
+            _isSyncingWifiSelection = true;
+            NearbyGrid.SelectedItem = null;
+            _isSyncingWifiSelection = false;
+        }
+
+        UpdateWifiSelectionUi();
+    }
+
     private void MoveUp_Click(object sender, RoutedEventArgs e) => MoveSelectedProfile(-1);
     private void MoveDown_Click(object sender, RoutedEventArgs e) => MoveSelectedProfile(1);
 
@@ -187,18 +230,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (ProfileGrid.SelectedItem is not WifiProfile profile)
         {
+            SetWifiSelectionMessage(_localizer.T("SelectProfileFirst"));
             return;
         }
 
         _profiles.Remove(profile);
         RenumberProfiles();
         SaveSettings();
+        UpdateWifiSelectionUi();
     }
 
     private async void Connect_Click(object sender, RoutedEventArgs e)
     {
         if (ProfileGrid.SelectedItem is not WifiProfile profile)
         {
+            SetWifiSelectionMessage(_localizer.T("SelectProfileFirst"));
             return;
         }
 
@@ -214,7 +260,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         SavePolicyFromUi();
         SaveSettings();
-        Log("Policy saved.");
+        var status = string.Format(
+            _localizer.T("PolicySavedDetails"),
+            FormatDuration(TimeSpan.FromSeconds(_settings.Policy.CheckIntervalSeconds)),
+            _settings.Policy.ConsecutiveFailuresBeforeRecovery,
+            FormatDuration(TimeSpan.FromSeconds(_settings.Policy.RecoveryCooldownSeconds)));
+        PolicyStatusText.Text = status;
+        Log(status);
         UpdateMonitorStatus();
     }
 
@@ -257,6 +309,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void ToolsRenewDhcp_Click(object sender, RoutedEventArgs e)
     {
+        if (!await ConfirmActionAsync(_localizer.T("ConfirmDhcpTitle"), _localizer.T("ConfirmDhcpMessage")))
+        {
+            SetToolOutput(_localizer.T("ActionCancelled"));
+            return;
+        }
+
         await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", ["/renew"], _localizer.T("RenewDhcp")));
         RefreshAdapterInfo();
     }
@@ -491,6 +549,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 _nearbyNetworks.Add(network);
             }
 
+            UpdateWifiSelectionUi();
             Log(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
             SetToolOutput(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
         }
@@ -538,6 +597,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         });
         RenumberProfiles();
         SaveSettings();
+        ProfileGrid.SelectedItem = _profiles.FirstOrDefault(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
+        UpdateWifiSelectionUi();
     }
 
     private async Task ConfigureProfileCredentialAsync(WifiProfile profile, string? initialPassword = null)
@@ -575,6 +636,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         profile.CredentialSaved = credentialSaved;
         ProfileGrid.Items.Refresh();
         SaveSettings();
+        UpdateWifiSelectionUi();
     }
 
     private async Task ImportSelectedWifiPasswordAsync()
@@ -614,6 +676,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (ProfileGrid.SelectedItem is not WifiProfile profile)
         {
+            SetWifiSelectionMessage(_localizer.T("SelectProfileFirst"));
             return;
         }
 
@@ -621,6 +684,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var newIndex = oldIndex + direction;
         if (newIndex < 0 || newIndex >= _profiles.Count)
         {
+            SetWifiSelectionMessage(direction < 0 ? _localizer.T("AlreadyFirstProfile") : _localizer.T("AlreadyLastProfile"));
             return;
         }
 
@@ -628,6 +692,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RenumberProfiles();
         ProfileGrid.SelectedItem = profile;
         SaveSettings();
+        UpdateWifiSelectionUi();
     }
 
     private void ProfileGrid_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -701,6 +766,65 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         ProfileGrid.Items.Refresh();
+    }
+
+    private void UpdateWifiSelectionUi()
+    {
+        var nearby = NearbyGrid.SelectedItem as WifiNetwork;
+        var profile = ProfileGrid.SelectedItem as WifiProfile;
+        var hasNearby = nearby is not null;
+        var hasProfile = profile is not null;
+
+        if (hasNearby)
+        {
+            CurrentWifiSelectionText.Text = string.Format(
+                _localizer.T("SelectedNearbyWifi"),
+                DisplaySsid(nearby!.Ssid),
+                nearby.SignalPercent,
+                string.IsNullOrWhiteSpace(nearby.Authentication) ? "-" : nearby.Authentication);
+            SetWifiSelectionVisual(true);
+        }
+        else if (hasProfile)
+        {
+            CurrentWifiSelectionText.Text = string.Format(
+                _localizer.T("SelectedProfileWifi"),
+                profile!.Priority,
+                DisplaySsid(profile.Ssid),
+                profile.Enabled ? _localizer.T("Enabled") : _localizer.T("Disabled"));
+            SetWifiSelectionVisual(true);
+        }
+        else
+        {
+            CurrentWifiSelectionText.Text = _localizer.T("NoWifiSelected");
+            SetWifiSelectionVisual(false);
+        }
+
+        AddSelectedButton.IsEnabled = hasNearby;
+        SetPasswordButton.IsEnabled = hasNearby || hasProfile;
+        ImportPasswordButton.IsEnabled = hasNearby || hasProfile;
+        RemoveButton.IsEnabled = hasProfile;
+        ConnectButton.IsEnabled = hasProfile;
+
+        var profileIndex = hasProfile ? _profiles.IndexOf(profile!) : -1;
+        MoveUpButton.IsEnabled = profileIndex > 0;
+        MoveDownButton.IsEnabled = profileIndex >= 0 && profileIndex < _profiles.Count - 1;
+    }
+
+    private void SetWifiSelectionMessage(string message)
+    {
+        CurrentWifiSelectionText.Text = message;
+        SetWifiSelectionVisual(false);
+    }
+
+    private void SetWifiSelectionVisual(bool hasSelection)
+    {
+        WifiSelectionBar.Background = new SolidColorBrush(hasSelection ? Color.FromRgb(34, 48, 38) : Color.FromRgb(32, 40, 31));
+        WifiSelectionBar.BorderBrush = new SolidColorBrush(hasSelection ? Color.FromRgb(105, 209, 139) : Color.FromRgb(62, 75, 61));
+    }
+
+    private string DisplaySsid(string ssid)
+    {
+        return string.IsNullOrWhiteSpace(ssid) ? _localizer.T("HiddenWifi") : ssid;
     }
 
     private void ApplyReport(ConnectivityReport report)
@@ -1026,8 +1150,55 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             HealthStateText.Text = _localizer.T("NotChecked");
         }
 
+        ApplyTooltips();
+        UpdateWifiSelectionUi();
         UpdateMonitorStatus();
         UpdateTrayText();
+    }
+
+    private void ApplyTooltips()
+    {
+        SetTooltip(CheckNowButton, "CheckNowTip");
+        SetTooltip(StartMonitorButton, "StartMonitorTip");
+        SetTooltip(StopButton, "StopMonitorTip");
+        SetTooltip(ScanButton, "ScanTip");
+        SetTooltip(AddSelectedButton, "AddSelectedTip");
+        SetTooltip(SetPasswordButton, "SetPasswordTip");
+        SetTooltip(ImportPasswordButton, "ImportPasswordTip");
+        SetTooltip(AddManualButton, "AddManualTip");
+        SetTooltip(MoveUpButton, "MoveUpTip");
+        SetTooltip(MoveDownButton, "MoveDownTip");
+        SetTooltip(RemoveButton, "RemoveWifiTip");
+        SetTooltip(ConnectButton, "ConnectWifiTip");
+        SetTooltip(SavePolicyButton, "SavePolicyTip");
+        SetTooltip(ToolsCheckButton, "CheckNowTip");
+        SetTooltip(ToolsScanButton, "ScanTip");
+        SetTooltip(ToolsNetworkSettingsButton, "OpenNetworkSettingsTip");
+        SetTooltip(DnsRefreshButton, "DnsRefreshTip");
+        SetTooltip(DnsFlushButton, "DnsFlushTip");
+        SetTooltip(DnsApplyButton, "DnsApplyTip");
+        SetTooltip(QualityRunButton, "QualityRunTip");
+        SetTooltip(QualityOpenSettingsButton, "OpenNetworkSettingsTip");
+        SetTooltip(SpeedRunButton, "SpeedRunTip");
+        SetTooltip(WebsiteRunButton, "WebsiteRunTip");
+        SetTooltip(IpInfoRefreshButton, "IpInfoRefreshTip");
+        SetTooltip(ReportRunButton, "ReportRunTip");
+        SetTooltip(AdapterRefreshButton, "AdapterRefreshTip");
+        SetTooltip(AdapterRenewDhcpButton, "RenewDhcpTip");
+        SetTooltip(AdapterSettingsButton, "OpenNetworkSettingsTip");
+        SetTooltip(AutoSwitchCheckBox, "AutoSwitchTip");
+        SetTooltip(SoftReconnectCheckBox, "SoftReconnectTip");
+        SetTooltip(WifiAutoEnableCheckBox, "WifiAutoEnableTip");
+        SetTooltip(DnsFlushCheckBox, "DnsFlushPolicyTip");
+        SetTooltip(CloseBehaviorComboBox, "CloseBehaviorTip");
+        SetTooltip(StartMonitoringOnLaunchCheckBox, "StartMonitoringOnLaunchTip");
+        SetTooltip(StartMinimizedToTrayCheckBox, "StartMinimizedToTrayTip");
+    }
+
+    private void SetTooltip(FrameworkElement element, string key)
+    {
+        element.ToolTip = _localizer.T(key);
+        ToolTipService.SetShowOnDisabled(element, true);
     }
 
     private void ShowPanel(UIElement panel)
@@ -1086,6 +1257,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             Log(ex.Message);
         }
+    }
+
+    private async Task<bool> ConfirmActionAsync(string title, string message)
+    {
+        var messageBox = new Wpf.Ui.Controls.MessageBox
+        {
+            Title = title,
+            Content = message,
+            PrimaryButtonText = _localizer.T("Continue"),
+            CloseButtonText = _localizer.T("Cancel"),
+            IsPrimaryButtonEnabled = true
+        };
+
+        var result = await messageBox.ShowDialogAsync();
+        return result == Wpf.Ui.Controls.MessageBoxResult.Primary;
     }
 
     private async Task RunSystemNetworkCommandAsync(string fileName, string[] arguments, string label)
@@ -1176,6 +1362,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 DnsStatusText.Text = _localizer.T("InvalidDnsAddress");
                 return;
             }
+        }
+
+        if (!await ConfirmActionAsync(_localizer.T("ConfirmDnsTitle"), _localizer.T("ConfirmDnsMessage")))
+        {
+            DnsStatusText.Text = _localizer.T("ActionCancelled");
+            return;
         }
 
         DnsApplyButton.IsEnabled = false;
