@@ -362,10 +362,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             "ToolsPanel" => ToolsPanel,
             "DnsPanel" => DnsPanel,
             "QualityPanel" => QualityPanel,
-            "SpeedPanel" => SpeedPanel,
-            "WebsitePanel" => WebsitePanel,
-            "IpInfoPanel" => IpInfoPanel,
-            "ReportPanel" => ReportPanel,
             "NetworkPanel" => NetworkPanel,
             "LogPanel" => LogPanel,
             "SettingsPanel" => SettingsPanel,
@@ -808,10 +804,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ToolsNavButton.Content = _localizer.T("Tools");
         DnsNavButton.Content = _localizer.T("DnsTools");
         QualityNavButton.Content = _localizer.T("QualityTools");
-        SpeedNavButton.Content = _localizer.T("SpeedTools");
-        WebsiteNavButton.Content = _localizer.T("WebsiteTools");
-        IpInfoNavButton.Content = _localizer.T("IpInfoTools");
-        ReportNavButton.Content = _localizer.T("ReportTools");
         AdapterNavButton.Content = _localizer.T("AdapterTools");
         LogNavButton.Content = _localizer.T("Log");
         SettingsNavButton.Content = _localizer.T("Settings");
@@ -863,6 +855,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ToolsScanButton.Content = _localizer.T("Scan");
         ToolsNetworkSettingsButton.Content = _localizer.T("OpenNetworkSettings");
         HighRiskText.Text = _localizer.T("HighRiskReserved");
+        QuickToolsTab.Header = _localizer.T("QuickTools");
+        SpeedToolsTab.Header = _localizer.T("SpeedTools");
+        WebsiteToolsTab.Header = _localizer.T("WebsiteTools");
+        IpInfoToolsTab.Header = _localizer.T("IpInfoTools");
+        ReportToolsTab.Header = _localizer.T("ReportTools");
         DnsToolsTitle.Text = _localizer.T("DnsTools");
         DnsRefreshButton.Content = _localizer.T("RefreshStatus");
         DnsFlushButton.Content = _localizer.T("FlushDns");
@@ -888,12 +885,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityResultColumn.Header = _localizer.T("Result");
         QualityLatencyColumn.Header = _localizer.T("Latency");
         QualityDetailColumn.Header = _localizer.T("Detail");
-        SpeedToolsTitle.Text = _localizer.T("SpeedTools");
         SpeedRunButton.Content = _localizer.T("RunSpeedTest");
         DownloadSpeedLabel.Text = _localizer.T("DownloadSpeed");
         UploadSpeedLabel.Text = _localizer.T("UploadSpeed");
         SpeedLatencyLabel.Text = _localizer.T("Latency");
-        WebsiteToolsTitle.Text = _localizer.T("WebsiteTools");
         WebsiteRunButton.Content = _localizer.T("Test");
         WebsiteAppleButton.Content = "Apple";
         WebsiteGitHubButton.Content = "GitHub";
@@ -906,11 +901,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         WebsiteLatencyColumn.Header = _localizer.T("Latency");
         WebsiteAddressColumn.Header = "IP";
         WebsiteDetailColumn.Header = _localizer.T("Detail");
-        IpInfoToolsTitle.Text = _localizer.T("IpInfoTools");
         IpInfoRefreshButton.Content = _localizer.T("RefreshStatus");
         IpInfoNameColumn.Header = _localizer.T("Item");
         IpInfoValueColumn.Header = _localizer.T("Value");
-        ReportToolsTitle.Text = _localizer.T("ReportTools");
         ReportRunButton.Content = _localizer.T("RunDiagnosticReport");
         ReportItemColumn.Header = _localizer.T("Item");
         ReportResultColumn.Header = _localizer.T("Result");
@@ -954,7 +947,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ShowPanel(UIElement panel)
     {
-        foreach (var item in new UIElement[] { StatusPanel, WifiPanel, PolicyPanel, ToolsPanel, DnsPanel, QualityPanel, SpeedPanel, WebsitePanel, IpInfoPanel, ReportPanel, NetworkPanel, LogPanel, SettingsPanel })
+        foreach (var item in new UIElement[] { StatusPanel, WifiPanel, PolicyPanel, ToolsPanel, DnsPanel, QualityPanel, NetworkPanel, LogPanel, SettingsPanel })
         {
             item.Visibility = item == panel ? Visibility.Visible : Visibility.Collapsed;
         }
@@ -965,10 +958,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             : panel == ToolsPanel ? _localizer.T("Tools")
             : panel == DnsPanel ? _localizer.T("DnsTools")
             : panel == QualityPanel ? _localizer.T("QualityTools")
-            : panel == SpeedPanel ? _localizer.T("SpeedTools")
-            : panel == WebsitePanel ? _localizer.T("WebsiteTools")
-            : panel == IpInfoPanel ? _localizer.T("IpInfoTools")
-            : panel == ReportPanel ? _localizer.T("ReportTools")
             : panel == NetworkPanel ? _localizer.T("AdapterTools")
             : panel == LogPanel ? _localizer.T("Log")
             : _localizer.T("Settings");
@@ -1069,25 +1058,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             QualityStatusText.Text = text;
         }
 
-        if (SpeedPanel.Visibility == Visibility.Visible)
-        {
-            SpeedStatusText.Text = text;
-        }
-
-        if (WebsitePanel.Visibility == Visibility.Visible)
-        {
-            WebsiteStatusText.Text = text;
-        }
-
-        if (IpInfoPanel.Visibility == Visibility.Visible)
-        {
-            IpInfoStatusText.Text = text;
-        }
-
-        if (ReportPanel.Visibility == Visibility.Visible)
-        {
-            ReportStatusText.Text = text;
-        }
     }
 
     private void InitializeDnsControls()
@@ -1438,12 +1408,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         SpeedRunButton.IsEnabled = false;
         SpeedStatusText.Text = _localizer.T("SpeedTesting");
+        UpdateSpeedGauge(0, _localizer.T("SpeedTesting"));
         try
         {
-            var result = await _speedTester.RunAsync();
+            var progress = new Progress<NetworkSpeedTestProgress>(ApplySpeedProgress);
+            var result = await _speedTester.RunAsync(progress);
             DownloadSpeedText.Text = FormatMbps(result.DownloadMbps);
             UploadSpeedText.Text = FormatMbps(result.UploadMbps);
             SpeedLatencyText.Text = result.LatencyMs.HasValue ? $"{result.LatencyMs.Value:F0} ms" : "-";
+            UpdateSpeedGauge(Math.Max(result.DownloadMbps, result.UploadMbps), _localizer.T("SpeedTestComplete"));
             SpeedStatusText.Text = string.Format(_localizer.T("SpeedTestDone"), result.CheckedAt.ToString("yyyy-MM-dd HH:mm:ss"));
             Log($"{_localizer.T("SpeedTools")}: {DownloadSpeedText.Text} / {UploadSpeedText.Text} / {SpeedLatencyText.Text}");
         }
@@ -1455,6 +1428,27 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         finally
         {
             SpeedRunButton.IsEnabled = true;
+        }
+    }
+
+    private void ApplySpeedProgress(NetworkSpeedTestProgress progress)
+    {
+        if (progress.LatencyMs.HasValue)
+        {
+            SpeedLatencyText.Text = $"{progress.LatencyMs.Value:F0} ms";
+        }
+
+        if (progress.Mbps.HasValue)
+        {
+            if (progress.Phase.Equals("Upload", StringComparison.OrdinalIgnoreCase))
+            {
+                UploadSpeedText.Text = FormatMbps(progress.Mbps.Value);
+                UpdateSpeedGauge(progress.Mbps.Value, _localizer.T("UploadSpeed"));
+                return;
+            }
+
+            DownloadSpeedText.Text = FormatMbps(progress.Mbps.Value);
+            UpdateSpeedGauge(progress.Mbps.Value, _localizer.T("DownloadSpeed"));
         }
     }
 
@@ -1604,6 +1598,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UploadSpeedText.Text = "-";
         SpeedLatencyText.Text = "-";
         SpeedStatusText.Text = _localizer.T("NotChecked");
+        UpdateSpeedGauge(0, _localizer.T("NotChecked"));
     }
 
     private void ResetIpInfoUi()
@@ -1624,6 +1619,50 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private static string FormatLatency(double? latencyMs)
     {
         return latencyMs.HasValue ? $"{latencyMs.Value:F0} ms" : "-";
+    }
+
+    private void UpdateSpeedGauge(double mbps, string phase)
+    {
+        var progress = NormalizeGaugeSpeed(mbps);
+        SpeedGaugeArc.Data = progress <= 0 ? Geometry.Empty : CreateGaugeArc(progress);
+        var needlePoint = GaugePoint(200 + (140 * progress), 124);
+        SpeedGaugeNeedle.X2 = needlePoint.X;
+        SpeedGaugeNeedle.Y2 = needlePoint.Y;
+        SpeedGaugeValueText.Text = mbps > 0 ? $"{mbps:F1}" : "-";
+        SpeedGaugePhaseText.Text = phase;
+    }
+
+    private static double NormalizeGaugeSpeed(double mbps)
+    {
+        if (mbps <= 0)
+        {
+            return 0;
+        }
+
+        return Math.Clamp(Math.Log10(mbps + 1) / Math.Log10(1001), 0, 1);
+    }
+
+    private static Geometry CreateGaugeArc(double progress)
+    {
+        var start = GaugePoint(200, 135);
+        var end = GaugePoint(200 + (140 * progress), 135);
+        var figure = new PathFigure { StartPoint = start, IsClosed = false, IsFilled = false };
+        figure.Segments.Add(new ArcSegment(
+            end,
+            new Size(135, 135),
+            0,
+            false,
+            SweepDirection.Clockwise,
+            true));
+        return new PathGeometry([figure]);
+    }
+
+    private static Point GaugePoint(double angleDegrees, double radius)
+    {
+        const double centerX = 210;
+        const double centerY = 210;
+        var radians = angleDegrees * Math.PI / 180;
+        return new Point(centerX + (Math.Cos(radians) * radius), centerY + (Math.Sin(radians) * radius));
     }
 
     private string LocalizeOperationalStatus(OperationalStatus status)

@@ -66,16 +66,12 @@
                 <ui:NavigationView.MenuItems>
                     <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon WifiSettings20}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Document24}" Tag="PolicyPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Wrench24}" Tag="ToolsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon DocumentBulletList24}" Tag="PolicyPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Apps24}" Tag="ToolsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon GlobeSearch20}" Tag="DnsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="QualityNavButton" Content="Quality" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="QualityPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="SpeedNavButton" Content="Speed" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="SpeedPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="WebsiteNavButton" Content="Website" Icon="{ui:SymbolIcon GlobeSearch20}" Tag="WebsitePanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="IpInfoNavButton" Content="IP" Icon="{ui:SymbolIcon GlobeSearch20}" Tag="IpInfoPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="ReportNavButton" Content="Report" Icon="{ui:SymbolIcon Document24}" Tag="ReportPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="QualityNavButton" Content="Quality" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="QualityPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     <ui:NavigationViewItem x:Name="AdapterNavButton" Content="Adapter" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="NetworkPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon Document24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                    <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon ClipboardBulletList24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                 </ui:NavigationView.MenuItems>
                 <ui:NavigationView.FooterMenuItems>
                     <ui:NavigationViewItem x:Name="SettingsNavButton" Content="Settings" Icon="{ui:SymbolIcon Settings24}" Tag="SettingsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
@@ -287,13 +283,120 @@
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ToolsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <StackPanel>
                         <TextBlock x:Name="ToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <WrapPanel>
-                            <Button x:Name="ToolsCheckButton" Click="CheckNow_Click" Margin="0,0,8,8" />
-                            <Button x:Name="ToolsScanButton" Click="Scan_Click" Margin="0,0,8,8" />
-                            <Button x:Name="ToolsNetworkSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
-                        </WrapPanel>
-                        <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
-                        <TextBlock x:Name="ToolsOutputText" Margin="0,14,0,0" TextWrapping="Wrap" />
+                        <TabControl x:Name="ToolsTabControl">
+                            <TabItem x:Name="QuickToolsTab">
+                                <StackPanel Margin="0,12,0,0">
+                                    <WrapPanel>
+                                        <Button x:Name="ToolsCheckButton" Click="CheckNow_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="ToolsScanButton" Click="Scan_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="ToolsNetworkSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
+                                    <TextBlock x:Name="ToolsOutputText" Margin="0,14,0,0" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </TabItem>
+                            <TabItem x:Name="SpeedToolsTab">
+                                <StackPanel Margin="0,12,0,0">
+                                    <WrapPanel>
+                                        <Button x:Name="SpeedRunButton" Click="SpeedRun_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <Grid Margin="0,8,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1*" />
+                                            <ColumnDefinition Width="1*" />
+                                            <ColumnDefinition Width="1*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,8,0">
+                                            <TextBlock x:Name="DownloadSpeedLabel" />
+                                            <TextBlock x:Name="DownloadSpeedText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="4,0,4,0">
+                                            <TextBlock x:Name="UploadSpeedLabel" />
+                                            <TextBlock x:Name="UploadSpeedText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Margin="8,0,0,0">
+                                            <TextBlock x:Name="SpeedLatencyLabel" />
+                                            <TextBlock x:Name="SpeedLatencyText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Canvas Width="420" Height="270" HorizontalAlignment="Center" Margin="0,2,0,14">
+                                        <Path Stroke="#26364A" StrokeThickness="28" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
+                                        <Path x:Name="SpeedGaugeArc" Stroke="#55E6D5" StrokeThickness="28" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                        <Line x:Name="SpeedGaugeNeedle" X1="210" Y1="210" X2="210" Y2="86" Stroke="#F4F1E8" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                        <Ellipse Width="18" Height="18" Fill="#F4F1E8" Canvas.Left="201" Canvas.Top="201" />
+                                        <TextBlock Text="0" Canvas.Left="88" Canvas.Top="206" FontWeight="SemiBold" Opacity="0.72" />
+                                        <TextBlock Text="10" Canvas.Left="112" Canvas.Top="143" FontWeight="SemiBold" Opacity="0.72" />
+                                        <TextBlock Text="50" Canvas.Left="154" Canvas.Top="100" FontWeight="SemiBold" Opacity="0.72" />
+                                        <TextBlock Text="100" Canvas.Left="195" Canvas.Top="80" FontWeight="SemiBold" Opacity="0.72" />
+                                        <TextBlock Text="250" Canvas.Left="254" Canvas.Top="100" FontWeight="SemiBold" Opacity="0.72" />
+                                        <TextBlock Text="500" Canvas.Left="291" Canvas.Top="143" FontWeight="SemiBold" Opacity="0.72" />
+                                        <TextBlock Text="1000" Canvas.Left="300" Canvas.Top="206" FontWeight="SemiBold" Opacity="0.72" />
+                                        <TextBlock x:Name="SpeedGaugeValueText" Width="160" Canvas.Left="130" Canvas.Top="168" FontSize="34" FontWeight="Light" TextAlignment="Center" />
+                                        <TextBlock x:Name="SpeedGaugePhaseText" Width="160" Canvas.Left="130" Canvas.Top="210" TextAlignment="Center" Opacity="0.72" />
+                                    </Canvas>
+                                    <TextBlock x:Name="SpeedStatusText" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </TabItem>
+                            <TabItem x:Name="WebsiteToolsTab">
+                                <StackPanel Margin="0,12,0,0">
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="WebsiteUrlTextBox" Margin="0,0,8,0" />
+                                        <Button x:Name="WebsiteRunButton" Grid.Column="1" Click="WebsiteRun_Click" />
+                                    </Grid>
+                                    <WrapPanel Margin="0,0,0,12">
+                                        <Button x:Name="WebsiteAppleButton" Tag="https://www.apple.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="WebsiteGitHubButton" Tag="https://github.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="WebsiteGoogleButton" Tag="https://www.google.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="WebsiteYouTubeButton" Tag="https://www.youtube.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="WebsiteStatusText" Margin="0,0,0,10" TextWrapping="Wrap" />
+                                    <DataGrid x:Name="WebsiteGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="320">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn x:Name="WebsiteNameColumn" Binding="{Binding Name}" Width="130" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteStatusColumn" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteHttpColumn" Binding="{Binding HttpStatus}" Width="110" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteDnsColumn" Binding="{Binding DnsLatency}" Width="120" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteLatencyColumn" Binding="{Binding HttpLatency}" Width="120" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteAddressColumn" Binding="{Binding Address}" Width="150" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteDetailColumn" Binding="{Binding Detail}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </TabItem>
+                            <TabItem x:Name="IpInfoToolsTab">
+                                <StackPanel Margin="0,12,0,0">
+                                    <WrapPanel>
+                                        <Button x:Name="IpInfoRefreshButton" Click="IpInfoRefresh_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="IpInfoStatusText" Margin="0,4,0,10" TextWrapping="Wrap" />
+                                    <DataGrid x:Name="IpInfoGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="340">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn x:Name="IpInfoNameColumn" Binding="{Binding Name}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="IpInfoValueColumn" Binding="{Binding Value}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </TabItem>
+                            <TabItem x:Name="ReportToolsTab">
+                                <StackPanel Margin="0,12,0,0">
+                                    <WrapPanel>
+                                        <Button x:Name="ReportRunButton" Click="ReportRun_Click" Margin="0,0,8,8" />
+                                    </WrapPanel>
+                                    <TextBlock x:Name="ReportStatusText" Margin="0,4,0,10" TextWrapping="Wrap" />
+                                    <DataGrid x:Name="ReportGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="340">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn x:Name="ReportItemColumn" Binding="{Binding Item}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="ReportResultColumn" Binding="{Binding Result}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="ReportAdviceColumn" Binding="{Binding Advice}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                </StackPanel>
+                            </TabItem>
+                        </TabControl>
                     </StackPanel>
                 </Border>
 
@@ -371,100 +474,6 @@
                                 <DataGridTextColumn x:Name="QualityResultColumn" Binding="{Binding ResultText}" Width="110" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                 <DataGridTextColumn x:Name="QualityLatencyColumn" Binding="{Binding LatencyText}" Width="130" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="QualityDetailColumn" Binding="{Binding Detail}" Width="3*" ElementStyle="{StaticResource GridTextStyle}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </StackPanel>
-                </Border>
-
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="SpeedPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <StackPanel>
-                        <TextBlock x:Name="SpeedToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <WrapPanel>
-                            <Button x:Name="SpeedRunButton" Click="SpeedRun_Click" Margin="0,0,8,8" />
-                        </WrapPanel>
-                        <Grid Margin="0,8,0,14">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1*" />
-                                <ColumnDefinition Width="1*" />
-                                <ColumnDefinition Width="1*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Margin="0,0,8,0">
-                                <TextBlock x:Name="DownloadSpeedLabel" />
-                                <TextBlock x:Name="DownloadSpeedText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Margin="4,0,4,0">
-                                <TextBlock x:Name="UploadSpeedLabel" />
-                                <TextBlock x:Name="UploadSpeedText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" Margin="8,0,0,0">
-                                <TextBlock x:Name="SpeedLatencyLabel" />
-                                <TextBlock x:Name="SpeedLatencyText" FontSize="28" FontWeight="Bold" Margin="0,6,0,0" />
-                            </StackPanel>
-                        </Grid>
-                        <TextBlock x:Name="SpeedStatusText" TextWrapping="Wrap" />
-                    </StackPanel>
-                </Border>
-
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="WebsitePanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <StackPanel>
-                        <TextBlock x:Name="WebsiteToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <Grid Margin="0,0,0,12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBox x:Name="WebsiteUrlTextBox" Margin="0,0,8,0" />
-                            <Button x:Name="WebsiteRunButton" Grid.Column="1" Click="WebsiteRun_Click" />
-                        </Grid>
-                        <WrapPanel Margin="0,0,0,12">
-                            <Button x:Name="WebsiteAppleButton" Tag="https://www.apple.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
-                            <Button x:Name="WebsiteGitHubButton" Tag="https://github.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
-                            <Button x:Name="WebsiteGoogleButton" Tag="https://www.google.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
-                            <Button x:Name="WebsiteYouTubeButton" Tag="https://www.youtube.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
-                        </WrapPanel>
-                        <TextBlock x:Name="WebsiteStatusText" Margin="0,0,0,10" TextWrapping="Wrap" />
-                        <DataGrid x:Name="WebsiteGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="320">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn x:Name="WebsiteNameColumn" Binding="{Binding Name}" Width="130" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="WebsiteStatusColumn" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
-                                <DataGridTextColumn x:Name="WebsiteHttpColumn" Binding="{Binding HttpStatus}" Width="110" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="WebsiteDnsColumn" Binding="{Binding DnsLatency}" Width="120" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="WebsiteLatencyColumn" Binding="{Binding HttpLatency}" Width="120" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="WebsiteAddressColumn" Binding="{Binding Address}" Width="150" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="WebsiteDetailColumn" Binding="{Binding Detail}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </StackPanel>
-                </Border>
-
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="IpInfoPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <StackPanel>
-                        <TextBlock x:Name="IpInfoToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <WrapPanel>
-                            <Button x:Name="IpInfoRefreshButton" Click="IpInfoRefresh_Click" Margin="0,0,8,8" />
-                        </WrapPanel>
-                        <TextBlock x:Name="IpInfoStatusText" Margin="0,4,0,10" TextWrapping="Wrap" />
-                        <DataGrid x:Name="IpInfoGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="340">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn x:Name="IpInfoNameColumn" Binding="{Binding Name}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="IpInfoValueColumn" Binding="{Binding Value}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
-                            </DataGrid.Columns>
-                        </DataGrid>
-                    </StackPanel>
-                </Border>
-
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ReportPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <StackPanel>
-                        <TextBlock x:Name="ReportToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <WrapPanel>
-                            <Button x:Name="ReportRunButton" Click="ReportRun_Click" Margin="0,0,8,8" />
-                        </WrapPanel>
-                        <TextBlock x:Name="ReportStatusText" Margin="0,4,0,10" TextWrapping="Wrap" />
-                        <DataGrid x:Name="ReportGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="340">
-                            <DataGrid.Columns>
-                                <DataGridTextColumn x:Name="ReportItemColumn" Binding="{Binding Item}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="ReportResultColumn" Binding="{Binding Result}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
-                                <DataGridTextColumn x:Name="ReportAdviceColumn" Binding="{Binding Advice}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                             </DataGrid.Columns>
                         </DataGrid>
                     </StackPanel>

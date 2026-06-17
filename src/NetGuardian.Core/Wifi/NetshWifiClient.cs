@@ -22,7 +22,35 @@ public sealed partial class NetshWifiClient : IWifiClient
     public async Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
     {
         var result = await RunNetshAsync(["wlan", "show", "profile", $"name={ssid}", "key=clear"], cancellationToken);
-        return result.ExitCode == 0 ? ParseSavedPassword(result.Output) : null;
+        var password = result.ExitCode == 0 ? ParseSavedPassword(result.Output) : null;
+        if (!string.IsNullOrWhiteSpace(password))
+        {
+            return password;
+        }
+
+        var profilesResult = await RunNetshAsync(["wlan", "show", "profiles"], cancellationToken);
+        foreach (var profileName in ParseProfileNames(profilesResult.Output))
+        {
+            if (!profileName.Equals(ssid, StringComparison.OrdinalIgnoreCase))
+            {
+                var profileResult = await RunNetshAsync(["wlan", "show", "profile", $"name={profileName}"], cancellationToken);
+                var profileSsid = ParseProfileSsid(profileResult.Output);
+                if (string.IsNullOrWhiteSpace(profileSsid)
+                    || !profileSsid.Equals(ssid, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+            }
+
+            var keyResult = await RunNetshAsync(["wlan", "show", "profile", $"name={profileName}", "key=clear"], cancellationToken);
+            password = keyResult.ExitCode == 0 ? ParseSavedPassword(keyResult.Output) : null;
+            if (!string.IsNullOrWhiteSpace(password))
+            {
+                return password;
+            }
+        }
+
+        return null;
     }
 
     public Task<bool> SaveProfileAsync(string ssid, string? password, string authentication, CancellationToken cancellationToken = default)
@@ -148,6 +176,45 @@ public sealed partial class NetshWifiClient : IWifiClient
             if (key.Contains("Key Content", StringComparison.OrdinalIgnoreCase)
                 || key.Contains("关键内容", StringComparison.OrdinalIgnoreCase)
                 || key.Contains("密钥内容", StringComparison.OrdinalIgnoreCase))
+            {
+                return string.IsNullOrWhiteSpace(value) ? null : value;
+            }
+        }
+
+        return null;
+    }
+
+    public static IReadOnlyList<string> ParseProfileNames(string output)
+    {
+        return SplitLines(output)
+            .Select(line => line.Trim())
+            .Where(line => line.Contains(':'))
+            .Select(line => line.Split(':', 2))
+            .Where(parts => parts[0].Contains("All User Profile", StringComparison.OrdinalIgnoreCase)
+                || parts[0].Contains("User Profile", StringComparison.OrdinalIgnoreCase)
+                || parts[0].Contains("所有用户配置文件", StringComparison.OrdinalIgnoreCase)
+                || parts[0].Contains("用户配置文件", StringComparison.OrdinalIgnoreCase))
+            .Select(parts => parts[1].Trim())
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    public static string? ParseProfileSsid(string output)
+    {
+        foreach (var rawLine in SplitLines(output))
+        {
+            var line = rawLine.Trim();
+            if (!line.Contains(':'))
+            {
+                continue;
+            }
+
+            var parts = line.Split(':', 2);
+            var key = parts[0].Trim();
+            var value = parts[1].Trim().Trim('"');
+            if (key.Equals("SSID name", StringComparison.OrdinalIgnoreCase)
+                || key.Equals("SSID 名称", StringComparison.OrdinalIgnoreCase))
             {
                 return string.IsNullOrWhiteSpace(value) ? null : value;
             }

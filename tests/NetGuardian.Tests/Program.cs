@@ -7,6 +7,8 @@ var tests = new List<(string Name, Action Body)>
 {
     ("parse current SSID", ParseCurrentSsid),
     ("parse saved Wi-Fi password", ParseSavedWifiPassword),
+    ("parse Wi-Fi profile names", ParseWifiProfileNames),
+    ("parse Wi-Fi profile SSID", ParseWifiProfileSsid),
     ("parse scan output", ParseScanOutput),
     ("build WLAN profile XML", BuildWlanProfileXml),
     ("normalize website URL", NormalizeWebsiteUrl),
@@ -74,6 +76,54 @@ static void ParseSavedWifiPassword()
         """;
 
     AssertEqual("secret-12345", NetshWifiClient.ParseSavedPassword(output));
+}
+
+static void ParseWifiProfileNames()
+{
+    const string output = """
+        Profiles on interface Wi-Fi:
+
+        Group policy profiles (read only)
+        ---------------------------------
+            <None>
+
+        User profiles
+        -------------
+            All User Profile     : Office 5G
+            All User Profile     : Guest
+        """;
+
+    var names = NetshWifiClient.ParseProfileNames(output);
+    AssertEqual(2, names.Count);
+    AssertEqual("Office 5G", names[0]);
+}
+
+static void ParseWifiProfileSsid()
+{
+    const string output = """
+        Profile Office:
+        =======================================================================
+
+        Applied: All User Profile
+
+        Profile information
+        -------------------
+            Version                : 1
+            Type                   : Wireless LAN
+            Name                   : Office
+            Control options        :
+                Connection mode    : Connect automatically
+                Network broadcast  : Connect only if this network is broadcasting
+                AutoSwitch         : Do not switch to other networks
+                MAC Randomization  : Disabled
+
+        Connectivity settings
+        ---------------------
+            Number of SSIDs        : 1
+            SSID name              : "Office 5G"
+        """;
+
+    AssertEqual("Office 5G", NetshWifiClient.ParseProfileSsid(output));
 }
 
 static void SettingsRoundTrip()

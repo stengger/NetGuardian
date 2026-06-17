@@ -10,15 +10,17 @@ public sealed class NetworkSpeedTestService
         Timeout = TimeSpan.FromSeconds(20)
     };
 
-    public async Task<NetworkSpeedTestResult> RunAsync(CancellationToken cancellationToken = default)
+    public async Task<NetworkSpeedTestResult> RunAsync(
+        IProgress<NetworkSpeedTestProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
-        var latency = await MeasureLatencyAsync(cancellationToken);
-        var download = await MeasureDownloadAsync(cancellationToken);
-        var upload = await MeasureUploadAsync(cancellationToken);
+        var latency = await MeasureLatencyAsync(progress, cancellationToken);
+        var download = await MeasureDownloadAsync(progress, cancellationToken);
+        var upload = await MeasureUploadAsync(progress, cancellationToken);
         return new NetworkSpeedTestResult(download.Mbps, upload.Mbps, latency, download.Bytes, upload.Bytes, DateTimeOffset.Now);
     }
 
-    private static async Task<double?> MeasureLatencyAsync(CancellationToken cancellationToken)
+    private static async Task<double?> MeasureLatencyAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
     {
         var samples = new List<double>();
         foreach (var url in new[] { "https://www.microsoft.com/", "https://www.baidu.com/" })
@@ -40,10 +42,12 @@ public sealed class NetworkSpeedTestService
             }
         }
 
-        return samples.Count == 0 ? null : samples.Average();
+        double? latency = samples.Count == 0 ? null : samples.Average();
+        progress?.Report(new NetworkSpeedTestProgress("Latency", null, latency));
+        return latency;
     }
 
-    private static async Task<(double Mbps, long Bytes)> MeasureDownloadAsync(CancellationToken cancellationToken)
+    private static async Task<(double Mbps, long Bytes)> MeasureDownloadAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, "https://speed.cloudflare.com/__down?bytes=5000000");
         using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
@@ -62,13 +66,16 @@ public sealed class NetworkSpeedTestService
             }
 
             bytes += read;
+            progress?.Report(new NetworkSpeedTestProgress("Download", ToMbps(bytes, stopwatch.Elapsed), null));
         }
 
         stopwatch.Stop();
-        return (ToMbps(bytes, stopwatch.Elapsed), bytes);
+        var mbps = ToMbps(bytes, stopwatch.Elapsed);
+        progress?.Report(new NetworkSpeedTestProgress("Download", mbps, null));
+        return (mbps, bytes);
     }
 
-    private static async Task<(double Mbps, long Bytes)> MeasureUploadAsync(CancellationToken cancellationToken)
+    private static async Task<(double Mbps, long Bytes)> MeasureUploadAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
     {
         var payload = new byte[512 * 1024];
         Random.Shared.NextBytes(payload);
@@ -77,7 +84,9 @@ public sealed class NetworkSpeedTestService
         using var response = await SharedHttpClient.PostAsync("https://postman-echo.com/post", content, cancellationToken);
         stopwatch.Stop();
         response.EnsureSuccessStatusCode();
-        return (ToMbps(payload.Length, stopwatch.Elapsed), payload.Length);
+        var mbps = ToMbps(payload.Length, stopwatch.Elapsed);
+        progress?.Report(new NetworkSpeedTestProgress("Upload", mbps, null));
+        return (mbps, payload.Length);
     }
 
     private static double ToMbps(long bytes, TimeSpan elapsed)
@@ -98,3 +107,5 @@ public sealed record NetworkSpeedTestResult(
     long DownloadBytes,
     long UploadBytes,
     DateTimeOffset CheckedAt);
+
+public sealed record NetworkSpeedTestProgress(string Phase, double? Mbps, double? LatencyMs);
