@@ -9,7 +9,11 @@ public sealed class NetworkSpeedTestService
     private const long DownloadBytes = 5_000_000;
     private const long UploadBytes = 1_000_000;
 
-    private static readonly HttpClient SharedHttpClient = new()
+    private static readonly HttpClient SharedHttpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        ConnectTimeout = TimeSpan.FromSeconds(5)
+    })
     {
         Timeout = TimeSpan.FromSeconds(20)
     };

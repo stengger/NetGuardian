@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -24,6 +25,7 @@ namespace NetGuardian.App;
 
 public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
+    private const int MaxLogLines = 500;
     private readonly SettingsStore _store = new();
     private readonly AppSettings _settings;
     private readonly Localizer _localizer = new();
@@ -44,11 +46,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ObservableCollection<DiagnosticReportRow> _reportRows = [];
     private readonly DispatcherTimer _monitorTimer = new();
     private readonly DispatcherTimer _countdownTimer = new();
+    private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly Forms.NotifyIcon _notifyIcon;
     private bool _isChecking;
     private bool _isMonitoring;
     private bool _forceExit;
     private bool _isSyncingDnsControls;
+    private bool _isNotifyIconDisposed;
+    private bool _resourcesCleaned;
+    private int _logLineCount;
     private int _failureStreak;
     private DateTimeOffset? _nextCheckAt;
     private Point _dragStartPoint;
@@ -77,7 +83,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         IpInfoGrid.ItemsSource = _ipInfoRows;
         ReportGrid.ItemsSource = _reportRows;
 
-        _monitorTimer.Tick += async (_, _) => await RunCheckAsync();
+        _monitorTimer.Tick += MonitorTimer_Tick;
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
         _countdownTimer.Tick += (_, _) => UpdateMonitorStatus();
         _countdownTimer.Start();
@@ -108,6 +114,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void CheckNow_Click(object sender, RoutedEventArgs e) => await RunCheckAsync();
     private async void StartMonitor_Click(object sender, RoutedEventArgs e) => await StartMonitoringAsync();
+
+    private async void MonitorTimer_Tick(object? sender, EventArgs e)
+    {
+        try
+        {
+            await RunCheckAsync();
+        }
+        catch (Exception ex)
+        {
+            Log(ex.Message);
+        }
+    }
 
     private void StopMonitor_Click(object sender, RoutedEventArgs e)
     {
@@ -202,7 +220,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void ToolsFlushDns_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", "/flushdns", _localizer.T("FlushDns")));
+        await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", ["/flushdns"], _localizer.T("FlushDns")));
         RefreshDnsInfo();
     }
 
@@ -239,7 +257,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void ToolsRenewDhcp_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", "/renew", _localizer.T("RenewDhcp")));
+        await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", ["/renew"], _localizer.T("RenewDhcp")));
         RefreshAdapterInfo();
     }
 
@@ -392,7 +410,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task RunCheckAsync()
     {
-        if (_isChecking)
+        if (!await _checkLock.WaitAsync(0))
         {
             return;
         }
@@ -427,14 +445,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         finally
         {
-            if (_isMonitoring)
+            try
             {
-                _nextCheckAt = DateTimeOffset.Now.AddSeconds(_settings.Policy.CheckIntervalSeconds);
-            }
+                if (_isMonitoring)
+                {
+                    _nextCheckAt = DateTimeOffset.Now.AddSeconds(_settings.Policy.CheckIntervalSeconds);
+                }
 
-            CheckNowButton.IsEnabled = true;
-            _isChecking = false;
-            UpdateMonitorStatus();
+                CheckNowButton.IsEnabled = true;
+                _isChecking = false;
+                UpdateMonitorStatus();
+            }
+            finally
+            {
+                _checkLock.Release();
+            }
         }
     }
 
@@ -1063,7 +1088,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private async Task RunSystemNetworkCommandAsync(string fileName, string arguments, string label)
+    private async Task RunSystemNetworkCommandAsync(string fileName, string[] arguments, string label)
     {
         Log($"{label}...");
         SetToolOutput($"{label}...");
@@ -1071,12 +1096,16 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         process.StartInfo = new ProcessStartInfo
         {
             FileName = fileName,
-            Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true
         };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
 
         process.Start();
         var outputTask = process.StandardOutput.ReadToEndAsync();
@@ -1756,11 +1785,31 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}";
         LogTextBox.AppendText(line + Environment.NewLine);
+        _logLineCount++;
+        TrimLogTextBox();
         LogTextBox.ScrollToEnd();
         _recentEvents.Insert(0, line);
         while (_recentEvents.Count > 6)
         {
             _recentEvents.RemoveAt(_recentEvents.Count - 1);
+        }
+    }
+
+    private void TrimLogTextBox()
+    {
+        while (_logLineCount > MaxLogLines)
+        {
+            var text = LogTextBox.Text;
+            var firstLineEnd = text.IndexOf(Environment.NewLine, StringComparison.Ordinal);
+            if (firstLineEnd < 0)
+            {
+                _logLineCount = 1;
+                return;
+            }
+
+            LogTextBox.Text = text[(firstLineEnd + Environment.NewLine.Length)..];
+            LogTextBox.CaretIndex = LogTextBox.Text.Length;
+            _logLineCount--;
         }
     }
 
@@ -1806,14 +1855,16 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void HideToTray()
     {
         Hide();
-        _notifyIcon.Visible = true;
+        if (!_isNotifyIconDisposed)
+        {
+            _notifyIcon.Visible = true;
+        }
     }
 
     private void ExitApplication()
     {
         _forceExit = true;
-        _notifyIcon.Visible = false;
-        _notifyIcon.Dispose();
+        CleanupResources();
         Close();
     }
 
@@ -1831,8 +1882,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (_forceExit)
         {
-            _notifyIcon.Visible = false;
-            _notifyIcon.Dispose();
+            CleanupResources();
             return;
         }
 
@@ -1848,34 +1898,80 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             e.Cancel = true;
             if (_isCloseDialogShowing) return;
             _isCloseDialogShowing = true;
-            ShowCloseDialogAsync();
+            _ = ShowCloseDialogAsync();
+            return;
+        }
+
+        CleanupResources();
+    }
+
+    private async Task ShowCloseDialogAsync()
+    {
+        try
+        {
+            var messageBox = new Wpf.Ui.Controls.MessageBox
+            {
+                Title = _localizer.T("ClosePromptTitle"),
+                Content = _localizer.T("ClosePrompt"),
+                PrimaryButtonText = _localizer.T("CloseTray"),
+                SecondaryButtonText = _localizer.T("CloseExit"),
+                CloseButtonText = _localizer.T("Cancel"),
+                IsPrimaryButtonEnabled = true,
+                IsSecondaryButtonEnabled = true
+            };
+
+            var result = await messageBox.ShowDialogAsync();
+
+            if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
+            {
+                HideToTray();
+            }
+            else if (result == Wpf.Ui.Controls.MessageBoxResult.Secondary)
+            {
+                _forceExit = true;
+                Application.Current.Shutdown();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log(ex.Message);
+        }
+        finally
+        {
+            _isCloseDialogShowing = false;
         }
     }
 
-    private async void ShowCloseDialogAsync()
+    private void CleanupResources()
     {
-        var messageBox = new Wpf.Ui.Controls.MessageBox
+        if (_resourcesCleaned)
         {
-            Title = _localizer.T("ClosePromptTitle"),
-            Content = _localizer.T("ClosePrompt"),
-            PrimaryButtonText = "后台运行",
-            SecondaryButtonText = "直接退出",
-            CloseButtonText = "取消",
-            IsPrimaryButtonEnabled = true,
-            IsSecondaryButtonEnabled = true
-        };
-
-        var result = await messageBox.ShowDialogAsync();
-        _isCloseDialogShowing = false;
-
-        if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
-        {
-            HideToTray();
+            return;
         }
-        else if (result == Wpf.Ui.Controls.MessageBoxResult.Secondary)
+
+        _resourcesCleaned = true;
+        _monitorTimer.Stop();
+        _countdownTimer.Stop();
+        DisposeNotifyIcon();
+    }
+
+    private void DisposeNotifyIcon()
+    {
+        if (_isNotifyIconDisposed)
         {
-            _forceExit = true;
-            Application.Current.Shutdown();
+            return;
+        }
+
+        _isNotifyIconDisposed = true;
+        try
+        {
+            _notifyIcon.Visible = false;
+            _notifyIcon.ContextMenuStrip?.Dispose();
+            _notifyIcon.Icon?.Dispose();
+            _notifyIcon.Dispose();
+        }
+        catch (ObjectDisposedException)
+        {
         }
     }
 

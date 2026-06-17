@@ -7,7 +7,11 @@ namespace NetGuardian.Core.Network;
 
 public sealed class WebsiteTestService
 {
-    private static readonly HttpClient SharedHttpClient = new()
+    private static readonly HttpClient SharedHttpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        ConnectTimeout = TimeSpan.FromSeconds(5)
+    })
     {
         Timeout = TimeSpan.FromSeconds(10)
     };
@@ -44,7 +48,7 @@ public sealed class WebsiteTestService
             using var request = new HttpRequestMessage(HttpMethod.Head, uri);
             using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             requestStopwatch.Stop();
-            var ok = (int)response.StatusCode is >= 200 and < 500;
+            var ok = (int)response.StatusCode is >= 200 and < 400;
             return new WebsiteTestResult(
                 name,
                 normalizedUrl,

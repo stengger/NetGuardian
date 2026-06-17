@@ -14,7 +14,9 @@ var tests = new List<(string Name, Action Body)>
     ("parse scan output", ParseScanOutput),
     ("build WLAN profile XML", BuildWlanProfileXml),
     ("normalize website URL", NormalizeWebsiteUrl),
-    ("settings round trip", SettingsRoundTrip)
+    ("settings round trip", SettingsRoundTrip),
+    ("settings restore backup", SettingsRestoreBackup),
+    ("policy clamps upper bounds", PolicyClampsUpperBounds)
 };
 
 var failed = 0;
@@ -188,11 +190,51 @@ static void SettingsRoundTrip()
     }
     finally
     {
-        if (File.Exists(path))
-        {
-            File.Delete(path);
-        }
+        DeleteSettingsFiles(path);
     }
+}
+
+static void SettingsRestoreBackup()
+{
+    var path = Path.Combine(Path.GetTempPath(), $"netguardian-{Guid.NewGuid():N}.json");
+    try
+    {
+        var store = new SettingsStore(path);
+        store.Save(new AppSettings
+        {
+            Profiles = [new WifiProfile { Ssid = "Recovered", Priority = 1 }]
+        });
+        store.Save(new AppSettings
+        {
+            Profiles = [new WifiProfile { Ssid = "Current", Priority = 1 }]
+        });
+
+        File.WriteAllText(path, "{broken");
+        var loaded = store.Load();
+        AssertEqual("Recovered", loaded.Profiles[0].Ssid);
+        AssertEqual("Recovered", new SettingsStore(path).Load().Profiles[0].Ssid);
+    }
+    finally
+    {
+        DeleteSettingsFiles(path);
+    }
+}
+
+static void PolicyClampsUpperBounds()
+{
+    var policy = new MonitorPolicy
+    {
+        CheckIntervalSeconds = int.MaxValue,
+        ConsecutiveFailuresBeforeRecovery = int.MaxValue,
+        RecoveryCooldownSeconds = int.MaxValue,
+        ProbeTimeoutSeconds = double.MaxValue
+    };
+
+    policy.Normalize();
+    AssertEqual(24 * 60 * 60, policy.CheckIntervalSeconds);
+    AssertEqual(100, policy.ConsecutiveFailuresBeforeRecovery);
+    AssertEqual(24 * 60 * 60, policy.RecoveryCooldownSeconds);
+    AssertEqual(30d, policy.ProbeTimeoutSeconds);
 }
 
 static void BuildWlanProfileXml()
@@ -215,5 +257,16 @@ static void AssertEqual<T>(T expected, T actual)
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
     {
         throw new InvalidOperationException($"Expected {expected}, got {actual}");
+    }
+}
+
+static void DeleteSettingsFiles(string path)
+{
+    foreach (var item in new[] { path, path + ".bak", path + ".tmp" })
+    {
+        if (File.Exists(item))
+        {
+            File.Delete(item);
+        }
     }
 }

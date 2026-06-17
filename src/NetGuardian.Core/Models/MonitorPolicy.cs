@@ -15,9 +15,9 @@ public sealed class MonitorPolicy
 
     public void Normalize()
     {
-        CheckIntervalSeconds = Math.Max(5, CheckIntervalSeconds);
-        ConsecutiveFailuresBeforeRecovery = Math.Max(1, ConsecutiveFailuresBeforeRecovery);
-        RecoveryCooldownSeconds = Math.Max(30, RecoveryCooldownSeconds);
-        ProbeTimeoutSeconds = Math.Max(0.5, ProbeTimeoutSeconds);
+        CheckIntervalSeconds = Math.Clamp(CheckIntervalSeconds, 5, 24 * 60 * 60);
+        ConsecutiveFailuresBeforeRecovery = Math.Clamp(ConsecutiveFailuresBeforeRecovery, 1, 100);
+        RecoveryCooldownSeconds = Math.Clamp(RecoveryCooldownSeconds, 30, 24 * 60 * 60);
+        ProbeTimeoutSeconds = Math.Clamp(ProbeTimeoutSeconds, 0.5, 30);
     }
 }

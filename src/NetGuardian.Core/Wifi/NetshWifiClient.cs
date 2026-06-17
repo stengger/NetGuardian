@@ -414,12 +414,34 @@ public sealed partial class NetshWifiClient : IWifiClient
             process.StartInfo.ArgumentList.Add(argument);
         }
 
-        process.Start();
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        var output = await outputTask + await errorTask;
-        return (process.ExitCode, output);
+        try
+        {
+            process.Start();
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var output = await outputTask + await errorTask;
+            return (process.ExitCode, output);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            KillProcess(process);
+            throw;
+        }
+    }
+
+    private static void KillProcess(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+        }
     }
 
     [GeneratedRegex(@"^SSID\s+\d+\s*:\s*(.*)$|^SSID\s*\d*\s*名称\s*:\s*(.*)$", RegexOptions.IgnoreCase)]

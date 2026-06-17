@@ -18,13 +18,13 @@ NetGuardian 是一个面向远程 Windows 电脑的 Wi-Fi 连通性监控与恢�
 
 ## 环境
 
-.NET SDK 安装在：
+需要 .NET 8 SDK。脚本会优先使用系统 PATH 中的 `dotnet`，如果没有配置 PATH，会回退到当前开发机上的：
 
 ```text
-E:\Environment\dotnet-sdk-8.0
+E:\Environment\dotnet-sdk-8.0\dotnet.exe
 ```
 
-这是通用 .NET SDK 环境，类似 JDK 或 Python 解释器。项目不会修改系统 PATH，脚本会显式调用这个 SDK。
+项目不会修改系统 PATH。
 
 ## 启动
 
@@ -81,4 +81,3 @@ tests\NetGuardian.Tests  无外部依赖的轻量测试控制台
 ```
 
 重启 WLAN 服务、重启网卡、重置网络栈属于高风险动作，后续服务版本中再以显式开关和冷却策略启用。
-

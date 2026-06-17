@@ -90,32 +90,18 @@ public sealed class ConnectivityTester
             }
         }
 
-        var dnsSuccesses = 0;
-        foreach (var host in DnsTargets)
-        {
-            var probe = await ResolveAsync(host, cancellationToken);
-            probes.Add(probe);
-            if (probe.Ok)
-            {
-                dnsSuccesses++;
-            }
-        }
+        var dnsProbes = await Task.WhenAll(DnsTargets.Select(host => ResolveAsync(host, cancellationToken)));
+        probes.AddRange(dnsProbes);
+        var dnsSuccesses = dnsProbes.Count(probe => probe.Ok);
 
         if (dnsSuccesses == 0)
         {
             return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.");
         }
 
-        var httpsSuccesses = 0;
-        foreach (var host in HttpsTargets)
-        {
-            var probe = await HttpsHeadAsync(host, cancellationToken);
-            probes.Add(probe);
-            if (probe.Ok)
-            {
-                httpsSuccesses++;
-            }
-        }
+        var httpsProbes = await Task.WhenAll(HttpsTargets.Select(host => HttpsHeadAsync(host, cancellationToken)));
+        probes.AddRange(httpsProbes);
+        var httpsSuccesses = httpsProbes.Count(probe => probe.Ok);
 
         return httpsSuccesses >= 2
             ? Report(NetworkState.Healthy, currentSsid, ipv4, gateway, probes, "Network is healthy.")
@@ -182,7 +168,8 @@ public sealed class ConnectivityTester
         try
         {
             using var ping = new Ping();
-            var reply = await ping.SendPingAsync(host, (int)(_policy.ProbeTimeoutSeconds * 1000));
+            var reply = await ping.SendPingAsync(host, (int)(_policy.ProbeTimeoutSeconds * 1000))
+                .WaitAsync(cancellationToken);
             stopwatch.Stop();
             return new ConnectivityProbe(name, reply.Status == IPStatus.Success, stopwatch.Elapsed.TotalMilliseconds, host);
         }
@@ -221,7 +208,7 @@ public sealed class ConnectivityTester
             using var request = new HttpRequestMessage(HttpMethod.Head, $"https://{host}/");
             using var response = await SharedHttpClient.SendAsync(request, cts.Token);
             stopwatch.Stop();
-            var ok = (int)response.StatusCode is >= 200 and < 500;
+            var ok = (int)response.StatusCode is >= 200 and < 400;
             return new ConnectivityProbe($"HTTPS {host}", ok, stopwatch.Elapsed.TotalMilliseconds, $"HTTP {(int)response.StatusCode}");
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)

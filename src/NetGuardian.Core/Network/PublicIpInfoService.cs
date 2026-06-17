@@ -6,43 +6,56 @@ namespace NetGuardian.Core.Network;
 public sealed class PublicIpInfoService
 {
     private static readonly TimeSpan CacheDuration = TimeSpan.FromMinutes(10);
-    private static readonly HttpClient SharedHttpClient = new()
+    private static readonly HttpClient SharedHttpClient = new(new SocketsHttpHandler
+    {
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        ConnectTimeout = TimeSpan.FromSeconds(5)
+    })
     {
         Timeout = TimeSpan.FromSeconds(8)
     };
 
+    private readonly SemaphoreSlim _cacheLock = new(1, 1);
     private PublicIpInfo? _cachedInfo;
     private DateTimeOffset _cachedAt = DateTimeOffset.MinValue;
 
     public async Task<PublicIpInfo> GetAsync(CancellationToken cancellationToken = default)
     {
-        if (_cachedInfo is not null && DateTimeOffset.Now - _cachedAt < CacheDuration)
-        {
-            return _cachedInfo;
-        }
-
+        await _cacheLock.WaitAsync(cancellationToken);
         try
         {
-            return Cache(await QueryIpWhoAsync(cancellationToken));
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            throw;
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
-        {
+            if (_cachedInfo is not null && DateTimeOffset.Now - _cachedAt < CacheDuration)
+            {
+                return _cachedInfo;
+            }
+
             try
             {
-                return Cache(await QueryIpifyAsync(cancellationToken));
+                return Cache(await QueryIpWhoAsync(cancellationToken));
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 throw;
             }
-            catch (Exception fallbackEx) when (fallbackEx is HttpRequestException or TaskCanceledException or InvalidOperationException)
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or InvalidOperationException)
             {
-                throw new InvalidOperationException("All public IP providers failed.", fallbackEx);
+                try
+                {
+                    return Cache(await QueryIpifyAsync(cancellationToken));
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception fallbackEx) when (fallbackEx is HttpRequestException or TaskCanceledException or InvalidOperationException)
+                {
+                    throw new InvalidOperationException("All public IP providers failed.", fallbackEx);
+                }
             }
+        }
+        finally
+        {
+            _cacheLock.Release();
         }
     }
 

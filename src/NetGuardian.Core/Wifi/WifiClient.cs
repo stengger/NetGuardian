@@ -17,7 +17,7 @@ public sealed class WifiClient : IWifiClient
                 return networks;
             }
         }
-        catch
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
         {
             // Fall back to netsh; the UI reports the final result rather than implementation details.
         }

@@ -6,7 +6,7 @@ public sealed class NetworkConfigurationService
 {
     public Task<NetworkCommandResult> SetAutomaticDnsAsync(string adapterName, CancellationToken cancellationToken = default)
     {
-        return RunNetshAsync($"interface ip set dns name=\"{EscapeArgument(adapterName)}\" dhcp", cancellationToken);
+        return RunNetshAsync(["interface", "ip", "set", "dns", $"name={adapterName}", "dhcp"], cancellationToken);
     }
 
     public async Task<NetworkCommandResult> SetStaticDnsAsync(
@@ -16,7 +16,7 @@ public sealed class NetworkConfigurationService
         CancellationToken cancellationToken = default)
     {
         var first = await RunNetshAsync(
-            $"interface ip set dns name=\"{EscapeArgument(adapterName)}\" static {EscapeArgument(primaryDns)} primary",
+            ["interface", "ip", "set", "dns", $"name={adapterName}", "static", primaryDns, "primary"],
             cancellationToken);
         if (!first.Success || string.IsNullOrWhiteSpace(secondaryDns))
         {
@@ -24,7 +24,7 @@ public sealed class NetworkConfigurationService
         }
 
         var second = await RunNetshAsync(
-            $"interface ip add dns name=\"{EscapeArgument(adapterName)}\" {EscapeArgument(secondaryDns)} index=2",
+            ["interface", "ip", "add", "dns", $"name={adapterName}", secondaryDns, "index=2"],
             cancellationToken);
 
         return second.Success
@@ -32,30 +32,37 @@ public sealed class NetworkConfigurationService
             : second with { Output = CombineOutput(first.Output, second.Output) };
     }
 
-    private static async Task<NetworkCommandResult> RunNetshAsync(string arguments, CancellationToken cancellationToken)
+    private static async Task<NetworkCommandResult> RunNetshAsync(string[] arguments, CancellationToken cancellationToken)
     {
         using var process = new Process();
         process.StartInfo = new ProcessStartInfo
         {
             FileName = "netsh.exe",
-            Arguments = arguments,
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             CreateNoWindow = true
         };
 
-        process.Start();
-        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-        await process.WaitForExitAsync(cancellationToken);
-        var output = CombineOutput(await outputTask, await errorTask);
-        return new NetworkCommandResult(process.ExitCode == 0, process.ExitCode, output);
-    }
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
 
-    private static string EscapeArgument(string value)
-    {
-        return value.Replace("\"", "\\\"", StringComparison.Ordinal);
+        try
+        {
+            process.Start();
+            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+            await process.WaitForExitAsync(cancellationToken);
+            var output = CombineOutput(await outputTask, await errorTask);
+            return new NetworkCommandResult(process.ExitCode == 0, process.ExitCode, output);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            KillProcess(process);
+            throw;
+        }
     }
 
     private static string CombineOutput(string? first, string? second)
@@ -63,6 +70,20 @@ public sealed class NetworkConfigurationService
         return string.Join(Environment.NewLine, new[] { first, second }
             .Where(item => !string.IsNullOrWhiteSpace(item))
             .Select(item => item!.Trim()));
+    }
+
+    private static void KillProcess(Process process)
+    {
+        try
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
+        {
+        }
     }
 }
 
