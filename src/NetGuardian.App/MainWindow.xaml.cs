@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -27,6 +28,7 @@ namespace NetGuardian.App;
 public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 {
     private const int MaxLogLines = 500;
+    private const string ScheduledStartupTaskName = "NetGuardian";
     private static readonly TimeSpan WifiValidationTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan WifiRestoreTimeout = TimeSpan.FromSeconds(10);
     private readonly SettingsStore _store = new();
@@ -59,11 +61,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _forceExit;
     private bool _isSyncingDnsControls;
     private bool _isSyncingWifiSelection;
+    private bool _isSyncingScheduledStartup;
     private bool _isNotifyIconDisposed;
     private bool _resourcesCleaned;
     private int _logLineCount;
     private int _failureStreak;
     private DateTimeOffset? _nextCheckAt;
+    private DateTimeOffset? _lastRecoveryAttemptAt;
     private DateTimeOffset? _lastSidebarSpeedSampleAt;
     private long? _lastSidebarReceivedBytes;
     private long? _lastSidebarSentBytes;
@@ -114,6 +118,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ShowPanel(StatusPanel);
         UpdateMonitorStatus();
         UpdateSidebarSpeed();
+        _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(CleanupTemporaryWifiProfilesAsync));
+        _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(RefreshScheduledStartupSettingAsync));
 
         if (_settings.StartMonitoringOnLaunch)
         {
@@ -417,6 +423,37 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SaveSettings();
     }
 
+    private async void ScheduledStartup_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || _isSyncingScheduledStartup)
+        {
+            return;
+        }
+
+        await RunUiActionAsync(async () =>
+        {
+            var ok = false;
+            var enable = ScheduledStartupCheckBox.IsChecked == true;
+            try
+            {
+                ScheduledStartupCheckBox.IsEnabled = false;
+                ok = enable
+                    ? await SetScheduledStartupAsync(register: true)
+                    : await SetScheduledStartupAsync(register: false);
+            }
+            finally
+            {
+                ScheduledStartupCheckBox.IsEnabled = true;
+            }
+
+            await RefreshScheduledStartupSettingAsync();
+            if (!ok)
+            {
+                Log(enable ? _localizer.T("ScheduledStartupEnableFailed") : _localizer.T("ScheduledStartupDisableFailed"));
+            }
+        });
+    }
+
     private void ProfileEnabledToggle_Changed(object sender, RoutedEventArgs e)
     {
         if (!IsLoaded)
@@ -509,6 +546,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _failureStreak = report.Ok ? 0 : _failureStreak + 1;
             Log($"{report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {report.State}: {report.Summary}");
             SetToolOutput($"{StateText(report.State)}{Environment.NewLine}{LocalizeSummary(report.Summary)}");
+            await TryRecoverIfNeededAsync(report);
         }
         catch (Exception ex)
         {
@@ -533,6 +571,115 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 _checkLock.Release();
             }
         }
+    }
+
+    private async Task TryRecoverIfNeededAsync(ConnectivityReport report)
+    {
+        if (!_isMonitoring || report.Ok)
+        {
+            return;
+        }
+
+        var policy = _settings.Policy;
+        if (_failureStreak < policy.ConsecutiveFailuresBeforeRecovery)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.Now;
+        var cooldown = TimeSpan.FromSeconds(policy.RecoveryCooldownSeconds);
+        if (_lastRecoveryAttemptAt is { } lastAttempt && now - lastAttempt < cooldown)
+        {
+            Log(string.Format(_localizer.T("RecoveryCooldownActive"), FormatDuration(cooldown - (now - lastAttempt))));
+            return;
+        }
+
+        _lastRecoveryAttemptAt = now;
+        await AttemptRecoveryAsync(report.CurrentSsid);
+    }
+
+    private async Task AttemptRecoveryAsync(string? currentSsid)
+    {
+        var policy = _settings.Policy;
+        var attempted = false;
+        Log(string.Format(_localizer.T("RecoveryStarted"), _failureStreak));
+
+        if (policy.EnableDnsFlush)
+        {
+            attempted = true;
+            Log(_localizer.T("RecoveryDnsFlush"));
+            await RunSystemNetworkCommandAsync("ipconfig.exe", ["/flushdns"], _localizer.T("FlushDns"));
+        }
+
+        if (policy.EnableCurrentWifiReconnect && !string.IsNullOrWhiteSpace(currentSsid))
+        {
+            attempted = true;
+            Log(string.Format(_localizer.T("RecoveryReconnectCurrent"), currentSsid));
+            await _wifi.DisconnectAsync();
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            var commandSent = await _wifi.ConnectAsync(currentSsid);
+            var reconnected = commandSent && await WaitForSsidAsync(currentSsid, WifiRestoreTimeout);
+            MarkProfileRecoveryResult(currentSsid, reconnected);
+            if (reconnected)
+            {
+                Log(string.Format(_localizer.T("RecoveryWifiConnected"), currentSsid));
+                SaveSettings();
+                return;
+            }
+        }
+
+        if (policy.EnableAutoSwitch)
+        {
+            foreach (var profile in _profiles
+                         .Where(profile => profile.Enabled && profile.AutoConnect && profile.CredentialSaved)
+                         .OrderBy(profile => profile.Priority))
+            {
+                if (SsidEquals(profile.Ssid, currentSsid))
+                {
+                    continue;
+                }
+
+                attempted = true;
+                Log(string.Format(_localizer.T("RecoverySwitchWifi"), profile.Ssid));
+                var commandSent = await _wifi.ConnectAsync(profile.Ssid);
+                var connected = commandSent && await WaitForSsidAsync(profile.Ssid, WifiValidationTimeout);
+                MarkProfileRecoveryResult(profile.Ssid, connected);
+                if (connected)
+                {
+                    Log(string.Format(_localizer.T("RecoveryWifiConnected"), profile.Ssid));
+                    SaveSettings();
+                    return;
+                }
+            }
+        }
+
+        if (!attempted)
+        {
+            Log(_localizer.T("RecoveryNoActionsEnabled"));
+            return;
+        }
+
+        SaveSettings();
+        Log(_localizer.T("RecoveryFailed"));
+    }
+
+    private void MarkProfileRecoveryResult(string ssid, bool succeeded)
+    {
+        var profile = _profiles.FirstOrDefault(item => item.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
+        if (profile is null)
+        {
+            return;
+        }
+
+        if (succeeded)
+        {
+            profile.LastSuccessAt = DateTimeOffset.Now;
+            return;
+        }
+
+        profile.LastFailureAt = DateTimeOffset.Now;
+        profile.FailureCount++;
+        ProfileGrid.Items.Refresh();
     }
 
     private bool ShouldTryEnableWifi(WifiAdapterDiagnostics diagnostics)
@@ -673,6 +820,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var connected = false;
         var touchedConnection = false;
 
+        if (!await ConfirmWifiValidationAsync(previousSsid, ssid))
+        {
+            SetWifiSelectionMessage(_localizer.T("ActionCancelled"));
+            Log(_localizer.T("ActionCancelled"));
+            return false;
+        }
+
         SetWifiSelectionMessage(string.Format(_localizer.T("WifiCredentialValidating"), ssid));
         Log(string.Format(_localizer.T("WifiCredentialValidating"), ssid));
 
@@ -729,6 +883,40 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             {
                 await RestoreWifiAfterValidationAsync(previousSsid, ssid, connected);
             }
+        }
+    }
+
+    private async Task<bool> ConfirmWifiValidationAsync(string? currentSsid, string targetSsid)
+    {
+        var current = string.IsNullOrWhiteSpace(currentSsid) ? "-" : currentSsid;
+        var message = string.Format(_localizer.T("WifiCredentialRemoteConfirmMessage"), targetSsid, current);
+        return await ConfirmActionAsync(_localizer.T("WifiCredentialRemoteConfirmTitle"), message);
+    }
+
+    private async Task CleanupTemporaryWifiProfilesAsync()
+    {
+        var profileNames = await _wifi.GetProfileNamesAsync();
+        var temporaryProfiles = profileNames
+            .Where(name => name.StartsWith("NetGuardian-Verify-", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (temporaryProfiles.Count == 0)
+        {
+            return;
+        }
+
+        var removed = 0;
+        foreach (var profileName in temporaryProfiles)
+        {
+            if (await _wifi.DeleteProfileAsync(profileName))
+            {
+                removed++;
+            }
+        }
+
+        if (removed > 0)
+        {
+            Log(string.Format(_localizer.T("TemporaryWifiProfilesCleaned"), removed));
         }
     }
 
@@ -1323,6 +1511,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         CloseBehaviorLabel.Text = _localizer.T("CloseBehavior");
         StartMonitoringOnLaunchCheckBox.Content = _localizer.T("StartMonitoringOnLaunch");
         StartMinimizedToTrayCheckBox.Content = _localizer.T("StartMinimizedToTray");
+        ScheduledStartupCheckBox.Content = _localizer.T("ScheduledStartup");
+        ScheduledStartupStatusText.Text = ScheduledStartupCheckBox.IsChecked == true
+            ? _localizer.T("ScheduledStartupEnabledStatus")
+            : _localizer.T("ScheduledStartupDisabledStatus");
         ((ComboBoxItem)LanguageComboBox.Items[0]).Content = _localizer.T("Chinese");
         ((ComboBoxItem)LanguageComboBox.Items[1]).Content = _localizer.T("English");
         ((ComboBoxItem)IntervalUnitComboBox.Items[0]).Content = _localizer.T("Seconds");
@@ -1384,6 +1576,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SetTooltip(CloseBehaviorComboBox, "CloseBehaviorTip");
         SetTooltip(StartMonitoringOnLaunchCheckBox, "StartMonitoringOnLaunchTip");
         SetTooltip(StartMinimizedToTrayCheckBox, "StartMinimizedToTrayTip");
+        SetTooltip(ScheduledStartupCheckBox, "ScheduledStartupTip");
     }
 
     private void SetTooltip(FrameworkElement element, string key)
@@ -1582,6 +1775,123 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         var result = await messageBox.ShowDialogAsync();
         return result == Wpf.Ui.Controls.MessageBoxResult.Primary;
+    }
+
+    private async Task RefreshScheduledStartupSettingAsync()
+    {
+        var isRegistered = await IsScheduledStartupRegisteredAsync();
+        _isSyncingScheduledStartup = true;
+        try
+        {
+            ScheduledStartupCheckBox.IsChecked = isRegistered;
+            ScheduledStartupStatusText.Text = isRegistered
+                ? _localizer.T("ScheduledStartupEnabledStatus")
+                : _localizer.T("ScheduledStartupDisabledStatus");
+        }
+        finally
+        {
+            _isSyncingScheduledStartup = false;
+        }
+    }
+
+    private async Task<bool> IsScheduledStartupRegisteredAsync()
+    {
+        using var process = CreateHiddenProcess("schtasks.exe", ["/Query", "/TN", ScheduledStartupTaskName]);
+        process.Start();
+        await process.WaitForExitAsync();
+        return process.ExitCode == 0;
+    }
+
+    private async Task<bool> SetScheduledStartupAsync(bool register)
+    {
+        var root = FindProjectRoot();
+        if (root is null)
+        {
+            ScheduledStartupStatusText.Text = _localizer.T("ScheduledStartupScriptMissing");
+            return false;
+        }
+
+        var scriptName = register ? "register-netguardian-task.ps1" : "unregister-netguardian-task.ps1";
+        var script = Path.Combine(root, "scripts", scriptName);
+        if (!File.Exists(script))
+        {
+            ScheduledStartupStatusText.Text = _localizer.T("ScheduledStartupScriptMissing");
+            return false;
+        }
+
+        ScheduledStartupStatusText.Text = register
+            ? _localizer.T("ScheduledStartupEnabling")
+            : _localizer.T("ScheduledStartupDisabling");
+
+        var result = await RunPowerShellFileAsync(script, ["-TaskName", ScheduledStartupTaskName]);
+        if (!string.IsNullOrWhiteSpace(result.Output))
+        {
+            Log(result.Output);
+        }
+
+        ScheduledStartupStatusText.Text = result.Success
+            ? register ? _localizer.T("ScheduledStartupEnabledStatus") : _localizer.T("ScheduledStartupDisabledStatus")
+            : register ? _localizer.T("ScheduledStartupEnableFailed") : _localizer.T("ScheduledStartupDisableFailed");
+        return result.Success;
+    }
+
+    private static string? FindProjectRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            var launcher = Path.Combine(directory.FullName, "Start-NetGuardian.vbs");
+            var scripts = Path.Combine(directory.FullName, "scripts");
+            if (File.Exists(launcher) && Directory.Exists(scripts))
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return null;
+    }
+
+    private static async Task<(bool Success, string Output)> RunPowerShellFileAsync(string script, string[] arguments)
+    {
+        var processArguments = new List<string>
+        {
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            script
+        };
+        processArguments.AddRange(arguments);
+
+        using var process = CreateHiddenProcess("powershell.exe", processArguments);
+        process.Start();
+        var outputTask = process.StandardOutput.ReadToEndAsync();
+        var errorTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+        var output = (await outputTask + await errorTask).Trim();
+        return (process.ExitCode == 0, output);
+    }
+
+    private static Process CreateHiddenProcess(string fileName, IEnumerable<string> arguments)
+    {
+        var process = new Process();
+        process.StartInfo = new ProcessStartInfo
+        {
+            FileName = fileName,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        foreach (var argument in arguments)
+        {
+            process.StartInfo.ArgumentList.Add(argument);
+        }
+
+        return process;
     }
 
     private async Task RunSystemNetworkCommandAsync(string fileName, string[] arguments, string label)

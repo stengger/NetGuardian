@@ -41,6 +41,12 @@ public sealed partial class NetshWifiClient : IWifiClient
             result.ExitCode == 0 ? "" : "Wi-Fi diagnostics require administrator permission.");
     }
 
+    public async Task<IReadOnlyList<string>> GetProfileNamesAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await RunNetshAsync(["wlan", "show", "profiles"], cancellationToken);
+        return result.ExitCode == 0 ? ParseProfileNames(result.Output) : [];
+    }
+
     public async Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
     {
         var name = string.IsNullOrWhiteSpace(adapterName) ? GetPrimaryWifiInterface()?.Name : adapterName.Trim();

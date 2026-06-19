@@ -780,6 +780,8 @@
                         </ComboBox>
                         <ui:ToggleSwitch x:Name="StartMonitoringOnLaunchCheckBox" Margin="0,9" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="StartMinimizedToTrayCheckBox" Margin="0,9" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
+                        <ui:ToggleSwitch x:Name="ScheduledStartupCheckBox" Margin="0,9" Checked="ScheduledStartup_Changed" Unchecked="ScheduledStartup_Changed" />
+                        <TextBlock x:Name="ScheduledStartupStatusText" Foreground="#8FA0B5" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
             

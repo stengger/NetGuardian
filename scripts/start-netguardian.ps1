@@ -12,8 +12,41 @@ $exe = Join-Path $root "src\NetGuardian.App\bin\Debug\net8.0-windows\NetGuardian
 New-Item -ItemType Directory -Force -Path $env:APPDATA | Out-Null
 New-Item -ItemType Directory -Force -Path $env:NUGET_PACKAGES | Out-Null
 
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Start-NetGuardianProcess {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [string[]]$ArgumentList = @(),
+        [switch]$Hidden
+    )
+
+    $arguments = @{
+        FilePath = $FilePath
+    }
+
+    if ($ArgumentList.Count -gt 0) {
+        $arguments.ArgumentList = $ArgumentList
+    }
+
+    if ($Hidden) {
+        $arguments.WindowStyle = "Hidden"
+    }
+
+    if (-not (Test-IsAdministrator)) {
+        $arguments.Verb = "RunAs"
+    }
+
+    Start-Process @arguments
+}
+
 if (Test-Path -LiteralPath $publishedExe) {
-    Start-Process -FilePath $publishedExe -Verb RunAs
+    Start-NetGuardianProcess -FilePath $publishedExe
     return
 }
 
@@ -22,7 +55,7 @@ if (-not (Test-Path -LiteralPath $exe)) {
 }
 
 if (Test-Path -LiteralPath $exe) {
-    Start-Process -FilePath $exe -Verb RunAs
+    Start-NetGuardianProcess -FilePath $exe
 } else {
-    Start-Process -FilePath $dotnet -ArgumentList @("run", "--project", (Join-Path $root "src\NetGuardian.App\NetGuardian.App.csproj"), "--no-restore") -Verb RunAs -WindowStyle Hidden
+    Start-NetGuardianProcess -FilePath $dotnet -ArgumentList @("run", "--project", (Join-Path $root "src\NetGuardian.App\NetGuardian.App.csproj"), "--no-restore") -Hidden
 }
