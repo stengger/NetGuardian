@@ -255,6 +255,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         _profiles.Remove(profile);
         RenumberProfiles();
+        UpdateEmptyStates();
         SaveSettings();
         RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
@@ -710,6 +711,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 _nearbyNetworks.Add(CreateNearbyWifiRow(network));
             }
 
+            UpdateEmptyStates();
             RefreshNearbyPriorityMarkers();
             UpdateWifiSelectionUi();
             Log(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
@@ -763,6 +765,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             AutoConnect = true
         });
         RenumberProfiles();
+        UpdateEmptyStates();
         SaveSettings();
         RefreshNearbyPriorityMarkers();
         ProfileGrid.SelectedItem = _profiles.FirstOrDefault(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
@@ -1417,6 +1420,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         DragHintText.Text = _localizer.T("DoubleClickWifiHint");
         NearbyNetworksTitle.Text = _localizer.T("NearbyNetworks");
         PriorityListTitle.Text = _localizer.T("PriorityList");
+        NearbyEmptyText.Text = _localizer.T("NoNearbyWifiRows");
+        ProfileEmptyText.Text = _localizer.T("NoPriorityWifiRows");
+        RecentEventsEmptyText.Text = _localizer.T("NoRecentEvents");
         NearbySsidColumn.Header = _localizer.T("Ssid");
         NearbySignalColumn.Header = _localizer.T("Signal");
         NearbySecurityColumn.Header = _localizer.T("Security");
@@ -1535,8 +1541,16 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ApplyTooltips();
         RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
+        UpdateEmptyStates();
         UpdateMonitorStatus();
         UpdateTrayText();
+    }
+
+    private void UpdateEmptyStates()
+    {
+        NearbyEmptyText.Visibility = _nearbyNetworks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ProfileEmptyText.Visibility = _profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        RecentEventsEmptyText.Visibility = _recentEvents.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyTooltips()
@@ -2605,6 +2619,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             _recentEvents.RemoveAt(_recentEvents.Count - 1);
         }
+
+        UpdateEmptyStates();
     }
 
     private void TrimLogTextBox()

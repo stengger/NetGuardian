@@ -18,6 +18,7 @@ var tests = new List<(string Name, Action Body)>
     ("build WLAN profile XML with profile name", BuildWlanProfileXmlWithProfileName),
     ("normalize website URL", NormalizeWebsiteUrl),
     ("localization resources have matching keys", LocalizationResourcesHaveMatchingKeys),
+    ("new UI polish strings are localized", NewUiPolishStringsAreLocalized),
     ("settings round trip", SettingsRoundTrip),
     ("settings restore backup", SettingsRestoreBackup),
     ("settings drop blank Wi-Fi profiles", SettingsDropBlankWifiProfiles),
@@ -315,11 +316,31 @@ static void LocalizationResourcesHaveMatchingKeys()
     }
 }
 
+static void NewUiPolishStringsAreLocalized()
+{
+    var localizer = new Localizer();
+    foreach (var language in new[] { "zh-CN", "en-US" })
+    {
+        localizer.SetLanguage(language);
+        AssertNotKey("NoNearbyWifiRows", localizer.T("NoNearbyWifiRows"));
+        AssertNotKey("NoPriorityWifiRows", localizer.T("NoPriorityWifiRows"));
+        AssertNotKey("NoRecentEvents", localizer.T("NoRecentEvents"));
+    }
+}
+
 static void AssertEqual<T>(T expected, T actual)
 {
     if (!EqualityComparer<T>.Default.Equals(expected, actual))
     {
         throw new InvalidOperationException($"Expected {expected}, got {actual}");
+    }
+}
+
+static void AssertNotKey(string key, string value)
+{
+    if (string.IsNullOrWhiteSpace(value) || value.Equals(key, StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException($"Expected localized value for {key}.");
     }
 }
 
