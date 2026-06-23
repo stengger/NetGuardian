@@ -18,3 +18,7 @@ obj/
 .idea/
 .vscode/
 *.tmp
+scripts/Program.cs
+scripts/query_symbols.csproj
+scripts/rebuild_xaml.py
+scripts/rewrite_xaml.py
