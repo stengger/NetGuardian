@@ -598,6 +598,15 @@ public sealed class Localizer
 
     public string Language { get; private set; } = "zh-CN";
 
+    public IReadOnlyCollection<string> SupportedLanguages => _resources.Keys.ToArray();
+
+    public IReadOnlyCollection<string> KeysForLanguage(string language)
+    {
+        return _resources.TryGetValue(language, out var resources)
+            ? resources.Keys.ToArray()
+            : Array.Empty<string>();
+    }
+
     public void SetLanguage(string language)
     {
         Language = _resources.ContainsKey(language) ? language : "zh-CN";

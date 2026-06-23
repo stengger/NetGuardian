@@ -1,7 +1,9 @@
 using NetGuardian.Core.Models;
+using NetGuardian.Core.Localization;
 using NetGuardian.Core.Network;
 using NetGuardian.Core.Settings;
 using NetGuardian.Core.Wifi;
+using System.Text.Json;
 
 var tests = new List<(string Name, Action Body)>
 {
@@ -15,6 +17,7 @@ var tests = new List<(string Name, Action Body)>
     ("build WLAN profile XML", BuildWlanProfileXml),
     ("build WLAN profile XML with profile name", BuildWlanProfileXmlWithProfileName),
     ("normalize website URL", NormalizeWebsiteUrl),
+    ("localization resources have matching keys", LocalizationResourcesHaveMatchingKeys),
     ("settings round trip", SettingsRoundTrip),
     ("settings restore backup", SettingsRestoreBackup),
     ("policy clamps upper bounds", PolicyClampsUpperBounds)
@@ -260,6 +263,27 @@ static void NormalizeWebsiteUrl()
 {
     AssertEqual("https://example.com", WebsiteTestService.NormalizeUrl("example.com"));
     AssertEqual("http://example.com", WebsiteTestService.NormalizeUrl("http://example.com"));
+}
+
+static void LocalizationResourcesHaveMatchingKeys()
+{
+    var localizer = new Localizer();
+    var languages = localizer.SupportedLanguages.ToList();
+    AssertEqual(2, languages.Count);
+    AssertEqual(true, languages.Contains("zh-CN"));
+    AssertEqual(true, languages.Contains("en-US"));
+
+    var zhKeys = localizer.KeysForLanguage("zh-CN").OrderBy(key => key).ToList();
+    var enKeys = localizer.KeysForLanguage("en-US").OrderBy(key => key).ToList();
+
+    var missingInEnglish = zhKeys.Except(enKeys, StringComparer.OrdinalIgnoreCase).ToList();
+    var missingInChinese = enKeys.Except(zhKeys, StringComparer.OrdinalIgnoreCase).ToList();
+
+    if (missingInEnglish.Count > 0 || missingInChinese.Count > 0)
+    {
+        throw new InvalidOperationException(
+            $"Localization keys differ. Missing in English: {string.Join(", ", missingInEnglish)}. Missing in Chinese: {string.Join(", ", missingInChinese)}.");
+    }
 }
 
 static void AssertEqual<T>(T expected, T actual)
