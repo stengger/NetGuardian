@@ -51,6 +51,7 @@ public sealed class SettingsStore
     {
         settings.Policy.Normalize();
         settings.Profiles = settings.Profiles
+            .Where(profile => !string.IsNullOrWhiteSpace(profile.Ssid))
             .OrderBy(profile => profile.Priority)
             .ToList();
 

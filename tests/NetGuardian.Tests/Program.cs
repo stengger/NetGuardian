@@ -20,6 +20,7 @@ var tests = new List<(string Name, Action Body)>
     ("localization resources have matching keys", LocalizationResourcesHaveMatchingKeys),
     ("settings round trip", SettingsRoundTrip),
     ("settings restore backup", SettingsRestoreBackup),
+    ("settings drop blank Wi-Fi profiles", SettingsDropBlankWifiProfiles),
     ("policy clamps upper bounds", PolicyClampsUpperBounds)
 };
 
@@ -217,6 +218,34 @@ static void SettingsRestoreBackup()
         var loaded = store.Load();
         AssertEqual("Recovered", loaded.Profiles[0].Ssid);
         AssertEqual("Recovered", new SettingsStore(path).Load().Profiles[0].Ssid);
+    }
+    finally
+    {
+        DeleteSettingsFiles(path);
+    }
+}
+
+static void SettingsDropBlankWifiProfiles()
+{
+    var path = Path.Combine(Path.GetTempPath(), $"netguardian-{Guid.NewGuid():N}.json");
+    try
+    {
+        var store = new SettingsStore(path);
+        store.Save(new AppSettings
+        {
+            Profiles =
+            [
+                new WifiProfile { Ssid = "Office", Priority = 3 },
+                new WifiProfile { Ssid = "   ", Priority = 1 },
+                new WifiProfile { Ssid = "Backup", Priority = 2 }
+            ]
+        });
+
+        using var document = JsonDocument.Parse(File.ReadAllText(path));
+        var profiles = document.RootElement.GetProperty("profiles").EnumerateArray().ToList();
+        AssertEqual(2, profiles.Count);
+        AssertEqual("Backup", profiles[0].GetProperty("ssid").GetString());
+        AssertEqual("Office", profiles[1].GetProperty("ssid").GetString());
     }
     finally
     {
