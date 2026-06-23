@@ -1,135 +1,135 @@
-# NetGuardian Project Optimization Design
+# NetGuardian 项目优化设计
 
-Date: 2026-06-23
+日期：2026-06-23
 
-## Goal
+## 目标
 
-Improve NetGuardian's maintainability, test confidence, and day-to-day usability without changing the core network recovery behavior.
+在不改变核心网络恢复行为的前提下，提升 NetGuardian 的可维护性、测试可信度和日常使用体验。
 
-This optimization has two tracks:
+本轮优化分为两条线：
 
-1. Engineering reliability optimization.
-2. UI and experience optimization.
+1. 工程可靠性优化。
+2. UI 与体验优化。
 
-The work should leave the existing monitor, Wi-Fi validation, recovery policy, DNS tools, tray behavior, and startup behavior functionally compatible with the current app.
+优化完成后，现有的监控、Wi-Fi 密码验证、恢复策略、DNS 工具、托盘行为和开机启动行为应保持功能兼容。
 
-## Current Facts
+## 当前事实
 
-- The solution builds with .NET 8 and WPF.
-- `src/NetGuardian.Core` already separates Wi-Fi, connectivity, network tools, settings, and models.
-- `src/NetGuardian.App/MainWindow.xaml.cs` is large and coordinates UI events, monitoring, recovery, DNS, tools, tray behavior, and startup tasks.
-- Existing tests are lightweight console tests with no external test framework.
-- The current test suite covers parsing, settings round trip, URL normalization, and monitor policy bounds.
-- The working tree has untracked helper scripts under `scripts/` that look like temporary XAML or symbol-query utilities.
+- 当前解决方案基于 .NET 8 和 WPF。
+- `src/NetGuardian.Core` 已经拆分出 Wi-Fi、连通性检测、网络工具、配置和模型等模块。
+- `src/NetGuardian.App/MainWindow.xaml.cs` 体量较大，集中协调 UI 事件、监控、恢复、DNS、工具页、托盘行为和启动任务。
+- 当前测试项目是无外部测试框架的轻量控制台测试。
+- 现有测试覆盖了 `netsh` 输出解析、配置读写、URL 归一化和监控策略边界。
+- 当前工作区在 `scripts/` 下存在未跟踪辅助脚本，看起来像临时 XAML 重写工具或符号查询工具。
 
-## Scope
+## 范围
 
-### Engineering Reliability
+### 工程可靠性
 
-1. Repository hygiene
-   - Decide how to handle the untracked helper scripts in `scripts/`.
-   - Keep useful repeatable tools only if they have clear names and a documented purpose.
-   - Remove or ignore one-off rewrite/query tools that are not part of the supported workflow.
+1. 仓库卫生
+   - 明确处理 `scripts/` 下未跟踪辅助脚本。
+   - 只有具备清晰命名和明确用途的可复用工具才保留。
+   - 不属于正式工作流的一次性重写、查询脚本应移除或加入忽略规则。
 
-2. Focused test additions
-   - Add tests that do not require administrator permission, live Wi-Fi, real network access, or UI automation.
-   - Prefer tests around pure logic:
-     - Localization key parity between Chinese and English resources.
-     - Settings load/save normalization and invalid profile cleanup.
-     - Monitor policy boundary behavior.
-     - URL or command argument helper logic if extracted.
+2. 聚焦测试增强
+   - 增加不依赖管理员权限、真实 Wi-Fi、真实网络访问或 UI 自动化的测试。
+   - 优先测试纯逻辑：
+     - 中文与英文资源键一致性。
+     - 配置读写时的归一化、排序和无效 profile 清理。
+     - 监控策略边界行为。
+     - 如果抽出 URL 或命令参数辅助逻辑，也为其补测试。
 
-3. Small boundary extraction
-   - Extract only low-risk logic from `MainWindow.xaml.cs`.
-   - Good candidates are pure formatting, localization validation, command result handling, or settings/profile normalization.
-   - Avoid extracting the full recovery workflow in this pass unless the existing structure makes a small, tested extraction natural.
+3. 小边界拆分
+   - 只从 `MainWindow.xaml.cs` 中抽取低风险逻辑。
+   - 优先候选包括纯格式化、语言资源校验、命令结果处理、配置或 profile 归一化。
+   - 本轮不做完整恢复流程拆分，除非现有结构天然支持一个很小且可测试的提取。
 
-### UI And Experience
+### UI 与体验
 
-1. Information hierarchy
-   - Improve labels, section grouping, and status messages where they reduce confusion.
-   - Keep the first screen focused on current state, next check, failure streak, and recent events.
-   - Preserve existing navigation and feature set.
+1. 信息层级
+   - 优化容易造成理解负担的标签、分区和状态文案。
+   - 首页继续聚焦当前状态、下次检测、连续失败次数和最近事件。
+   - 保持现有导航结构和功能集合。
 
-2. Interaction polish
-   - Make destructive or connection-disrupting actions clearly confirm before running.
-   - Keep buttons enabled/disabled consistently during async operations.
-   - Improve empty states and selected-row feedback for Wi-Fi and tools pages.
+2. 交互打磨
+   - 对破坏性操作或可能导致连接中断的操作保持清晰确认。
+   - 异步操作期间保持按钮启用/禁用状态一致。
+   - 改善 Wi-Fi 页面和工具页的空状态、选中行反馈与操作提示。
 
-3. Layout stability
-   - Avoid large visual redesigns.
-   - Adjust spacing, column widths, text wrapping, or minimum sizes only where current controls can become cramped or unclear.
-   - Do not introduce decorative visual elements or a landing page.
+3. 布局稳定性
+   - 避免大规模视觉重设计。
+   - 只在控件拥挤、文本不清晰或布局不稳定时调整间距、列宽、换行或最小尺寸。
+   - 不引入装饰性视觉元素，也不增加落地页。
 
-4. Copy consistency
-   - Keep Chinese as the default language and English as a complete secondary language.
-   - Any added UI text must be present in both languages.
-   - Prefer concise operational wording over explanatory paragraphs in the app UI.
+4. 文案一致性
+   - 中文继续作为默认语言，英文作为完整的第二语言。
+   - 所有新增 UI 文本必须同时提供中文和英文。
+   - 应用内文案优先使用简洁的操作性表达，避免长段说明。
 
-## Out Of Scope
+## 不在本轮范围
 
-- Adding high-risk recovery actions such as WLAN service restart, adapter restart, or network stack reset.
-- Replacing WPF, WPF-UI, or the current project structure.
-- Adding a full MVVM rewrite.
-- Adding external test frameworks unless the current console test approach blocks the work.
-- Changing saved settings format in a breaking way.
-- Reworking icons, branding, or creating a marketing-style first screen.
+- 新增高风险恢复动作，例如重启 WLAN 服务、重启网卡或重置网络栈。
+- 替换 WPF、WPF-UI 或当前项目结构。
+- 做完整 MVVM 重写。
+- 引入外部测试框架，除非当前控制台测试方式确实阻碍本轮工作。
+- 以破坏兼容性的方式修改已保存配置格式。
+- 重做图标、品牌或制作营销式首页。
 
-## Architecture Approach
+## 架构方案
 
-Keep the current app architecture but reduce pressure around the largest file through narrow seams.
+保留当前应用架构，但通过窄边界降低最大文件的压力。
 
-Preferred extraction pattern:
+优先提取模式：
 
-- Move pure or near-pure logic into `NetGuardian.Core` when it is domain logic.
-- Move WPF-specific helpers into `NetGuardian.App` only when they depend on controls or WPF types.
-- Keep interfaces small and only introduce them when a test needs to replace a system boundary.
+- 属于领域逻辑的纯逻辑或近似纯逻辑，移动到 `NetGuardian.Core`。
+- 依赖控件或 WPF 类型的辅助逻辑，保留在 `NetGuardian.App`。
+- 只在测试需要替换系统边界时引入小接口，避免为了形式抽象而抽象。
 
-Examples:
+示例：
 
-- `Localizer` can expose supported languages or all keys so tests can assert parity without reflection.
-- Settings/profile cleanup should remain in `SettingsStore` or model-level normalization.
-- UI text additions should flow through `Localizer.T(...)`.
+- `Localizer` 可以暴露支持语言或全部资源键，方便测试中英文键一致性，而不需要反射。
+- 配置和 profile 清理应继续留在 `SettingsStore` 或模型归一化逻辑中。
+- 新增 UI 文案必须通过 `Localizer.T(...)` 获取。
 
-## Testing Strategy
+## 测试策略
 
-Continue using the existing lightweight console test project unless a specific change requires a stronger test harness.
+继续使用现有轻量控制台测试项目，除非某项具体变更确实需要更强的测试框架。
 
-Required verification after implementation:
+实施后的必要验证：
 
-1. Run the test console and confirm all tests pass.
-2. Run the solution build and confirm 0 errors.
-3. Inspect `git diff` to confirm changes are limited to the optimization scope.
+1. 运行测试控制台，并确认全部测试通过。
+2. 运行解决方案构建，并确认 0 个错误。
+3. 检查 `git diff`，确认改动限制在本轮优化范围内。
 
-If UI layout files change, also perform a quick manual app launch check when feasible. If launching is blocked by environment or elevation, report that limitation explicitly.
+如果修改了 UI 布局文件，在条件允许时额外做一次快速应用启动检查。若启动检查受环境或权限限制，应明确说明限制。
 
-## Implementation Order
+## 实施顺序
 
-1. Add or improve tests for localization/settings/policy behavior.
-2. Make the smallest production changes needed to pass those tests.
-3. Clean up or classify untracked helper scripts.
-4. Apply UI/experience polish in small batches, with localization updates for every visible string.
-5. Run verification.
+1. 为本地化、配置和策略行为新增或增强测试。
+2. 编写让这些测试通过所需的最小生产代码。
+3. 清理或归类未跟踪辅助脚本。
+4. 小批量应用 UI/体验打磨，并为所有新增可见文本补齐本地化资源。
+5. 运行验证。
 
-## Risks And Mitigations
+## 风险与缓解
 
-- Risk: UI changes accidentally alter network behavior.
-  - Mitigation: keep UI changes limited to presentation, copy, layout, and state feedback.
+- 风险：UI 改动意外改变网络行为。
+  - 缓解：UI 改动限制在展示、文案、布局和状态反馈上。
 
-- Risk: extracting from `MainWindow.xaml.cs` creates churn.
-  - Mitigation: only extract pure logic with clear tests; avoid broad MVVM conversion.
+- 风险：从 `MainWindow.xaml.cs` 提取逻辑造成过大代码震荡。
+  - 缓解：只提取有清晰测试支撑的纯逻辑，避免广泛 MVVM 改造。
 
-- Risk: localization becomes inconsistent.
-  - Mitigation: add key parity tests before adding UI strings.
+- 风险：本地化资源变得不一致。
+  - 缓解：先增加资源键一致性测试，再新增 UI 文案。
 
-- Risk: helper script cleanup removes useful local tools.
-  - Mitigation: inspect each untracked script and either document, ignore, or remove based on clear purpose.
+- 风险：清理辅助脚本时误删有用工具。
+  - 缓解：逐个检查未跟踪脚本，按用途选择文档化、忽略或移除。
 
-## Acceptance Criteria
+## 验收标准
 
-- The project builds successfully.
-- The test console passes.
-- Any new visible UI string exists in both supported languages.
-- No core recovery behavior is intentionally changed.
-- Untracked helper scripts are no longer ambiguous project debris.
-- UI/experience changes are incremental and aligned with the existing WPF-UI style.
+- 项目可以成功构建。
+- 测试控制台全部通过。
+- 所有新增可见 UI 文本同时存在中文和英文版本。
+- 不主动改变核心恢复行为。
+- 未跟踪辅助脚本不再处于用途不明的仓库杂物状态。
+- UI/体验改动保持增量、克制，并与现有 WPF-UI 风格一致。
