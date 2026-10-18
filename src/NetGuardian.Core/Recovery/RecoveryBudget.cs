@@ -55,3 +55,23 @@ public static class ComputerRestartPlanner
         enabled && state == NetGuardian.Core.Models.NetworkState.AdapterFault && failedSince is { } since
         && now - since >= TimeSpan.FromMinutes(Math.Max(10, minimumMinutes));
 }
+
+public sealed class DeviceFailureTracker
+{
+    private long _sinceTicks;
+    public DateTimeOffset? FailedSince
+    {
+        get
+        {
+            var ticks = Interlocked.Read(ref _sinceTicks);
+            return ticks == 0 ? null : new DateTimeOffset(ticks, TimeSpan.Zero);
+        }
+    }
+
+    public void Record(NetGuardian.Core.Models.NetworkState state, DateTimeOffset now)
+    {
+        if (state == NetGuardian.Core.Models.NetworkState.AdapterFault)
+            Interlocked.CompareExchange(ref _sinceTicks, now.UtcTicks, 0);
+        else Interlocked.Exchange(ref _sinceTicks, 0);
+    }
+}

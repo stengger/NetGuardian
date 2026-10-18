@@ -26,6 +26,21 @@ public sealed class RecoveryBudgetTests : IDisposable
     }
 
     [Theory]
+    [InlineData(NetworkState.Healthy)]
+    [InlineData(NetworkState.InternetIssue)]
+    [InlineData(NetworkState.DnsIssue)]
+    public void 设备恢复后立即清除重启计时而不等待下一轮(NetworkState finalState)
+    {
+        var tracker = new DeviceFailureTracker();
+        var now = DateTimeOffset.UtcNow;
+        tracker.Record(NetworkState.AdapterFault, now.AddMinutes(-31));
+        Assert.NotNull(tracker.FailedSince);
+        tracker.Record(finalState, now);
+        Assert.Null(tracker.FailedSince);
+        Assert.False(ComputerRestartPlanner.ShouldRestart(true, NetworkState.AdapterFault, tracker.FailedSince, now, 30));
+    }
+
+    [Theory]
     [InlineData(false, NetworkState.AdapterFault, 60, false)]
     [InlineData(true, NetworkState.InternetIssue, 60, false)]
     [InlineData(true, NetworkState.AdapterFault, 29, false)]
