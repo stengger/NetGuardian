@@ -3,6 +3,7 @@ namespace NetGuardian.Core.Models;
 public enum NetworkState
 {
     Healthy,
+    AdapterFault,
     WifiDisabled,
     WifiDisconnected,
     Disconnected,

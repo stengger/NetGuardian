@@ -30,9 +30,18 @@ public sealed class WifiClient : IWifiClient
         return _netsh.GetCurrentSsidAsync(cancellationToken);
     }
 
-    public Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default)
+    public async Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default)
     {
-        return _netsh.GetAdapterDiagnosticsAsync(cancellationToken);
+        var result = await _netsh.GetAdapterDiagnosticsAsync(cancellationToken);
+        if (result.AdapterPresent && result.AdapterUp) return result;
+        var fault = await new WifiDeviceInspector(new NetGuardian.Core.SystemCommands.ProcessCommandRunner()).FindFaultAsync(cancellationToken);
+        return fault is null ? result : result with
+        {
+            AdapterName = fault.InstanceId,
+            DeviceInstanceId = fault.InstanceId,
+            ProblemCode = fault.ProblemCode,
+            Detail = $"无线设备启动异常，设备管理器代码 {fault.ProblemCode}：{fault.Name}"
+        };
     }
 
     public Task<IReadOnlyList<string>> GetProfileNamesAsync(CancellationToken cancellationToken = default)

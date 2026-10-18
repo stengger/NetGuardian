@@ -1,4 +1,4 @@
-using System.Diagnostics;
+using NetGuardian.Core.SystemCommands;
 using System.Net.NetworkInformation;
 using System.Security;
 using System.Text.RegularExpressions;
@@ -427,49 +427,8 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     private static async Task<(int ExitCode, string Output)> RunNetshAsync(string[] arguments, CancellationToken cancellationToken)
     {
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
-        {
-            FileName = "netsh",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        foreach (var argument in arguments)
-        {
-            process.StartInfo.ArgumentList.Add(argument);
-        }
-
-        try
-        {
-            process.Start();
-            var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-            var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-            await process.WaitForExitAsync(cancellationToken);
-            var output = await outputTask + await errorTask;
-            return (process.ExitCode, output);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            KillProcess(process);
-            throw;
-        }
-    }
-
-    private static void KillProcess(Process process)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-        }
-        catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException)
-        {
-        }
+        var result = await new ProcessCommandRunner().RunAsync("netsh.exe", arguments, cancellationToken);
+        return (result.ExitCode, result.Output);
     }
 
     [GeneratedRegex(@"^SSID\s+\d+\s*:\s*(.*)$|^SSID\s*\d*\s*名称\s*:\s*(.*)$", RegexOptions.IgnoreCase)]
@@ -491,4 +450,6 @@ public sealed record WifiAdapterDiagnostics(
     bool? HardwareRadioOn,
     bool? SoftwareRadioOn,
     string? State,
-    string Detail);
+    string Detail,
+    string? DeviceInstanceId = null,
+    int? ProblemCode = null);

@@ -10,22 +10,17 @@ namespace NetGuardian.Core.Connectivity;
 
 public sealed class ConnectivityTester
 {
-    private static readonly string[] DnsTargets = ["www.microsoft.com", "www.baidu.com"];
-    private static readonly string[] HttpsTargets = ["www.microsoft.com", "www.baidu.com", "www.cloudflare.com"];
-    private static readonly HttpClient SharedHttpClient = new(new SocketsHttpHandler
-    {
-        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-        ConnectTimeout = TimeSpan.FromSeconds(5)
-    })
-    {
-        Timeout = TimeSpan.FromSeconds(5)
-    };
-
     private readonly MonitorPolicy _policy;
+    private readonly IConnectivityEnvironment _environment;
+    private readonly IConnectivityProbes _probes;
 
-    public ConnectivityTester(MonitorPolicy policy)
+    public ConnectivityTester(MonitorPolicy policy) : this(policy, new SystemConnectivityEnvironment(), new SystemConnectivityProbes()) { }
+
+    public ConnectivityTester(MonitorPolicy policy, IConnectivityEnvironment environment, IConnectivityProbes probes)
     {
         _policy = policy;
+        _environment = environment;
+        _probes = probes;
     }
 
     public async Task<ConnectivityReport> RunFullCheckAsync(
@@ -33,10 +28,16 @@ public sealed class ConnectivityTester
         WifiAdapterDiagnostics? wifiDiagnostics = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var probes = new List<ConnectivityProbe>();
-        var wifi = GetPrimaryWifiInterface();
-        var adapterName = wifiDiagnostics?.AdapterName ?? wifi?.Name;
-        var adapterPresent = wifiDiagnostics?.AdapterPresent ?? (wifi is not null);
+        if (wifiDiagnostics?.ProblemCode is > 0)
+        {
+            probes.Add(new ConnectivityProbe("无线设备状态", false, null, wifiDiagnostics.Detail));
+            return Report(NetworkState.AdapterFault, currentSsid, null, null, probes, wifiDiagnostics.Detail);
+        }
+        var wifi = _environment.Capture();
+        var adapterName = wifiDiagnostics?.AdapterName ?? wifi.AdapterName;
+        var adapterPresent = wifiDiagnostics?.AdapterPresent ?? wifi.AdapterPresent;
 
         probes.Add(new ConnectivityProbe("Wi-Fi adapter", adapterPresent, null, adapterName ?? "No Wi-Fi adapter detected"));
         if (!adapterPresent)
@@ -56,8 +57,8 @@ public sealed class ConnectivityTester
             return Report(NetworkState.WifiDisabled, currentSsid, null, null, probes, "Wi-Fi software radio is off.");
         }
 
-        var wifiUp = wifiDiagnostics?.AdapterUp ?? wifi?.OperationalStatus == OperationalStatus.Up;
-        probes.Add(new ConnectivityProbe("Wi-Fi status", wifiUp, null, wifiDiagnostics?.State ?? wifi?.OperationalStatus.ToString() ?? "-"));
+        var wifiUp = wifiDiagnostics?.AdapterUp ?? wifi.AdapterUp;
+        probes.Add(new ConnectivityProbe("Wi-Fi status", wifiUp, null, wifiDiagnostics?.State ?? (wifi.AdapterUp ? "启用" : "禁用")));
         if (!wifiUp)
         {
             return Report(NetworkState.WifiDisabled, currentSsid, null, null, probes, "Wi-Fi adapter is disabled.");
@@ -69,8 +70,8 @@ public sealed class ConnectivityTester
             return Report(NetworkState.WifiDisconnected, currentSsid, null, null, probes, "Wi-Fi is not connected.");
         }
 
-        var ipv4 = GetPrimaryIpv4(wifi);
-        var gateway = GetDefaultGateway(wifi);
+        var ipv4 = wifi.Ipv4;
+        var gateway = wifi.Gateway;
 
         probes.Add(new ConnectivityProbe("IPv4", !string.IsNullOrWhiteSpace(ipv4), null, ipv4 ?? "No active IPv4 address"));
         probes.Add(new ConnectivityProbe("Default gateway", !string.IsNullOrWhiteSpace(gateway), null, gateway ?? "No default gateway"));
@@ -84,13 +85,11 @@ public sealed class ConnectivityTester
         {
             var gatewayProbe = await PingAsync(gateway, "Gateway ping", cancellationToken);
             probes.Add(gatewayProbe);
-            if (!gatewayProbe.Ok)
-            {
-                return Report(NetworkState.GatewayIssue, currentSsid, ipv4, gateway, probes, "Gateway is not reachable.");
-            }
+            // 部分网关屏蔽 ICMP，仍须继续以 DNS 与公网 HTTPS 确认联网状态。
         }
 
-        var dnsProbes = await Task.WhenAll(DnsTargets.Select(host => ResolveAsync(host, cancellationToken)));
+        var dnsTargets = MonitorPolicy.NormalizeProbeList(_policy.DnsProbeHosts, MonitorPolicy.DefaultDnsProbeHosts);
+        var dnsProbes = await Task.WhenAll(dnsTargets.Select(host => ResolveAsync(host, cancellationToken)));
         probes.AddRange(dnsProbes);
         var dnsSuccesses = dnsProbes.Count(probe => probe.Ok);
 
@@ -99,13 +98,42 @@ public sealed class ConnectivityTester
             return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.");
         }
 
-        var httpsProbes = await Task.WhenAll(HttpsTargets.Select(host => HttpsHeadAsync(host, cancellationToken)));
+        var httpsTargets = MonitorPolicy.NormalizeProbeList(_policy.HttpsProbeHosts, MonitorPolicy.DefaultHttpsProbeHosts);
+        var httpsProbes = await Task.WhenAll(httpsTargets.Select(host => HttpsHeadAsync(host, cancellationToken)));
         probes.AddRange(httpsProbes);
         var httpsSuccesses = httpsProbes.Count(probe => probe.Ok);
 
-        return httpsSuccesses >= 2
+        return httpsSuccesses >= Math.Min(2, httpsTargets.Count)
             ? Report(NetworkState.Healthy, currentSsid, ipv4, gateway, probes, "Network is healthy.")
             : Report(NetworkState.InternetIssue, currentSsid, ipv4, gateway, probes, "Public HTTPS probes did not reach quorum.");
+    }
+
+    private Task<ConnectivityProbe> PingAsync(string host, string name, CancellationToken cancellationToken) =>
+        ProbeAsync(name, async token => (await _probes.PingAsync(host, TimeSpan.FromSeconds(_policy.ProbeTimeoutSeconds), token), host), cancellationToken);
+
+    private Task<ConnectivityProbe> ResolveAsync(string host, CancellationToken cancellationToken) =>
+        ProbeAsync($"DNS {host}", async token => { await _probes.ResolveAsync(host, token); return (true, "解析成功"); }, cancellationToken);
+
+    private Task<ConnectivityProbe> HttpsHeadAsync(string host, CancellationToken cancellationToken) =>
+        ProbeAsync($"HTTPS {host}", async token => { var status = await _probes.HttpsHeadAsync(host, token); return ((int)status is >= 200 and < 300, $"HTTP {(int)status}"); }, cancellationToken);
+
+    private async Task<ConnectivityProbe> ProbeAsync(string name, Func<CancellationToken, Task<(bool Ok, string Detail)>> operation, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(_policy.ProbeTimeoutSeconds));
+            var result = await operation(timeout.Token).WaitAsync(timeout.Token);
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ConnectivityProbe(name, result.Ok, stopwatch.Elapsed.TotalMilliseconds, result.Detail);
+        }
+        catch (Exception ex) when (ex is PingException or SocketException or HttpRequestException or OperationCanceledException)
+        {
+            // 调用方取消属于控制流；只有探针自身超时才记录为网络失败。
+            cancellationToken.ThrowIfCancellationRequested();
+            return new ConnectivityProbe(name, false, stopwatch.Elapsed.TotalMilliseconds, ex.Message);
+        }
     }
 
     private static ConnectivityReport Report(
@@ -127,6 +155,15 @@ public sealed class ConnectivityTester
         };
     }
 
+}
+
+internal sealed class SystemConnectivityEnvironment : IConnectivityEnvironment
+{
+    public NetworkSnapshot Capture()
+    {
+        var wifi = GetPrimaryWifiInterface();
+        return new NetworkSnapshot(wifi?.Name, wifi is not null, wifi?.OperationalStatus == OperationalStatus.Up, GetPrimaryIpv4(wifi), GetDefaultGateway(wifi));
+    }
     private static NetworkInterface? GetPrimaryWifiInterface()
     {
         return NetworkInterface.GetAllNetworkInterfaces()
@@ -162,59 +199,32 @@ public sealed class ConnectivityTester
         return gateway?.ToString();
     }
 
-    private async Task<ConnectivityProbe> PingAsync(string host, string name, CancellationToken cancellationToken)
+}
+
+
+internal sealed class SystemConnectivityProbes : IConnectivityProbes
+{
+    private static readonly HttpClient SharedHttpClient = new(new SocketsHttpHandler
     {
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            using var ping = new Ping();
-            var reply = await ping.SendPingAsync(host, (int)(_policy.ProbeTimeoutSeconds * 1000))
-                .WaitAsync(cancellationToken);
-            stopwatch.Stop();
-            return new ConnectivityProbe(name, reply.Status == IPStatus.Success, stopwatch.Elapsed.TotalMilliseconds, host);
-        }
-        catch (Exception ex) when (ex is PingException or SocketException or OperationCanceledException)
-        {
-            stopwatch.Stop();
-            return new ConnectivityProbe(name, false, stopwatch.Elapsed.TotalMilliseconds, ex.Message);
-        }
+        PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+        ConnectTimeout = TimeSpan.FromSeconds(5),
+        AllowAutoRedirect = false
+    }) { Timeout = TimeSpan.FromSeconds(5) };
+
+    public async Task<bool> PingAsync(string host, TimeSpan timeout, CancellationToken cancellationToken)
+    {
+        using var ping = new Ping();
+        var reply = await ping.SendPingAsync(host, (int)timeout.TotalMilliseconds).WaitAsync(cancellationToken);
+        return reply.Status == IPStatus.Success;
     }
 
-    private async Task<ConnectivityProbe> ResolveAsync(string host, CancellationToken cancellationToken)
-    {
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(_policy.ProbeTimeoutSeconds));
-            await Dns.GetHostAddressesAsync(host, cts.Token);
-            stopwatch.Stop();
-            return new ConnectivityProbe($"DNS {host}", true, stopwatch.Elapsed.TotalMilliseconds, "Resolved");
-        }
-        catch (Exception ex) when (ex is SocketException or OperationCanceledException)
-        {
-            stopwatch.Stop();
-            return new ConnectivityProbe($"DNS {host}", false, stopwatch.Elapsed.TotalMilliseconds, ex.Message);
-        }
-    }
+    public async Task ResolveAsync(string host, CancellationToken cancellationToken) =>
+        _ = await Dns.GetHostAddressesAsync(host, cancellationToken);
 
-    private async Task<ConnectivityProbe> HttpsHeadAsync(string host, CancellationToken cancellationToken)
+    public async Task<HttpStatusCode> HttpsHeadAsync(string host, CancellationToken cancellationToken)
     {
-        var stopwatch = Stopwatch.StartNew();
-        try
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromSeconds(_policy.ProbeTimeoutSeconds));
-            using var request = new HttpRequestMessage(HttpMethod.Head, $"https://{host}/");
-            using var response = await SharedHttpClient.SendAsync(request, cts.Token);
-            stopwatch.Stop();
-            var ok = (int)response.StatusCode is >= 200 and < 400;
-            return new ConnectivityProbe($"HTTPS {host}", ok, stopwatch.Elapsed.TotalMilliseconds, $"HTTP {(int)response.StatusCode}");
-        }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
-        {
-            stopwatch.Stop();
-            return new ConnectivityProbe($"HTTPS {host}", false, stopwatch.Elapsed.TotalMilliseconds, ex.Message);
-        }
+        using var request = new HttpRequestMessage(HttpMethod.Head, new UriBuilder(Uri.UriSchemeHttps, host).Uri);
+        using var response = await SharedHttpClient.SendAsync(request, cancellationToken);
+        return response.StatusCode;
     }
 }

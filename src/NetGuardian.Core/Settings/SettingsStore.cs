@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using NetGuardian.Core.Runtime;
 
 namespace NetGuardian.Core.Settings;
 
@@ -19,6 +20,12 @@ public sealed class SettingsStore
     }
 
     public string Path { get; }
+
+    // 热加载失败时保留内存中的有效配置，不能被默认空列表覆盖。
+    public bool TryLoad(out AppSettings settings)
+    {
+        lock (_syncRoot) return TryLoad(Path, out settings) || TryLoad(BackupPath, out settings);
+    }
 
     public AppSettings Load()
     {
@@ -50,6 +57,8 @@ public sealed class SettingsStore
     private void SaveCore(AppSettings settings, bool createBackup)
     {
         settings.Policy.Normalize();
+        settings.LogRetentionDays = Math.Clamp(settings.LogRetentionDays, 1, 90);
+        settings.DeviceFailureMinutesBeforeRestart = Math.Clamp(settings.DeviceFailureMinutesBeforeRestart, 10, 24 * 60);
         settings.Profiles = settings.Profiles
             .Where(profile => !string.IsNullOrWhiteSpace(profile.Ssid))
             .OrderBy(profile => profile.Priority)
@@ -61,7 +70,7 @@ public sealed class SettingsStore
             Directory.CreateDirectory(directory);
         }
 
-        var tempPath = Path + ".tmp";
+        var tempPath = Path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
             File.WriteAllText(tempPath, JsonSerializer.Serialize(settings, JsonOptions), Encoding.UTF8);
@@ -94,8 +103,12 @@ public sealed class SettingsStore
         try
         {
             var json = File.ReadAllText(path, Encoding.UTF8);
-            settings = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions) ?? new AppSettings();
+            var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
+            if (loaded?.Policy is null || loaded.Profiles is null || loaded.Profiles.Any(profile => profile is null)) return false;
+            settings = loaded;
             settings.Policy.Normalize();
+            settings.LogRetentionDays = Math.Clamp(settings.LogRetentionDays, 1, 90);
+            settings.DeviceFailureMinutesBeforeRestart = Math.Clamp(settings.DeviceFailureMinutesBeforeRestart, 10, 24 * 60);
             settings.Profiles = settings.Profiles
                 .Where(profile => !string.IsNullOrWhiteSpace(profile.Ssid))
                 .OrderBy(profile => profile.Priority)
@@ -111,7 +124,6 @@ public sealed class SettingsStore
 
     private static string GetDefaultPath()
     {
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        return System.IO.Path.Combine(appData, "NetGuardian", "settings.json");
+        return System.IO.Path.Combine(GuardianPaths.DefaultDirectory, "settings.json");
     }
 }
