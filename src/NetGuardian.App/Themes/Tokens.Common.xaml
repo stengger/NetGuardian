@@ -1,0 +1,20 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:sys="clr-namespace:System;assembly=mscorlib">
+    <!-- Theme-independent design tokens (U2 §3.5). -->
+
+    <!-- Type scale: 6 steps. -->
+    <sys:Double x:Key="FontCaption">12</sys:Double>
+    <sys:Double x:Key="FontBody">14</sys:Double>
+    <sys:Double x:Key="FontSubtitle">20</sys:Double>
+    <sys:Double x:Key="FontTitle">28</sys:Double>
+    <sys:Double x:Key="FontDisplay">34</sys:Double>
+
+    <!-- Corner radii: 2 steps (2px accent bars stay as decorative exceptions). -->
+    <CornerRadius x:Key="CornerControl">4</CornerRadius>
+    <CornerRadius x:Key="CornerCard">8</CornerRadius>
+
+    <!-- Spacing scale. -->
+    <Thickness x:Key="SpacingCardPadding">16</Thickness>
+    <Thickness x:Key="SpacingItemGap">0,0,8,8</Thickness>
+</ResourceDictionary>

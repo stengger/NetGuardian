@@ -26,8 +26,8 @@ public sealed class AddWifiDialog : Window
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
-        Background = Brush("#181D17");
-        Foreground = Brush("#F4F1E8");
+        Background = ThemeBrush("SurfaceCardBrush");
+        Foreground = ThemeBrush("TextFillColorPrimaryBrush");
 
         var shell = new Grid();
         shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(38) });
@@ -35,8 +35,8 @@ public sealed class AddWifiDialog : Window
 
         var titleBar = new Border
         {
-            Background = Brush("#181D17"),
-            BorderBrush = Brush("#344034"),
+            Background = ThemeBrush("SurfaceCardBrush"),
+            BorderBrush = ThemeBrush("CardStrokeColorDefaultBrush"),
             BorderThickness = new Thickness(0, 0, 0, 1)
         };
         titleBar.MouseLeftButtonDown += (_, _) => DragMove();
@@ -46,7 +46,7 @@ public sealed class AddWifiDialog : Window
         titleGrid.Children.Add(new TextBlock
         {
             Text = localizer.T("AddWifi"),
-            Foreground = Brush("#DADDD3"),
+            Foreground = ThemeBrush("TextFillColorSecondaryBrush"),
             FontSize = 13,
             FontWeight = FontWeights.SemiBold,
             VerticalAlignment = VerticalAlignment.Center,
@@ -59,10 +59,11 @@ public sealed class AddWifiDialog : Window
             Padding = new Thickness(0),
             Margin = new Thickness(0),
             BorderThickness = new Thickness(0),
-            Background = Brush("#181D17"),
-            Foreground = Brush("#F4F1E8")
+            Background = ThemeBrush("SurfaceCardBrush"),
+            Foreground = ThemeBrush("TextFillColorPrimaryBrush")
         };
         closeButton.Click += (_, _) => DialogResult = false;
+        System.Windows.Automation.AutomationProperties.SetName(closeButton, localizer.T("Close"));
         Grid.SetColumn(closeButton, 1);
         titleGrid.Children.Add(closeButton);
         titleBar.Child = titleGrid;
@@ -82,7 +83,7 @@ public sealed class AddWifiDialog : Window
             Text = localizer.T("AddWifi"),
             FontSize = 20,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Brush("#F4F1E8"),
+            Foreground = ThemeBrush("TextFillColorPrimaryBrush"),
             Margin = new Thickness(0, 0, 0, 20)
         };
         root.Children.Add(title);
@@ -99,13 +100,13 @@ public sealed class AddWifiDialog : Window
         StyleInput(_authBox);
         StyleInput(_passwordBox);
         _saveToWindowsBox.Content = localizer.T("SaveToWindows");
-        _saveToWindowsBox.Foreground = Brush("#F4F1E8");
+        _saveToWindowsBox.Foreground = ThemeBrush("TextFillColorPrimaryBrush");
         _saveToWindowsBox.IsChecked = true;
         _saveToWindowsBox.Margin = new Thickness(0, 4, 0, 8);
         Grid.SetRow(_saveToWindowsBox, 4);
         root.Children.Add(_saveToWindowsBox);
 
-        _errorText.Foreground = Brush("#EF6B5B");
+        _errorText.Foreground = ThemeBrush("StatusDangerBrush");
         _errorText.TextWrapping = TextWrapping.Wrap;
         _errorText.Margin = new Thickness(0, 0, 0, 8);
         _errorText.Visibility = Visibility.Collapsed;
@@ -113,7 +114,7 @@ public sealed class AddWifiDialog : Window
         var hint = new TextBlock
         {
             Text = localizer.T("PasswordHint"),
-            Foreground = Brush("#AEB8AA"),
+            Foreground = ThemeBrush("TextFillColorTertiaryBrush"),
             TextWrapping = TextWrapping.Wrap,
             Margin = new Thickness(0, 0, 0, 18)
         };
@@ -168,7 +169,7 @@ public sealed class AddWifiDialog : Window
         {
             Text = label,
             FontWeight = FontWeights.SemiBold,
-            Foreground = Brush("#DADDD3"),
+            Foreground = ThemeBrush("TextFillColorSecondaryBrush"),
             Margin = new Thickness(0, 0, 0, 5)
         });
         control.MinHeight = 36;
@@ -179,23 +180,29 @@ public sealed class AddWifiDialog : Window
 
     private static void StyleInput(Control control)
     {
-        control.Foreground = Brush("#F4F1E8");
-        control.Background = Brush("#20251F");
-        control.BorderBrush = Brush("#4A5146");
+        control.Foreground = ThemeBrush("TextFillColorPrimaryBrush");
+        control.Background = ThemeBrush("ControlFillColorDefaultBrush");
+        control.BorderBrush = ThemeBrush("StrokeInputBrush");
         control.Padding = new Thickness(8, 4, 8, 4);
     }
 
     private static void StyleButton(Button button, bool primary)
     {
-        button.Foreground = Brush(primary ? "#101510" : "#F4F1E8");
-        button.Background = Brush(primary ? "#69D18B" : "#30362E");
-        button.BorderBrush = Brush(primary ? "#69D18B" : "#42483F");
+        button.Foreground = ThemeBrush(primary ? "TextOnAccentFillColorPrimaryBrush" : "TextFillColorPrimaryBrush");
+        button.Background = ThemeBrush(primary ? "AccentFillColorDefaultBrush" : "ControlFillColorDefaultBrush");
+        button.BorderBrush = ThemeBrush(primary ? "AccentFillColorDefaultBrush" : "CardStrokeColorDefaultBrush");
         button.Padding = new Thickness(14, 7, 14, 7);
         button.MinHeight = 36;
     }
 
-    private static SolidColorBrush Brush(string value)
+    private static SolidColorBrush FallbackBrush(string value)
     {
         return new SolidColorBrush((Color)ColorConverter.ConvertFromString(value));
+    }
+
+    private static Brush ThemeBrush(string resourceKey)
+    {
+        return Application.Current?.TryFindResource(resourceKey) as Brush
+            ?? FallbackBrush("#808080");
     }
 }

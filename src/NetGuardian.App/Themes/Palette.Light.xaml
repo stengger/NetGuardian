@@ -1,0 +1,12 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Custom semantic colors — light theme (U2 §3.3, pre-validated AA). -->
+    <SolidColorBrush x:Key="StatusHealthyBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="StatusWarningBrush" Color="#A16207" />
+    <SolidColorBrush x:Key="StatusDangerBrush" Color="#C0355C" />
+    <SolidColorBrush x:Key="SurfaceCardBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="StrokeInputBrush" Color="#8A94A2" />
+    <SolidColorBrush x:Key="ChartAccentBrush" Color="#0D9488" />
+    <SolidColorBrush x:Key="RowSelectedBrush" Color="#262563EB" />
+    <SolidColorBrush x:Key="ChartTrackBrush" Color="#D5DAE1" />
+</ResourceDictionary>

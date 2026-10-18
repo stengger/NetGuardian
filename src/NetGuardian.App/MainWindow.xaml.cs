@@ -18,9 +18,14 @@ using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Localization;
+using NetGuardian.Core.Logging;
 using NetGuardian.Core.Models;
+using NetGuardian.Core.Monitoring;
 using NetGuardian.Core.Network;
+using NetGuardian.Core.Recovery;
+using NetGuardian.Core.Runtime;
 using NetGuardian.Core.Settings;
+using NetGuardian.Core.SystemCommands;
 using NetGuardian.Core.Wifi;
 
 namespace NetGuardian.App;
@@ -31,14 +36,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private const string ScheduledStartupTaskName = "NetGuardian";
     private static readonly TimeSpan WifiValidationTimeout = TimeSpan.FromSeconds(20);
     private static readonly TimeSpan WifiRestoreTimeout = TimeSpan.FromSeconds(10);
-    private readonly SettingsStore _store = new();
+    private readonly SettingsStore _store;
     private readonly AppSettings _settings;
-    private readonly Localizer _localizer = new();
-    private readonly IWifiClient _wifi = new WifiClient();
-    private readonly NetworkConfigurationService _networkConfiguration = new();
-    private readonly WebsiteTestService _websiteTester = new();
-    private readonly PublicIpInfoService _publicIpInfo = new();
-    private readonly NetworkSpeedTestService _speedTester = new();
+    private readonly Localizer _localizer;
+    private readonly IWifiClient _wifi;
+    private readonly NetworkConfigurationService _networkConfiguration;
+    private readonly WebsiteTestService _websiteTester;
+    private readonly PublicIpInfoService _publicIpInfo;
+    private readonly NetworkSpeedTestService _speedTester;
+    private readonly MonitoringEngine _engine;
+    private readonly IConnectivityTester _connectivityTester;
+    private readonly ISystemCommandRunner _commandRunner;
+    private MonitoringLease? _monitorLease;
+    private readonly ILogSink _fileLog;
+    private readonly EventJournal _journal;
+    private readonly Wpf.Ui.ISnackbarService _snackbar;
     private readonly ObservableCollection<NearbyWifiRow> _nearbyNetworks = [];
     private readonly ObservableCollection<WifiProfile> _profiles = [];
     private readonly ObservableCollection<string> _recentEvents = [];
@@ -49,36 +61,75 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ObservableCollection<WebsiteTestRow> _websiteRows = [];
     private readonly ObservableCollection<IpInfoRow> _ipInfoRows = [];
     private readonly ObservableCollection<DiagnosticReportRow> _reportRows = [];
-    private readonly DispatcherTimer _monitorTimer = new();
     private readonly DispatcherTimer _countdownTimer = new();
     private readonly DispatcherTimer _sidebarSpeedTimer = new();
     private readonly Queue<double> _downloadSpeedSamples = new();
     private readonly Queue<double> _uploadSpeedSamples = new();
-    private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly Forms.NotifyIcon _notifyIcon;
-    private bool _isChecking;
-    private bool _isMonitoring;
     private bool _forceExit;
     private bool _isSyncingDnsControls;
     private bool _isSyncingWifiSelection;
     private bool _isSyncingScheduledStartup;
+    private bool _isSyncingHighRiskToggle;
+    private bool _isFirstRun;
     private bool _isNotifyIconDisposed;
     private bool _resourcesCleaned;
     private int _logLineCount;
-    private int _failureStreak;
-    private DateTimeOffset? _nextCheckAt;
-    private DateTimeOffset? _lastRecoveryAttemptAt;
     private DateTimeOffset? _lastSidebarSpeedSampleAt;
     private long? _lastSidebarReceivedBytes;
     private long? _lastSidebarSentBytes;
     private Point _dragStartPoint;
     private WifiProfile? _draggedProfile;
 
-    public MainWindow()
+    public MainWindow(
+        SettingsStore store,
+        Localizer localizer,
+        IWifiClient wifi,
+        IConnectivityTester connectivityTester,
+        ISystemCommandRunner commandRunner,
+        NetworkConfigurationService networkConfiguration,
+        WebsiteTestService websiteTester,
+        PublicIpInfoService publicIpInfo,
+        NetworkSpeedTestService speedTester,
+        ILogSink logSink,
+        EventJournal journal,
+        Wpf.Ui.ISnackbarService snackbarService)
     {
+        _store = store;
+        _fileLog = logSink;
+        _journal = journal;
+        _snackbar = snackbarService;
+        _localizer = localizer;
+        _wifi = wifi;
+        _connectivityTester = connectivityTester;
+        _commandRunner = commandRunner;
+        _networkConfiguration = networkConfiguration;
+        _websiteTester = websiteTester;
+        _publicIpInfo = publicIpInfo;
+        _speedTester = speedTester;
+
         InitializeComponent();
+        _isFirstRun = !File.Exists(_store.Path);
         _settings = _store.Load();
         _localizer.SetLanguage(_settings.Language);
+
+        _engine = new MonitoringEngine(
+            _wifi,
+            connectivityTester,
+            commandRunner,
+            () => _settings.Policy,
+            () => _profiles.ToList(),
+            highRiskService: new BudgetedRecoveryService(new HighRiskRecoveryService(commandRunner),
+                new RecoveryBudget(Path.GetDirectoryName(_store.Path)!),
+                () => TimeSpan.FromMinutes(_settings.Policy.HighRiskCooldownMinutes)))
+        {
+            WifiValidationTimeout = WifiValidationTimeout,
+            WifiRestoreTimeout = WifiRestoreTimeout
+        };
+        _engine.EngineEvent += Engine_Event;
+        _engine.CheckCompleted += Engine_CheckCompleted;
+        _engine.ProfileRecoveryResult += Engine_ProfileRecoveryResult;
+        _engine.StateChanged += Engine_StateChanged;
 
         foreach (var profile in _settings.Profiles.OrderBy(profile => profile.Priority))
         {
@@ -97,7 +148,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         IpInfoGrid.ItemsSource = _ipInfoRows;
         ReportGrid.ItemsSource = _reportRows;
 
-        _monitorTimer.Tick += MonitorTimer_Tick;
+        _snackbar.SetSnackbarPresenter(RootSnackbar);
+
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
         _countdownTimer.Tick += (_, _) => UpdateMonitorStatus();
         _countdownTimer.Start();
@@ -118,6 +170,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ShowPanel(StatusPanel);
         UpdateMonitorStatus();
         UpdateSidebarSpeed();
+        UpdateWeeklySummary();
+        UpdateFirstRunGuide();
         _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(CleanupTemporaryWifiProfilesAsync));
         _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(RefreshScheduledStartupSettingAsync));
 
@@ -135,24 +189,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private async void CheckNow_Click(object sender, RoutedEventArgs e) => await RunCheckAsync();
     private async void StartMonitor_Click(object sender, RoutedEventArgs e) => await StartMonitoringAsync();
 
-    private async void MonitorTimer_Tick(object? sender, EventArgs e)
-    {
-        try
-        {
-            await RunCheckAsync();
-        }
-        catch (Exception ex)
-        {
-            Log(ex.Message);
-        }
-    }
-
     private void StopMonitor_Click(object sender, RoutedEventArgs e)
     {
         StopMonitoring();
     }
 
-    private async void Scan_Click(object sender, RoutedEventArgs e) => await RunUiActionAsync(ScanWifiAsync);
+    private async void Scan_Click(object sender, RoutedEventArgs e)
+    {
+        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
+        {
+            await RunUiActionAsync(ScanWifiAsync);
+        }
+    }
 
     private async void AddSelected_Click(object sender, RoutedEventArgs e)
     {
@@ -175,6 +223,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (ProfileGrid.SelectedItem is WifiProfile profile)
         {
             await RunUiActionAsync(() => ConfigureProfileCredentialAsync(profile));
+            return;
         }
         else if (NearbyGrid.SelectedItem is NearbyWifiRow network)
         {
@@ -253,12 +302,63 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
+        var removedIndex = _profiles.IndexOf(profile);
         _profiles.Remove(profile);
         RenumberProfiles();
         UpdateEmptyStates();
         SaveSettings();
         RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
+
+        ShowUndoDeleteSnackbar(profile, removedIndex);
+    }
+
+    /// <summary>Shows a Snackbar offering to restore a just-deleted Wi-Fi profile at its original position.</summary>
+    private void ShowUndoDeleteSnackbar(WifiProfile removed, int originalIndex)
+    {
+        var snackbar = new Wpf.Ui.Controls.Snackbar(RootSnackbar)
+        {
+            Title = _localizer.T("WifiProfileDeletedTitle"),
+            Content = string.Format(_localizer.T("WifiProfileDeletedMessage"), DisplaySsid(removed.Ssid)),
+            Appearance = Wpf.Ui.Controls.ControlAppearance.Caution,
+            Icon = new Wpf.Ui.Controls.SymbolIcon(Wpf.Ui.Controls.SymbolRegular.Delete24),
+            Timeout = TimeSpan.FromSeconds(5)
+        };
+
+        var undoButton = new Wpf.Ui.Controls.Button
+        {
+            Content = _localizer.T("Undo"),
+            Icon = new Wpf.Ui.Controls.SymbolIcon(Wpf.Ui.Controls.SymbolRegular.ArrowUndo24),
+            Margin = new Thickness(0, 8, 0, 0),
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        undoButton.Click += (_, _) =>
+        {
+            if (!_profiles.Contains(removed))
+            {
+                var insertAt = Math.Clamp(originalIndex, 0, _profiles.Count);
+                _profiles.Insert(insertAt, removed);
+                RenumberProfiles();
+                UpdateEmptyStates();
+                SaveSettings();
+                RefreshNearbyPriorityMarkers();
+                ProfileGrid.SelectedItem = removed;
+                UpdateWifiSelectionUi();
+            }
+
+            undoButton.IsEnabled = false;
+        };
+
+        var layout = new StackPanel();
+        layout.Children.Add(new TextBlock
+        {
+            Text = string.Format(_localizer.T("WifiProfileDeletedMessage"), DisplaySsid(removed.Ssid)),
+            TextWrapping = TextWrapping.Wrap
+        });
+        layout.Children.Add(undoButton);
+        snackbar.Content = layout;
+
+        snackbar.Show();
     }
 
     private async void Connect_Click(object sender, RoutedEventArgs e)
@@ -271,9 +371,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         await RunUiActionAsync(async () =>
         {
-            Log($"Connecting to {profile.Ssid}.");
-            var ok = await _wifi.ConnectAsync(profile.Ssid);
-            Log(ok ? $"Connection command sent: {profile.Ssid}" : $"Connection command failed: {profile.Ssid}");
+            await RunExclusiveNetworkActionAsync(async () =>
+            {
+                Log(string.Format(_localizer.T("ConnectingTo"), profile.Ssid));
+                var ok = await _wifi.ConnectAsync(profile.Ssid);
+                Log(string.Format(_localizer.T(ok ? "ConnectCommandSent" : "ConnectCommandFailed"), profile.Ssid));
+                return ok;
+            });
         });
     }
 
@@ -281,6 +385,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         SavePolicyFromUi();
         SaveSettings();
+        _engine.UpdateSchedule();
         var status = string.Format(
             _localizer.T("PolicySavedDetails"),
             FormatDuration(TimeSpan.FromSeconds(_settings.Policy.CheckIntervalSeconds)),
@@ -288,6 +393,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             FormatDuration(TimeSpan.FromSeconds(_settings.Policy.RecoveryCooldownSeconds)));
         PolicyStatusText.Text = status;
         Log(status);
+        ShowFeedback(_localizer.T("PolicySavedTitle"), status, FeedbackSeverity.Success);
         UpdateMonitorStatus();
     }
 
@@ -325,7 +431,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void DnsApply_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(ApplyDnsSettingsAsync);
+        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
+        {
+            await RunUiActionAsync(ApplyDnsSettingsAsync);
+        }
     }
 
     private async void ToolsRenewDhcp_Click(object sender, RoutedEventArgs e)
@@ -348,17 +457,26 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void QualityRun_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(RunQualityCheckAsync);
+        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
+        {
+            await RunUiActionAsync(RunQualityCheckAsync);
+        }
     }
 
     private async void SpeedRun_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(RunSpeedTestAsync);
+        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
+        {
+            await RunUiActionAsync(RunSpeedTestAsync);
+        }
     }
 
     private async void WebsiteRun_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(() => RunWebsiteTestAsync(_localizer.T("CustomWebsite"), WebsiteUrlTextBox.Text));
+        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
+        {
+            await RunUiActionAsync(() => RunWebsiteTestAsync(_localizer.T("CustomWebsite"), WebsiteUrlTextBox.Text));
+        }
     }
 
     private async void WebsitePreset_Click(object sender, RoutedEventArgs e)
@@ -366,18 +484,27 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (sender is Button button && button.Tag is string url)
         {
             WebsiteUrlTextBox.Text = url;
-            await RunUiActionAsync(() => RunWebsiteTestAsync(button.Content?.ToString() ?? url, url));
+            using (SetBusy(button))
+            {
+                await RunUiActionAsync(() => RunWebsiteTestAsync(button.Content?.ToString() ?? url, url));
+            }
         }
     }
 
     private async void IpInfoRefresh_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(RefreshPublicIpInfoAsync);
+        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
+        {
+            await RunUiActionAsync(RefreshPublicIpInfoAsync);
+        }
     }
 
     private async void ReportRun_Click(object sender, RoutedEventArgs e)
     {
-        await RunUiActionAsync(RunDiagnosticReportAsync);
+        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
+        {
+            await RunUiActionAsync(RunDiagnosticReportAsync);
+        }
     }
 
     private void ToolsNetworkSettings_Click(object sender, RoutedEventArgs e)
@@ -388,6 +515,23 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             UseShellExecute = true
         });
         SetToolOutput(_localizer.T("OpenNetworkSettings"));
+    }
+
+    private void ThemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!IsLoaded || ThemeComboBox.SelectedItem is not ComboBoxItem item || item.Tag is not string themeMode)
+        {
+            return;
+        }
+
+        if (_settings.Theme == themeMode)
+        {
+            return;
+        }
+
+        _settings.Theme = themeMode;
+        SaveSettings();
+        App.ApplyConfiguredTheme(themeMode);
     }
 
     private void LanguageComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -431,10 +575,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
+        var enable = ScheduledStartupCheckBox.IsChecked == true;
+        if (!enable
+            && !await ConfirmActionAsync(
+                _localizer.T("ScheduledStartupDisableConfirmTitle"),
+                _localizer.T("ScheduledStartupDisableConfirmMessage")))
+        {
+            _isSyncingScheduledStartup = true;
+            ScheduledStartupCheckBox.IsChecked = true;
+            _isSyncingScheduledStartup = false;
+            return;
+        }
+
         await RunUiActionAsync(async () =>
         {
             var ok = false;
-            var enable = ScheduledStartupCheckBox.IsChecked == true;
             try
             {
                 ScheduledStartupCheckBox.IsEnabled = false;
@@ -500,168 +655,311 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private async Task StartMonitoringAsync()
     {
         SavePolicyFromUi();
-        _monitorTimer.Interval = TimeSpan.FromSeconds(_settings.Policy.CheckIntervalSeconds);
-        _monitorTimer.Start();
-        _isMonitoring = true;
-        _nextCheckAt = DateTimeOffset.Now.AddSeconds(_settings.Policy.CheckIntervalSeconds);
-        Log("Monitor started.");
-        UpdateMonitorStatus();
+        _monitorLease ??= MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
+        if (_monitorLease is null)
+        {
+            Log("后台守护已接管，或无法取得机器级控制锁；界面不会同时切换网络。");
+            ShowFeedback("后台守护", "后台独立监控网络。此处保存的配置将在五秒内加载。", FeedbackSeverity.Warning);
+            return;
+        }
+        _engine.Start();
         await RunCheckAsync();
     }
 
     private void StopMonitoring()
     {
-        _monitorTimer.Stop();
-        _isMonitoring = false;
-        _nextCheckAt = null;
-        Log("Monitor stopped.");
-        UpdateMonitorStatus();
+        _engine.Stop();
+        // 已开始的恢复收尾结束前不能将控制权交给另一进程。
+        _ = ReleaseMonitorLeaseWhenIdleAsync();
+    }
+
+    private async Task ReleaseMonitorLeaseWhenIdleAsync()
+    {
+        while (_engine.IsChecking) await Task.Delay(100);
+        if (!_engine.IsMonitoring)
+        {
+            _monitorLease?.Dispose();
+            _monitorLease = null;
+        }
     }
 
     private async Task RunCheckAsync()
     {
-        if (!await _checkLock.WaitAsync(0))
-        {
-            return;
-        }
-
-        _isChecking = true;
-        CheckNowButton.IsEnabled = false;
-        UpdateMonitorStatus();
         try
         {
-            var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
-            if (ShouldTryEnableWifi(wifiDiagnostics))
+            if (_engine.IsMonitoring)
             {
-                Log(string.Format(_localizer.T("TryingEnableWifiAdapter"), wifiDiagnostics.AdapterName ?? "Wi-Fi"));
-                var enabled = await _wifi.TryEnableWifiAdapterAsync(wifiDiagnostics.AdapterName);
-                Log(enabled ? _localizer.T("WifiAdapterEnabled") : _localizer.T("WifiAdapterEnableFailed"));
-                await Task.Delay(TimeSpan.FromSeconds(2));
-                wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
+                await _engine.CheckNowAsync();
             }
-
-            var currentSsid = await _wifi.GetCurrentSsidAsync();
-            var tester = new ConnectivityTester(_settings.Policy);
-            var report = await tester.RunFullCheckAsync(currentSsid, wifiDiagnostics);
-            ApplyReport(report);
-            _failureStreak = report.Ok ? 0 : _failureStreak + 1;
-            Log($"{report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {report.State}: {report.Summary}");
-            SetToolOutput($"{StateText(report.State)}{Environment.NewLine}{LocalizeSummary(report.Summary)}");
-            await TryRecoverIfNeededAsync(report);
+            else
+            {
+                // 手动检测只读，不能绕过后台控制锁自动启用网卡。
+                var diagnostics = await _wifi.GetAdapterDiagnosticsAsync();
+                var ssid = await _wifi.GetCurrentSsidAsync();
+                ApplyReport(await _connectivityTester.RunFullCheckAsync(_settings.Policy, ssid, diagnostics));
+            }
         }
         catch (Exception ex)
         {
-            _failureStreak++;
             Log(ex.Message);
         }
-        finally
+    }
+
+    private void Engine_StateChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.BeginInvoke(() =>
         {
-            try
+            CheckNowButton.IsEnabled = !_engine.IsChecking;
+            UpdateMonitorStatus();
+        });
+    }
+
+    private void Engine_CheckCompleted(object? sender, CheckCompletedEventArgs e)
+    {
+        _journal.RecordCheck(e.Report.State, e.Report.Ok);
+        Dispatcher.BeginInvoke(() =>
+        {
+            ApplyReport(e.Report);
+            UpdateWeeklySummary();
+            Log($"{e.Report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {e.Report.State}: {e.Report.Summary}");
+            SetToolOutput($"{StateText(e.Report.State)}{Environment.NewLine}{LocalizeSummary(e.Report.Summary)}");
+        });
+    }
+
+    private void Engine_ProfileRecoveryResult(object? sender, ProfileRecoveryResultEventArgs e)
+    {
+        Dispatcher.BeginInvoke(() => MarkProfileRecoveryResult(e.Ssid, e.Succeeded));
+    }
+
+    private void Engine_Event(object? sender, EngineEventArgs e)
+    {
+        Dispatcher.BeginInvoke(() => HandleEngineEvent(e));
+    }
+
+    private void HandleEngineEvent(EngineEventArgs e)
+    {
+        var args = e.Args;
+        switch (e.Kind)
+        {
+            case EngineEventKind.MonitorStarted:
+                Log(_localizer.T("MonitorStartedLog"));
+                break;
+            case EngineEventKind.MonitorStopped:
+                Log(_localizer.T("MonitorStoppedLog"));
+                break;
+            case EngineEventKind.TryingEnableWifiAdapter:
+                Log(string.Format(_localizer.T("TryingEnableWifiAdapter"), args[0]));
+                break;
+            case EngineEventKind.WifiAdapterEnabled:
+                Log(_localizer.T("WifiAdapterEnabled"));
+                break;
+            case EngineEventKind.WifiAdapterEnableFailed:
+                Log(_localizer.T("WifiAdapterEnableFailed"));
+                break;
+            case EngineEventKind.CheckError:
+                Log(args[0]?.ToString() ?? _localizer.T("CheckFailedLog"));
+                break;
+            case EngineEventKind.RecoveryCooldownActive:
+                Log(string.Format(_localizer.T("RecoveryCooldownActive"), FormatDuration((TimeSpan)args[0]!)));
+                break;
+            case EngineEventKind.RecoveryStarted:
+                _journal.RecordRecoveryStarted(args[0] is int streak ? streak : 0);
+                Log(string.Format(_localizer.T("RecoveryStarted"), args[0]));
+                break;
+            case EngineEventKind.RecoveryDnsFlush:
+                Log(_localizer.T("RecoveryDnsFlush"));
+                break;
+            case EngineEventKind.RecoveryDnsFlushCompleted:
             {
-                if (_isMonitoring)
+                var label = _localizer.T("FlushDns");
+                Log(args[0] is true
+                    ? string.Format(_localizer.T("CommandDone"), label)
+                    : string.Format(_localizer.T("CommandFailed"), label, args[1]));
+                if (args[2] is string output && !string.IsNullOrWhiteSpace(output))
                 {
-                    _nextCheckAt = DateTimeOffset.Now.AddSeconds(_settings.Policy.CheckIntervalSeconds);
+                    Log(output);
                 }
 
-                CheckNowButton.IsEnabled = true;
-                _isChecking = false;
-                UpdateMonitorStatus();
+                break;
             }
-            finally
+            case EngineEventKind.RecoveryReconnectCurrent:
+                Log(string.Format(_localizer.T("RecoveryReconnectCurrent"), args[0]));
+                break;
+            case EngineEventKind.RecoverySwitchWifi:
+                Log(string.Format(_localizer.T("RecoverySwitchWifi"), args[0]));
+                break;
+            case EngineEventKind.RecoveryWifiConnected:
             {
-                _checkLock.Release();
-            }
-        }
-    }
+                _journal.RecordRecoveryResult(true, args[0]?.ToString());
+                var connectedMessage = string.Format(_localizer.T("RecoveryWifiConnected"), args[0]);
+                Log(connectedMessage);
+                if (!IsVisible || WindowState == WindowState.Minimized)
+                {
+                    ShowTrayBalloon(connectedMessage, Forms.ToolTipIcon.Info);
+                }
 
-    private async Task TryRecoverIfNeededAsync(ConnectivityReport report)
-    {
-        if (!_isMonitoring || report.Ok)
-        {
-            return;
-        }
-
-        var policy = _settings.Policy;
-        if (_failureStreak < policy.ConsecutiveFailuresBeforeRecovery)
-        {
-            return;
-        }
-
-        var now = DateTimeOffset.Now;
-        var cooldown = TimeSpan.FromSeconds(policy.RecoveryCooldownSeconds);
-        if (_lastRecoveryAttemptAt is { } lastAttempt && now - lastAttempt < cooldown)
-        {
-            Log(string.Format(_localizer.T("RecoveryCooldownActive"), FormatDuration(cooldown - (now - lastAttempt))));
-            return;
-        }
-
-        _lastRecoveryAttemptAt = now;
-        await AttemptRecoveryAsync(report.CurrentSsid);
-    }
-
-    private async Task AttemptRecoveryAsync(string? currentSsid)
-    {
-        var policy = _settings.Policy;
-        var attempted = false;
-        Log(string.Format(_localizer.T("RecoveryStarted"), _failureStreak));
-
-        if (policy.EnableDnsFlush)
-        {
-            attempted = true;
-            Log(_localizer.T("RecoveryDnsFlush"));
-            await RunSystemNetworkCommandAsync("ipconfig.exe", ["/flushdns"], _localizer.T("FlushDns"));
-        }
-
-        if (policy.EnableCurrentWifiReconnect && !string.IsNullOrWhiteSpace(currentSsid))
-        {
-            attempted = true;
-            Log(string.Format(_localizer.T("RecoveryReconnectCurrent"), currentSsid));
-            await _wifi.DisconnectAsync();
-            await Task.Delay(TimeSpan.FromSeconds(1));
-            var commandSent = await _wifi.ConnectAsync(currentSsid);
-            var reconnected = commandSent && await WaitForSsidAsync(currentSsid, WifiRestoreTimeout);
-            MarkProfileRecoveryResult(currentSsid, reconnected);
-            if (reconnected)
-            {
-                Log(string.Format(_localizer.T("RecoveryWifiConnected"), currentSsid));
                 SaveSettings();
+                UpdateWeeklySummary();
+                break;
+            }
+            case EngineEventKind.RecoveryNoActionsEnabled:
+                Log(_localizer.T("RecoveryNoActionsEnabled"));
+                break;
+            case EngineEventKind.RecoveryFailed:
+            {
+                _journal.RecordRecoveryResult(false, null);
+                SaveSettings();
+                var failedMessage = _localizer.T("RecoveryFailed");
+                Log(failedMessage);
+                if (!IsVisible || WindowState == WindowState.Minimized)
+                {
+                    ShowTrayBalloon(failedMessage, Forms.ToolTipIcon.Error);
+                }
+
+                UpdateWeeklySummary();
+                break;
+            }
+            case EngineEventKind.HighRiskCooldownActive:
+                Log(string.Format(_localizer.T("HighRiskCooldownActive"), FormatDuration((TimeSpan)args[0]!)));
+                break;
+            case EngineEventKind.HighRiskActionStarted:
+            {
+                var message = string.Format(_localizer.T("HighRiskActionStarted"), args[0]);
+                Log(message);
+                ShowTrayBalloon(message);
+                break;
+            }
+            case EngineEventKind.HighRiskActionCompleted:
+            {
+                var action = args[0]?.ToString() ?? "";
+                var commandOk = args[1] is true;
+                var networkOk = args[2] is true;
+                _journal.RecordHighRisk(action, commandOk, networkOk);
+                HighRiskAlertWriter.Write(new HighRiskAlert(
+                    DateTimeOffset.Now, action, commandOk, networkOk,
+                    args[3]?.ToString(), args[4]?.ToString()));
+                var message = string.Format(
+                    _localizer.T("HighRiskActionDone"),
+                    action,
+                    _localizer.T(commandOk ? "HighRiskCmdOk" : "HighRiskCmdFailed"),
+                    _localizer.T(networkOk ? "HighRiskNetRecovered" : "HighRiskNetStillDown"));
+                Log(message);
+                ShowTrayBalloon(message);
+                UpdateWeeklySummary();
+                break;
+            }
+        }
+    }
+
+    private void HighRiskCheckBox_Checked(object sender, RoutedEventArgs e)
+    {
+        if (_isSyncingHighRiskToggle || _settings.Policy.EnableHighRiskRecovery)
+        {
+            return;
+        }
+
+        var result = System.Windows.MessageBox.Show(
+            this,
+            _localizer.T("HighRiskConfirmText"),
+            _localizer.T("HighRiskConfirmTitle"),
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+        if (result != MessageBoxResult.Yes)
+        {
+            _isSyncingHighRiskToggle = true;
+            HighRiskCheckBox.IsChecked = false;
+            _isSyncingHighRiskToggle = false;
+        }
+    }
+
+    private void ShowTrayBalloon(string message, Forms.ToolTipIcon icon = Forms.ToolTipIcon.Warning)
+    {
+        try
+        {
+            if (!_isNotifyIconDisposed)
+            {
+                _notifyIcon.ShowBalloonTip(5000, _localizer.T("AppTitle"), message, icon);
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private static List<string> ParseProbeHosts(string text)
+    {
+        return text
+            .Split([',', ';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToList();
+    }
+
+    private void UpdateFirstRunGuide()
+    {
+        if (_isFirstRun && _profiles.Count > 0 && _engine.IsMonitoring)
+        {
+            _isFirstRun = false;
+        }
+
+        FirstRunGuideText.Visibility = _isFirstRun ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void UpdateWeeklySummary()
+    {
+        try
+        {
+            var summary = _journal.GetSummary();
+            WeeklySummaryText.Text = string.Format(
+                _localizer.T("WeeklySummary"),
+                summary.OutageEpisodes,
+                summary.RecoverySuccesses,
+                summary.RecoveryAttempts);
+        }
+        catch (Exception ex)
+        {
+            WeeklySummaryText.Text = ex.Message;
+        }
+    }
+
+    private void ExportLogs_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            using var dialog = new Forms.FolderBrowserDialog
+            {
+                ShowNewFolderButton = true
+            };
+            if (dialog.ShowDialog() != Forms.DialogResult.OK)
+            {
                 return;
             }
-        }
 
-        if (policy.EnableAutoSwitch)
-        {
-            foreach (var profile in _profiles
-                         .Where(profile => profile.Enabled && profile.AutoConnect && profile.CredentialSaved)
-                         .OrderBy(profile => profile.Priority))
+            var sourceDirectories = new[] { _fileLog is FileLogSink sink ? sink.Directory : null, _journal.Directory }
+                .Where(directory => !string.IsNullOrWhiteSpace(directory) && Directory.Exists(directory))
+                .Select(directory => directory!)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            var copied = 0;
+            foreach (var directory in sourceDirectories)
             {
-                if (SsidEquals(profile.Ssid, currentSsid))
+                foreach (var pattern in new[] { "app-*.log", "events-*.jsonl", "crash.log" })
                 {
-                    continue;
-                }
-
-                attempted = true;
-                Log(string.Format(_localizer.T("RecoverySwitchWifi"), profile.Ssid));
-                var commandSent = await _wifi.ConnectAsync(profile.Ssid);
-                var connected = commandSent && await WaitForSsidAsync(profile.Ssid, WifiValidationTimeout);
-                MarkProfileRecoveryResult(profile.Ssid, connected);
-                if (connected)
-                {
-                    Log(string.Format(_localizer.T("RecoveryWifiConnected"), profile.Ssid));
-                    SaveSettings();
-                    return;
+                    foreach (var file in Directory.EnumerateFiles(directory, pattern))
+                    {
+                        File.Copy(file, System.IO.Path.Combine(dialog.SelectedPath, System.IO.Path.GetFileName(file)), overwrite: true);
+                        copied++;
+                    }
                 }
             }
-        }
 
-        if (!attempted)
+            Log(copied > 0
+                ? string.Format(_localizer.T("ExportLogsDone"), dialog.SelectedPath)
+                : _localizer.T("ExportLogsNone"));
+        }
+        catch (Exception ex)
         {
-            Log(_localizer.T("RecoveryNoActionsEnabled"));
-            return;
+            Log(string.Format(_localizer.T("ExportLogsFailed"), ex.Message));
         }
-
-        SaveSettings();
-        Log(_localizer.T("RecoveryFailed"));
     }
 
     private void MarkProfileRecoveryResult(string ssid, bool succeeded)
@@ -681,21 +979,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         profile.LastFailureAt = DateTimeOffset.Now;
         profile.FailureCount++;
         ProfileGrid.Items.Refresh();
-    }
-
-    private bool ShouldTryEnableWifi(WifiAdapterDiagnostics diagnostics)
-    {
-        if (!_settings.Policy.EnableWifiAdapterAutoEnable || !diagnostics.AdapterPresent)
-        {
-            return false;
-        }
-
-        if (diagnostics.HardwareRadioOn == false)
-        {
-            return false;
-        }
-
-        return !diagnostics.AdapterUp || diagnostics.SoftwareRadioOn == false;
     }
 
     private async Task ScanWifiAsync()
@@ -791,7 +1074,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (!ssid.Equals(profile.Ssid, StringComparison.OrdinalIgnoreCase)
             && _profiles.Any(item => item.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase)))
         {
-            Log($"Wi-Fi profile already exists: {ssid}");
+            Log(string.Format(_localizer.T("WifiProfileExists"), ssid));
             return;
         }
 
@@ -816,7 +1099,31 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateWifiSelectionUi();
     }
 
-    private async Task<bool> ValidateAndSaveWifiProfileAsync(string ssid, string? password, string authentication)
+    private Task<bool> ValidateAndSaveWifiProfileAsync(string ssid, string? password, string authentication) =>
+        RunExclusiveNetworkActionAsync(() => ValidateAndSaveWifiProfileCoreAsync(ssid, password, authentication));
+
+    private async Task<bool> RunExclusiveNetworkActionAsync(Func<Task<bool>> action)
+    {
+        var resume = _engine.IsMonitoring;
+        if (resume)
+        {
+            _engine.Stop();
+            await ReleaseMonitorLeaseWhenIdleAsync();
+        }
+        try
+        {
+            using var lease = MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
+            if (lease is null)
+            {
+                ShowFeedback("后台正在守护", "为避免并发切网，请先在维护窗口停止后台任务，再执行手动网络修改。配置策略仍可正常保存。", FeedbackSeverity.Warning);
+                return false;
+            }
+            return await action();
+        }
+        finally { if (resume && !_resourcesCleaned && !_isExiting) await StartMonitoringAsync(); }
+    }
+
+    private async Task<bool> ValidateAndSaveWifiProfileCoreAsync(string ssid, string? password, string authentication)
     {
         var tempProfileName = $"NetGuardian-Verify-{Guid.NewGuid():N}";
         var previousSsid = await _wifi.GetCurrentSsidAsync();
@@ -1197,8 +1504,104 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void SetWifiSelectionVisual(bool hasSelection)
     {
-        WifiSelectionBar.Background = new SolidColorBrush(hasSelection ? Color.FromRgb(30, 40, 58) : Color.FromRgb(23, 29, 37));
-        WifiSelectionBar.BorderBrush = new SolidColorBrush(hasSelection ? Color.FromRgb(110, 168, 255) : Color.FromRgb(48, 57, 70));
+        WifiSelectionBar.Background = hasSelection
+            ? ThemeBrush("RowSelectedBrush")
+            : ThemeBrush("ControlFillColorDefaultBrush");
+        WifiSelectionBar.BorderBrush = hasSelection
+            ? ThemeBrush("StatusHealthyBrush")
+            : ThemeBrush("CardStrokeColorDefaultBrush");
+    }
+
+    // Resolves a brush from the merged theme dictionaries at call time so that
+    // colors re-resolve against the active palette after a light/dark switch.
+    private Brush ThemeBrush(string resourceKey)
+    {
+        return TryFindResource(resourceKey) as Brush
+            ?? Application.Current.TryFindResource(resourceKey) as Brush
+            ?? Brushes.Gray;
+    }
+
+    private enum FeedbackSeverity
+    {
+        Info,
+        Success,
+        Warning,
+        Danger
+    }
+
+    /// <summary>Shows a transient Snackbar with severity-mapped appearance and icon.</summary>
+    private void ShowFeedback(string title, string message, FeedbackSeverity severity)
+    {
+        var (appearance, symbol) = severity switch
+        {
+            FeedbackSeverity.Success => (Wpf.Ui.Controls.ControlAppearance.Success, Wpf.Ui.Controls.SymbolRegular.CheckmarkCircle24),
+            FeedbackSeverity.Warning => (Wpf.Ui.Controls.ControlAppearance.Caution, Wpf.Ui.Controls.SymbolRegular.Warning24),
+            FeedbackSeverity.Danger => (Wpf.Ui.Controls.ControlAppearance.Danger, Wpf.Ui.Controls.SymbolRegular.DismissCircle24),
+            _ => (Wpf.Ui.Controls.ControlAppearance.Info, Wpf.Ui.Controls.SymbolRegular.Info24)
+        };
+
+        var timeout = severity == FeedbackSeverity.Success
+            ? TimeSpan.FromSeconds(2)
+            : TimeSpan.FromSeconds(5);
+
+        _snackbar.Show(title, message, appearance, new Wpf.Ui.Controls.SymbolIcon(symbol), timeout);
+    }
+
+    /// <summary>Called by the global exception handler to surface an unhandled error to the user.</summary>
+    public void NotifyUnhandledError()
+    {
+        try
+        {
+            ShowFeedback(_localizer.T("UnhandledErrorTitle"), _localizer.T("UnhandledErrorMessage"), FeedbackSeverity.Danger);
+        }
+        catch
+        {
+        }
+    }
+
+    /// <summary>Swaps a button's content for an inline ProgressRing + original label while a long task runs,
+    /// disabling it; restores the original content and enabled state when done. Safe to nest per-button.</summary>
+    private IDisposable SetBusy(System.Windows.Controls.Primitives.ButtonBase button)
+    {
+        var originalContent = button.Content;
+        var wasEnabled = button.IsEnabled;
+
+        var ring = new Wpf.Ui.Controls.ProgressRing
+        {
+            IsIndeterminate = true,
+            Width = 16,
+            Height = 16,
+            Margin = new Thickness(0, 0, 8, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var label = new TextBlock
+        {
+            Text = originalContent?.ToString() ?? "",
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        panel.Children.Add(ring);
+        panel.Children.Add(label);
+
+        button.Content = panel;
+        button.IsEnabled = false;
+
+        return new BusyScope(() =>
+        {
+            button.Content = originalContent;
+            button.IsEnabled = wasEnabled;
+        });
+    }
+
+    private sealed class BusyScope(Action onDispose) : IDisposable
+    {
+        private Action? _onDispose = onDispose;
+
+        public void Dispose()
+        {
+            _onDispose?.Invoke();
+            _onDispose = null;
+        }
     }
 
     private string DisplaySsid(string ssid)
@@ -1211,10 +1614,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         HealthStateText.Text = StateText(report.State);
         HealthStateText.Foreground = report.State switch
         {
-            NetworkState.Healthy => new SolidColorBrush(Color.FromRgb(110, 168, 255)),
-            NetworkState.Recovering => new SolidColorBrush(Color.FromRgb(96, 165, 250)),
-            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => new SolidColorBrush(Color.FromRgb(245, 158, 11)),
-            _ => new SolidColorBrush(Color.FromRgb(244, 114, 137))
+            NetworkState.Healthy => ThemeBrush("StatusHealthyBrush"),
+            NetworkState.Recovering => ThemeBrush("StatusHealthyBrush"),
+            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => ThemeBrush("StatusWarningBrush"),
+            _ => ThemeBrush("StatusDangerBrush")
         };
         SummaryText.Text = LocalizeSummary(report.Summary);
         CurrentSsidText.Text = string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid;
@@ -1230,6 +1633,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return state switch
         {
             NetworkState.Healthy => _localizer.T("Healthy"),
+            NetworkState.AdapterFault => _localizer.T("AdapterFault"),
             NetworkState.WifiDisabled => _localizer.T("WifiDisabled"),
             NetworkState.WifiDisconnected => _localizer.T("WifiDisconnected"),
             NetworkState.Disconnected => _localizer.T("Disconnected"),
@@ -1311,21 +1715,27 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         SetTimeFields(_settings.Policy.CheckIntervalSeconds, IntervalTextBox, IntervalUnitComboBox);
         SetTimeFields(_settings.Policy.RecoveryCooldownSeconds, CooldownTextBox, CooldownUnitComboBox);
-        FailuresTextBox.Text = _settings.Policy.ConsecutiveFailuresBeforeRecovery.ToString();
+        FailuresTextBox.Value = _settings.Policy.ConsecutiveFailuresBeforeRecovery;
         AutoSwitchCheckBox.IsChecked = _settings.Policy.EnableAutoSwitch;
         SoftReconnectCheckBox.IsChecked = _settings.Policy.EnableCurrentWifiReconnect;
         WifiAutoEnableCheckBox.IsChecked = _settings.Policy.EnableWifiAdapterAutoEnable;
         DnsFlushCheckBox.IsChecked = _settings.Policy.EnableDnsFlush;
+        _isSyncingHighRiskToggle = true;
+        HighRiskCheckBox.IsChecked = _settings.Policy.EnableHighRiskRecovery;
+        _isSyncingHighRiskToggle = false;
+        DnsProbeHostsTextBox.Text = string.Join(", ", _settings.Policy.DnsProbeHosts);
+        HttpsProbeHostsTextBox.Text = string.Join(", ", _settings.Policy.HttpsProbeHosts);
         StartMonitoringOnLaunchCheckBox.IsChecked = _settings.StartMonitoringOnLaunch;
         StartMinimizedToTrayCheckBox.IsChecked = _settings.StartMinimizedToTray;
         SelectComboByTag(LanguageComboBox, _settings.Language);
+        SelectComboByTag(ThemeComboBox, _settings.Theme);
         SelectComboByTag(CloseBehaviorComboBox, _settings.CloseBehavior);
     }
 
-    private static void SetTimeFields(int seconds, TextBox textBox, ComboBox comboBox)
+    private static void SetTimeFields(int seconds, Wpf.Ui.Controls.NumberBox numberBox, ComboBox comboBox)
     {
         var unit = seconds % 3600 == 0 ? 3600 : seconds % 60 == 0 ? 60 : 1;
-        textBox.Text = Math.Max(1, seconds / unit).ToString();
+        numberBox.Value = Math.Max(1, seconds / unit);
         SelectComboByTag(comboBox, unit.ToString());
     }
 
@@ -1334,26 +1744,30 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _settings.Policy.CheckIntervalSeconds = ReadTimeSeconds(IntervalTextBox, IntervalUnitComboBox, _settings.Policy.CheckIntervalSeconds);
         _settings.Policy.RecoveryCooldownSeconds = ReadTimeSeconds(CooldownTextBox, CooldownUnitComboBox, _settings.Policy.RecoveryCooldownSeconds);
 
-        if (int.TryParse(FailuresTextBox.Text, out var failures))
+        if (FailuresTextBox.Value is double failures)
         {
-            _settings.Policy.ConsecutiveFailuresBeforeRecovery = failures;
+            _settings.Policy.ConsecutiveFailuresBeforeRecovery = (int)Math.Round(failures);
         }
 
         _settings.Policy.EnableAutoSwitch = AutoSwitchCheckBox.IsChecked == true;
         _settings.Policy.EnableCurrentWifiReconnect = SoftReconnectCheckBox.IsChecked == true;
         _settings.Policy.EnableWifiAdapterAutoEnable = WifiAutoEnableCheckBox.IsChecked == true;
         _settings.Policy.EnableDnsFlush = DnsFlushCheckBox.IsChecked == true;
+        _settings.Policy.EnableHighRiskRecovery = HighRiskCheckBox.IsChecked == true;
+        _settings.Policy.DnsProbeHosts = ParseProbeHosts(DnsProbeHostsTextBox.Text);
+        _settings.Policy.HttpsProbeHosts = ParseProbeHosts(HttpsProbeHostsTextBox.Text);
         _settings.Policy.Normalize();
         ApplySettingsToUi();
     }
 
-    private static int ReadTimeSeconds(TextBox textBox, ComboBox comboBox, int fallback)
+    private static int ReadTimeSeconds(Wpf.Ui.Controls.NumberBox numberBox, ComboBox comboBox, int fallback)
     {
-        if (!int.TryParse(textBox.Text, out var value) || value < 1)
+        if (numberBox.Value is not double raw || raw < 1)
         {
             return fallback;
         }
 
+        var value = (int)Math.Round(raw);
         var multiplier = comboBox.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out var tag) ? tag : 1;
         return value * multiplier;
     }
@@ -1393,9 +1807,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityNavButton.Content = _localizer.T("QualityTools");
         AdapterNavButton.Content = _localizer.T("AdapterTools");
         LogNavButton.Content = _localizer.T("Log");
+        ExportLogsButton.Content = _localizer.T("ExportLogs");
         SettingsNavButton.Content = _localizer.T("Settings");
         CheckNowButton.Content = _localizer.T("CheckNow");
-        StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
+        StartMonitorButton.Content = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StopButton.Content = _localizer.T("Stop");
         HealthStateLabel.Text = _localizer.T("HealthState");
         MonitorStateLabel.Text = _localizer.T("MonitorStatus");
@@ -1404,6 +1819,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         FailureStreakLabel.Text = _localizer.T("FailureStreak");
         ProbeTitleText.Text = _localizer.T("CheckNow");
         RecentEventsTitle.Text = _localizer.T("RecentEvents");
+        UpdateWeeklySummary();
         ProbeNameColumn.Header = _localizer.T("Probe");
         ProbeOkColumn.Header = _localizer.T("Result");
         ProbeLatencyColumn.Header = _localizer.T("Latency");
@@ -1423,6 +1839,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyEmptyText.Text = _localizer.T("NoNearbyWifiRows");
         ProfileEmptyText.Text = _localizer.T("NoPriorityWifiRows");
         RecentEventsEmptyText.Text = _localizer.T("NoRecentEvents");
+        WebsiteEmptyText.Text = _localizer.T("NoWebsiteRows");
+        IpInfoEmptyText.Text = _localizer.T("NoIpInfoRows");
+        ReportEmptyText.Text = _localizer.T("NoReportRows");
+        DnsEmptyText.Text = _localizer.T("NoDnsRows");
+        AdapterEmptyText.Text = _localizer.T("NoAdapterRows");
+        QualityEmptyText.Text = _localizer.T("NoQualityRows");
         NearbySsidColumn.Header = _localizer.T("Ssid");
         NearbySignalColumn.Header = _localizer.T("Signal");
         NearbySecurityColumn.Header = _localizer.T("Security");
@@ -1441,6 +1863,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SoftReconnectCheckBox.Content = _localizer.T("SoftReconnect");
         WifiAutoEnableCheckBox.Content = _localizer.T("WifiAutoEnable");
         DnsFlushCheckBox.Content = _localizer.T("DnsFlush");
+        HighRiskCheckBox.Content = _localizer.T("HighRiskRecovery");
+        HighRiskTipText.Text = _localizer.T("HighRiskTip");
+        DnsProbeHostsLabel.Text = _localizer.T("DnsProbeHostsLabel");
+        HttpsProbeHostsLabel.Text = _localizer.T("HttpsProbeHostsLabel");
+        ProbeTargetsTipText.Text = _localizer.T("ProbeTargetsTip");
+        FirstRunGuideText.Text = _localizer.T("FirstRunGuide");
         SavePolicyButton.Content = _localizer.T("Save");
         ToolsTitle.Text = _localizer.T("SystemNetworkTools");
         ToolsCheckButton.Content = _localizer.T("CheckNow");
@@ -1523,6 +1951,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             : _localizer.T("ScheduledStartupDisabledStatus");
         ((ComboBoxItem)LanguageComboBox.Items[0]).Content = _localizer.T("Chinese");
         ((ComboBoxItem)LanguageComboBox.Items[1]).Content = _localizer.T("English");
+        ThemeLabel.Text = _localizer.T("ThemeMode");
+        ((ComboBoxItem)ThemeComboBox.Items[0]).Content = _localizer.T("ThemeAuto");
+        ((ComboBoxItem)ThemeComboBox.Items[1]).Content = _localizer.T("ThemeLight");
+        ((ComboBoxItem)ThemeComboBox.Items[2]).Content = _localizer.T("ThemeDark");
         ((ComboBoxItem)IntervalUnitComboBox.Items[0]).Content = _localizer.T("Seconds");
         ((ComboBoxItem)IntervalUnitComboBox.Items[1]).Content = _localizer.T("Minutes");
         ((ComboBoxItem)IntervalUnitComboBox.Items[2]).Content = _localizer.T("Hours");
@@ -1551,6 +1983,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyEmptyText.Visibility = _nearbyNetworks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         ProfileEmptyText.Visibility = _profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         RecentEventsEmptyText.Visibility = _recentEvents.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        WebsiteEmptyText.Visibility = _websiteRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        IpInfoEmptyText.Visibility = _ipInfoRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ReportEmptyText.Visibility = _reportRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        DnsEmptyText.Visibility = _dnsRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        QualityEmptyText.Visibility = _qualityRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        AdapterEmptyText.Visibility = _adapterRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void ApplyTooltips()
@@ -1620,21 +2058,33 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void UpdateMonitorStatus()
     {
-        var monitorState = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped");
-        var activityState = _isChecking ? _localizer.T("Checking") : _localizer.T("Ready");
+        var background = GuardianStatusStore.Read(GuardianPaths.MachineDirectory);
+        if (!_engine.IsMonitoring && background is { State: not "Stopped" } && DateTimeOffset.UtcNow - background.HeartbeatAt < TimeSpan.FromSeconds(30))
+        {
+            MonitorStateText.Text = "后台守护运行中";
+            HeaderStateText.Text = background.IsChecking ? _localizer.T("Checking") : _localizer.T("Ready");
+            if (background.Report is { } report) ApplyReport(report);
+            FailureStreakText.Text = background.FailureStreak.ToString();
+            StopButton.IsEnabled = false;
+            StartMonitorButton.IsEnabled = false;
+            return;
+        }
+        var monitorState = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped");
+        var activityState = _engine.IsChecking ? _localizer.T("Checking") : _localizer.T("Ready");
         MonitorStateText.Text = monitorState;
         HeaderStateText.Text = activityState;
-        StatusDot.Fill = _isChecking
-            ? new SolidColorBrush(Color.FromRgb(245, 158, 11))
-            : new SolidColorBrush(Color.FromRgb(154, 167, 184));
-        StartMonitorButton.Content = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
-        StartMonitorButton.IsEnabled = !_isMonitoring || !_isChecking;
-        StopButton.IsEnabled = _isMonitoring;
-        FailureStreakText.Text = _failureStreak.ToString();
+        System.Windows.Automation.AutomationProperties.SetName(StatusDot, activityState);
+        StatusDot.Fill = _engine.IsChecking
+            ? ThemeBrush("StatusWarningBrush")
+            : ThemeBrush("TextFillColorTertiaryBrush");
+        StartMonitorButton.Content = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
+        StartMonitorButton.IsEnabled = !_engine.IsMonitoring || !_engine.IsChecking;
+        StopButton.IsEnabled = _engine.IsMonitoring;
+        FailureStreakText.Text = _engine.FailureStreak.ToString();
 
-        if (_isMonitoring && _nextCheckAt.HasValue)
+        if (_engine.IsMonitoring && _engine.NextCheckAt.HasValue)
         {
-            var remaining = _nextCheckAt.Value - DateTimeOffset.Now;
+            var remaining = _engine.NextCheckAt.Value - DateTimeOffset.Now;
             NextCheckText.Text = remaining <= TimeSpan.Zero ? "0s" : FormatDuration(remaining);
         }
         else
@@ -1643,6 +2093,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         UpdateTrayText();
+        UpdateFirstRunGuide();
     }
 
     private void UpdateSidebarSpeed()
@@ -1671,8 +2122,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         PushSpeedSample(_uploadSpeedSamples, uploadBytesPerSecond);
         SetRateText(SidebarDownloadSpeedText, SidebarDownloadUnitText, downloadBytesPerSecond);
         SetRateText(SidebarUploadSpeedText, SidebarUploadUnitText, uploadBytesPerSecond);
-        SetRateText(SidebarCompactDownloadSpeedText, SidebarCompactDownloadUnitText, downloadBytesPerSecond);
-        SetRateText(SidebarCompactUploadSpeedText, SidebarCompactUploadUnitText, uploadBytesPerSecond);
+        SidebarCompactDownloadText.Text = FormatRateCompact(downloadBytesPerSecond);
+        SidebarCompactUploadText.Text = FormatRateCompact(uploadBytesPerSecond);
+        SidebarSpeedCompact.ToolTip = $"\u2191 {FormatRate(uploadBytesPerSecond)}   \u2193 {FormatRate(downloadBytesPerSecond)}";
         DrawSidebarSpeedLines();
     }
 
@@ -1750,6 +2202,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         unitText.Text = unit;
     }
 
+    private static string FormatRate(double bytesPerSecond)
+    {
+        var (value, unit) = FormatRateParts(bytesPerSecond);
+        return $"{value} {unit}";
+    }
+
+    private static string FormatRateCompact(double bytesPerSecond)
+    {
+        var (value, unit) = FormatRateParts(bytesPerSecond);
+        return value + unit switch
+        {
+            "KB/s" => "K",
+            "MB/s" => "M",
+            "GB/s" => "G",
+            _ => "B"
+        };
+    }
+
     private static (string Value, string Unit) FormatRateParts(double bytesPerSecond)
     {
         var units = new[] { "B/s", "KB/s", "MB/s", "GB/s" };
@@ -1773,6 +2243,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         catch (Exception ex)
         {
             Log(ex.Message);
+            ShowFeedback(_localizer.T("ActionFailedTitle"), ex.Message, FeedbackSeverity.Danger);
         }
     }
 
@@ -1910,31 +2381,22 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task RunSystemNetworkCommandAsync(string fileName, string[] arguments, string label)
     {
+        await RunExclusiveNetworkActionAsync(async () =>
+        {
+            await RunSystemNetworkCommandCoreAsync(fileName, arguments, label);
+            return true;
+        });
+    }
+
+    private async Task RunSystemNetworkCommandCoreAsync(string fileName, string[] arguments, string label)
+    {
         Log($"{label}...");
         SetToolOutput($"{label}...");
-        using var process = new Process();
-        process.StartInfo = new ProcessStartInfo
-        {
-            FileName = fileName,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        foreach (var argument in arguments)
-        {
-            process.StartInfo.ArgumentList.Add(argument);
-        }
-
-        process.Start();
-        var outputTask = process.StandardOutput.ReadToEndAsync();
-        var errorTask = process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync();
-        var output = (await outputTask + await errorTask).Trim();
-        var status = process.ExitCode == 0
+        var result = await _commandRunner.RunAsync(fileName, arguments);
+        var output = result.Output;
+        var status = result.Ok
             ? string.Format(_localizer.T("CommandDone"), label)
-            : string.Format(_localizer.T("CommandFailed"), label, process.ExitCode);
+            : string.Format(_localizer.T("CommandFailed"), label, result.ExitCode);
         Log(status);
 
         if (!string.IsNullOrWhiteSpace(output))
@@ -1979,6 +2441,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task ApplyDnsSettingsAsync()
     {
+        await RunExclusiveNetworkActionAsync(async () => { await ApplyDnsSettingsCoreAsync(); return true; });
+    }
+
+    private async Task ApplyDnsSettingsCoreAsync()
+    {
         if (DnsAdapterComboBox.SelectedItem is not DnsAdapterOption adapter)
         {
             DnsStatusText.Text = _localizer.T("SelectAdapter");
@@ -2020,6 +2487,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 : string.Format(_localizer.T("DnsApplyFailed"), result.ExitCode);
             DnsStatusText.Text = status;
             Log(status);
+            if (result.Success)
+            {
+                ShowFeedback(_localizer.T("DnsAppliedTitle"), status, FeedbackSeverity.Success);
+            }
+            else
+            {
+                ShowFeedback(_localizer.T("ActionFailedTitle"), status, FeedbackSeverity.Danger);
+            }
+
             if (!string.IsNullOrWhiteSpace(result.Output))
             {
                 Log(result.Output);
@@ -2248,9 +2724,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityScoreText.Text = $"{score}/100";
         QualityScoreText.Foreground = score switch
         {
-            >= 85 => new SolidColorBrush(Color.FromRgb(110, 168, 255)),
-            >= 60 => new SolidColorBrush(Color.FromRgb(245, 158, 11)),
-            _ => new SolidColorBrush(Color.FromRgb(244, 114, 137))
+            >= 85 => ThemeBrush("StatusHealthyBrush"),
+            >= 60 => ThemeBrush("StatusWarningBrush"),
+            _ => ThemeBrush("StatusDangerBrush")
         };
         QualityLatencyText.Text = successfulLatencies.Count == 0
             ? "-"
@@ -2461,7 +2937,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             AddReportRow("Gateway", string.IsNullOrWhiteSpace(report.Gateway) ? "-" : report.Gateway, report.State == NetworkState.GatewayIssue ? _localizer.T("CheckRouter") : _localizer.T("NoActionNeeded"));
             AddReportRow("DnsTools", ProbeSummary(report, "DNS"), report.State == NetworkState.DnsIssue ? _localizer.T("TryDnsSettings") : _localizer.T("NoActionNeeded"));
             AddReportRow("Internet", ProbeSummary(report, "HTTPS"), report.State == NetworkState.InternetIssue ? _localizer.T("CheckProxyOrIsp") : _localizer.T("NoActionNeeded"));
-            AddReportRow("FailureStreak", _failureStreak.ToString(), _failureStreak > 0 ? _localizer.T("WatchNextCheck") : _localizer.T("NoActionNeeded"));
+            AddReportRow("FailureStreak", _engine.FailureStreak.ToString(), _engine.FailureStreak > 0 ? _localizer.T("WatchNextCheck") : _localizer.T("NoActionNeeded"));
 
             ReportStatusText.Text = $"{StateText(report.State)} - {LocalizeSummary(report.Summary)}";
             Log($"{_localizer.T("ReportTools")}: {ReportStatusText.Text}");
@@ -2609,6 +3085,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void Log(string message)
     {
+        _fileLog.Write(message);
         var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}";
         LogTextBox.AppendText(line + Environment.NewLine);
         _logLineCount++;
@@ -2669,7 +3146,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var state = _isMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped");
+        var state = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped");
         _notifyIcon.Text = $"NetGuardian - {state}";
     }
 
@@ -2689,8 +3166,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private void ExitApplication()
+    private bool _isExiting;
+
+    private async void ExitApplication()
     {
+        if (_isExiting) return;
+        _isExiting = true;
+        _engine.Stop();
+        await ReleaseMonitorLeaseWhenIdleAsync();
         _forceExit = true;
         CleanupResources();
         Close();
@@ -2730,7 +3213,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        CleanupResources();
+        e.Cancel = true;
+        ExitApplication();
     }
 
     private async Task ShowCloseDialogAsync()
@@ -2756,8 +3240,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             }
             else if (result == Wpf.Ui.Controls.MessageBoxResult.Secondary)
             {
-                _forceExit = true;
-                Application.Current.Shutdown();
+                ExitApplication();
             }
         }
         catch (Exception ex)
@@ -2778,7 +3261,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         _resourcesCleaned = true;
-        _monitorTimer.Stop();
+        _engine.Stop();
+        _engine.Dispose();
+        _ = ReleaseMonitorLeaseWhenIdleAsync();
         _countdownTimer.Stop();
         _sidebarSpeedTimer.Stop();
         DisposeNotifyIcon();

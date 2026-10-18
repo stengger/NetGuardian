@@ -13,6 +13,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{40685A3D
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetGuardian.Tests", "tests\NetGuardian.Tests\NetGuardian.Tests.csproj", "{00C5FE11-48CF-4A9E-822D-459EB982BB9A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetGuardian.Guardian", "src\NetGuardian.Guardian\NetGuardian.Guardian.csproj", "{D2241933-A71E-45C2-838C-4BBAD50C69FB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -34,10 +36,15 @@ Global
 		{00C5FE11-48CF-4A9E-822D-459EB982BB9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{00C5FE11-48CF-4A9E-822D-459EB982BB9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{00C5FE11-48CF-4A9E-822D-459EB982BB9A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D2241933-A71E-45C2-838C-4BBAD50C69FB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D2241933-A71E-45C2-838C-4BBAD50C69FB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D2241933-A71E-45C2-838C-4BBAD50C69FB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D2241933-A71E-45C2-838C-4BBAD50C69FB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{B2D29254-429E-4717-A553-13EC2B357EB9} = {179A6357-2385-4208-A67E-1E31763025E6}
 		{D2603FC2-F9F9-4914-8730-AA2EF7AA7C1E} = {179A6357-2385-4208-A67E-1E31763025E6}
 		{00C5FE11-48CF-4A9E-822D-459EB982BB9A} = {40685A3D-5213-4425-A52C-285F8FBCDDC4}
+		{D2241933-A71E-45C2-838C-4BBAD50C69FB} = {179A6357-2385-4208-A67E-1E31763025E6}
 	EndGlobalSection
 EndGlobal

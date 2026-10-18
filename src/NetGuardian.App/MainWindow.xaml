@@ -16,36 +16,24 @@
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <Style x:Key="SectionBorderStyle" TargetType="Border">
-            <Setter Property="Background" Value="#11161A" />
-            <Setter Property="BorderBrush" Value="#2A3038" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="8" />
             <Setter Property="Padding" Value="16" />
-            <Setter Property="Effect">
-                <Setter.Value>
-                    <DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="0" Opacity="0.18" />
-                </Setter.Value>
-            </Setter>
         </Style>
         <Style x:Key="StatusHeroCardStyle" TargetType="Border" BasedOn="{StaticResource SectionBorderStyle}">
-            <Setter Property="Background">
-                <Setter.Value>
-                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                        <GradientStop Color="#151B24" Offset="0" />
-                        <GradientStop Color="#101418" Offset="1" />
-                    </LinearGradientBrush>
-                </Setter.Value>
-            </Setter>
-            <Setter Property="BorderBrush" Value="#344054" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         </Style>
         <Style x:Key="StatusMetricCardStyle" TargetType="Border" BasedOn="{StaticResource SectionBorderStyle}">
-            <Setter Property="Background" Value="#12171D" />
-            <Setter Property="BorderBrush" Value="#2B3440" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         </Style>
         <Style x:Key="GridHeaderStyle" TargetType="DataGridColumnHeader">
-            <Setter Property="Background" Value="#111820" />
-            <Setter Property="Foreground" Value="#E7EDF5" />
-            <Setter Property="BorderBrush" Value="#2A323D" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="0,0,1,1" />
             <Setter Property="Height" Value="38" />
             <Setter Property="Padding" Value="10,0" />
@@ -59,13 +47,13 @@
         <Style x:Key="GridTextStyle" TargetType="TextBlock">
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="10,0" />
-            <Setter Property="Foreground" Value="#CDD6E2" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                    <Setter Property="Foreground" Value="#EEF4FF" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
-                    <Setter Property="Foreground" Value="#FFFFFF" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -76,7 +64,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CanUserResizeRows" Value="False" />
-            <Setter Property="Foreground" Value="#CDD6E2" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
             <Setter Property="GridLinesVisibility" Value="None" />
             <Setter Property="HeadersVisibility" Value="Column" />
             <Setter Property="RowBackground" Value="Transparent" />
@@ -92,54 +80,36 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter Property="Background">
-                        <Setter.Value>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#1C2633" Offset="0" />
-                                <GradientStop Color="#202A38" Offset="0.52" />
-                                <GradientStop Color="#19222E" Offset="1" />
-                            </LinearGradientBrush>
-                        </Setter.Value>
-                    </Setter>
+                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
                 </Trigger>
                 <Trigger Property="IsSelected" Value="True">
-                    <Setter Property="Background">
-                        <Setter.Value>
-                            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
-                                <GradientStop Color="#22314A" Offset="0" />
-                                <GradientStop Color="#263653" Offset="0.5" />
-                                <GradientStop Color="#1F2D44" Offset="1" />
-                            </LinearGradientBrush>
-                        </Setter.Value>
-                    </Setter>
-                    <Setter Property="Foreground" Value="#F4F7FB" />
+                    <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style TargetType="DataGridCell">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
-            <Setter Property="Foreground" Value="#CDD6E2" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
             <Style.Triggers>
                 <Trigger Property="IsSelected" Value="True">
                     <Setter Property="Background" Value="Transparent" />
                     <Setter Property="BorderBrush" Value="Transparent" />
-                    <Setter Property="Foreground" Value="#FFFFFF" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                 </Trigger>
             </Style.Triggers>
         </Style>
         <Style TargetType="Button">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="Padding" Value="12,6" />
-            <Setter Property="Background" Value="#171D25" />
-            <Setter Property="BorderBrush" Value="#2B3440" />
+            <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Foreground" Value="#F2F5F8" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Template">
                 <Setter.Value>
@@ -156,16 +126,16 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#1D2430" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#364252" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ControlFillColorSecondaryBrush}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="#223047" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="#485A70" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.52" />
-                                <Setter TargetName="Chrome" Property="Background" Value="#151A20" />
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -182,6 +152,9 @@
 
         <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Title="NetGuardian" Icon="Assets/app-icon-256.png" />
 
+        <ui:SnackbarPresenter x:Name="RootSnackbar" Grid.Row="0" Grid.RowSpan="2" Panel.ZIndex="1000"
+                              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,24" />
+
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -192,12 +165,12 @@
                 <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" BorderBrush="Transparent" BorderThickness="0" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
                     <ui:NavigationView.MenuItems>
                         <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon WifiSettings20}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                        <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi124}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                         <ui:NavigationViewItem x:Name="QualityNavButton" Content="Quality" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="QualityPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                         <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Apps24}" Tag="ToolsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon GlobeSearch20}" Tag="DnsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                        <ui:NavigationViewItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon Globe24}" Tag="DnsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                         <ui:NavigationViewItem x:Name="AdapterNavButton" Content="Adapter" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="NetworkPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon DocumentBulletList24}" Tag="PolicyPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
+                        <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Shield24}" Tag="PolicyPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                         <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon DocumentBulletList24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
                     </ui:NavigationView.MenuItems>
                     <ui:NavigationView.FooterMenuItems>
@@ -207,10 +180,10 @@
 
                 <Border x:Name="SidebarSpeedCard" Width="184" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,64" Background="Transparent" BorderThickness="0" Padding="10,0,10,10" Panel.ZIndex="2" Visibility="{Binding IsPaneOpen, ElementName=RootNavigation, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
-                        <TextBlock x:Name="SidebarSpeedTitle" FontSize="12" FontWeight="SemiBold" Foreground="#D8E0EA" />
+                        <TextBlock x:Name="SidebarSpeedTitle" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <Canvas Width="158" Height="38" Margin="0,10,0,10">
-                            <Polyline x:Name="SidebarDownloadLine" Stroke="#6EA8FF" StrokeThickness="1.8" StrokeLineJoin="Round" />
-                            <Polyline x:Name="SidebarUploadLine" Stroke="#F59E0B" StrokeThickness="1.6" StrokeLineJoin="Round" />
+                            <Polyline x:Name="SidebarDownloadLine" Stroke="{DynamicResource StatusHealthyBrush}" StrokeThickness="1.8" StrokeLineJoin="Round" />
+                            <Polyline x:Name="SidebarUploadLine" Stroke="{DynamicResource StatusWarningBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" />
                         </Canvas>
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -222,12 +195,12 @@
                                 <RowDefinition Height="24" />
                                 <RowDefinition Height="24" />
                             </Grid.RowDefinitions>
-                            <TextBlock Text="↑" Foreground="#F59E0B" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarUploadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarUploadUnitText" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
-                            <TextBlock Grid.Row="1" Text="↓" Foreground="#6EA8FF" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarDownloadSpeedText" Grid.Row="1" Grid.Column="1" Foreground="#F2F5F8" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarDownloadUnitText" Grid.Row="1" Grid.Column="2" Foreground="#B9C3D0" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
+                            <TextBlock Text="↑" Foreground="{DynamicResource StatusWarningBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarUploadSpeedText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarUploadUnitText" Grid.Column="2" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
+                            <TextBlock Grid.Row="1" Text="↓" Foreground="{DynamicResource StatusHealthyBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarDownloadSpeedText" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarDownloadUnitText" Grid.Row="1" Grid.Column="2" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -246,23 +219,19 @@
                     <StackPanel>
                         <Grid Height="21">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="25" />
-                                <ColumnDefinition Width="19" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="↑" Foreground="#F59E0B" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarCompactUploadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="SidebarCompactUploadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="7.2" VerticalAlignment="Center" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="↑" Foreground="{DynamicResource StatusWarningBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarCompactUploadText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                         </Grid>
                         <Grid Height="21">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="8" />
-                                <ColumnDefinition Width="25" />
-                                <ColumnDefinition Width="19" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="↓" Foreground="#6EA8FF" FontSize="10" FontWeight="Bold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarCompactDownloadSpeedText" Grid.Column="1" Foreground="#F2F5F8" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="SidebarCompactDownloadUnitText" Grid.Column="2" Foreground="#AEB8C5" FontSize="7.2" VerticalAlignment="Center" TextAlignment="Left" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Text="↓" Foreground="{DynamicResource StatusHealthyBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                            <TextBlock x:Name="SidebarCompactDownloadText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                         </Grid>
                     </StackPanel>
                 </Border>
@@ -276,19 +245,19 @@
 
                 <DockPanel xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Grid.Row="0" Margin="0,0,0,18" LastChildFill="False">
                 <StackPanel DockPanel.Dock="Left">
-                    <TextBlock x:Name="PageTitleText" FontSize="18" FontWeight="SemiBold" Foreground="#F2F5F8" />
-                    <TextBlock x:Name="PageSubtitleText" Foreground="#9AA7B8" Margin="0,4,0,0" />
+                    <TextBlock x:Name="PageTitleText" FontSize="18" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <TextBlock x:Name="PageSubtitleText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,4,0,0" />
                 </StackPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border x:Name="HeaderStatusPill" Background="#171D25" BorderBrush="#303946" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,14,0">
+                    <Border x:Name="HeaderStatusPill" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,14,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                             <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="Red" Margin="0,0,8,0" />
-                            <TextBlock x:Name="HeaderStateText" Foreground="#F2F5F8" FontWeight="SemiBold" />
+                            <TextBlock x:Name="HeaderStateText" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
                         </StackPanel>
                     </Border>
                     <Button x:Name="CheckNowButton" Click="CheckNow_Click" />
-                    <Button x:Name="StartMonitorButton" Click="StartMonitor_Click" />
-                    <Button x:Name="StopButton" Click="StopMonitor_Click" />
+                    <Button x:Name="StartMonitorButton" Click="StartMonitor_Click" Margin="8,0,0,0" />
+                    <Button x:Name="StopButton" Click="StopMonitor_Click" Margin="8,0,0,0" />
                 </StackPanel>
             </DockPanel>
 
@@ -308,27 +277,29 @@
 
                     <Border Grid.Column="0" Margin="0,0,12,12" Style="{StaticResource StatusHeroCardStyle}">
                         <StackPanel>
-                            <TextBlock x:Name="HealthStateLabel" Foreground="#AEB8C5" FontSize="12" FontWeight="SemiBold" />
-                            <TextBlock x:Name="HealthStateText" FontSize="34" FontWeight="SemiBold" Foreground="#6EA8FF" Margin="0,8,0,10" />
-                            <TextBlock x:Name="SummaryText" Foreground="#D5DCE6" TextWrapping="Wrap" />
+                            <TextBlock x:Name="HealthStateLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" FontWeight="SemiBold" />
+                            <TextBlock x:Name="HealthStateText" FontSize="34" FontWeight="SemiBold" Foreground="{DynamicResource StatusHealthyBrush}" Margin="0,8,0,10" />
+                            <TextBlock x:Name="SummaryText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                            <TextBlock x:Name="WeeklySummaryText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap" />
+                            <TextBlock x:Name="FirstRunGuideText" Foreground="{DynamicResource StatusHealthyBrush}" FontSize="12" Margin="0,10,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Column="1" Margin="6,0,6,12" Style="{StaticResource StatusMetricCardStyle}">
                         <StackPanel>
-                            <TextBlock x:Name="MonitorStateLabel" Foreground="#AEB8C5" FontSize="12" FontWeight="SemiBold" />
-                            <TextBlock x:Name="MonitorStateText" FontSize="24" FontWeight="SemiBold" Foreground="#F2F5F8" Margin="0,8,0,14" />
-                            <TextBlock x:Name="NextCheckLabel" Foreground="#AEB8C5" FontSize="12" />
-                            <TextBlock x:Name="NextCheckText" FontSize="16" FontWeight="SemiBold" Foreground="#DDE5EF" Margin="0,6,0,0" />
+                            <TextBlock x:Name="MonitorStateLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" FontWeight="SemiBold" />
+                            <TextBlock x:Name="MonitorStateText" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,14" />
+                            <TextBlock x:Name="NextCheckLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
+                            <TextBlock x:Name="NextCheckText" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,6,0,0" />
                         </StackPanel>
                     </Border>
 
                     <Border Grid.Column="2" Margin="12,0,0,12" Style="{StaticResource StatusMetricCardStyle}">
                         <StackPanel>
-                            <TextBlock x:Name="CurrentNetworkLabel" Foreground="#AEB8C5" FontSize="12" FontWeight="SemiBold" />
-                            <TextBlock x:Name="CurrentSsidText" FontSize="20" FontWeight="SemiBold" Foreground="#F2F5F8" Margin="0,8,0,14" TextTrimming="CharacterEllipsis" />
-                            <TextBlock x:Name="FailureStreakLabel" Foreground="#AEB8C5" FontSize="12" />
-                            <TextBlock x:Name="FailureStreakText" FontSize="20" FontWeight="SemiBold" Foreground="#DDE5EF" Margin="0,6,0,0" />
+                            <TextBlock x:Name="CurrentNetworkLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" FontWeight="SemiBold" />
+                            <TextBlock x:Name="CurrentSsidText" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,14" TextTrimming="CharacterEllipsis" />
+                            <TextBlock x:Name="FailureStreakLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
+                            <TextBlock x:Name="FailureStreakText" FontSize="20" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,6,0,0" />
                         </StackPanel>
                     </Border>
 
@@ -339,7 +310,7 @@
                         </Grid.ColumnDefinitions>
                         <Border Margin="0,0,12,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
-                                <TextBlock x:Name="ProbeTitleText" DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="#F2F5F8" Margin="0,0,0,12" />
+                                <TextBlock x:Name="ProbeTitleText" DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,12" />
                                 <DataGrid x:Name="ProbeGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProbeNameColumn" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
@@ -352,8 +323,8 @@
                         </Border>
                         <Border Grid.Column="1" Margin="12,0,0,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
-                                <TextBlock x:Name="RecentEventsTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="#F2F5F8" Margin="0,0,0,12" />
-                                <TextBlock x:Name="RecentEventsEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="#8FA0B5" TextWrapping="Wrap" Visibility="Collapsed" />
+                                <TextBlock x:Name="RecentEventsTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,12" />
+                                <TextBlock x:Name="RecentEventsEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
                                 <ListBox x:Name="RecentEventsList" BorderThickness="0" />
                             </DockPanel>
                         </Border>
@@ -378,8 +349,8 @@
                         <Button x:Name="RemoveButton" Click="Remove_Click" Margin="0,0,6,6" />
                         <Button x:Name="ConnectButton" Click="Connect_Click" Margin="0,0,6,6" />
                     </WrapPanel>
-                    <Border x:Name="WifiSelectionBar" Grid.Row="1" Background="#171D25" BorderBrush="#303946" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
-                        <TextBlock x:Name="CurrentWifiSelectionText" Foreground="#DDE5EF" TextWrapping="Wrap" />
+                    <Border x:Name="WifiSelectionBar" Grid.Row="1" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
+                        <TextBlock x:Name="CurrentWifiSelectionText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </Border>
                     <TextBlock x:Name="DragHintText" Grid.Row="2" Margin="0,0,0,12" Opacity="0.72" TextWrapping="Wrap" />
                     <Grid Grid.Row="3">
@@ -390,7 +361,7 @@
                         <Border Margin="0,0,10,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="NearbyNetworksTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                <TextBlock x:Name="NearbyEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="#8FA0B5" TextWrapping="Wrap" Visibility="Collapsed" />
+                                <TextBlock x:Name="NearbyEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
                                 <DataGrid x:Name="NearbyGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
@@ -402,17 +373,17 @@
                                                     <Border Padding="8,3" CornerRadius="10" HorizontalAlignment="Center" BorderThickness="1">
                                                         <Border.Style>
                                                             <Style TargetType="Border">
-                                                                <Setter Property="Background" Value="#1B222B" />
-                                                                <Setter Property="BorderBrush" Value="#303946" />
+                                                                <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                                                                <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
                                                                 <Style.Triggers>
                                                                     <DataTrigger Binding="{Binding IsInPriorityList}" Value="True">
-                                                                        <Setter Property="Background" Value="#202B42" />
-                                                                        <Setter Property="BorderBrush" Value="#6EA8FF" />
+                                                                        <Setter Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
+                                                                        <Setter Property="BorderBrush" Value="{DynamicResource StatusHealthyBrush}" />
                                                                     </DataTrigger>
                                                                 </Style.Triggers>
                                                             </Style>
                                                         </Border.Style>
-                                                        <TextBlock Text="{Binding PriorityBadge}" FontSize="12" FontWeight="SemiBold" Foreground="#DDE5EF" />
+                                                        <TextBlock Text="{Binding PriorityBadge}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                                     </Border>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
@@ -424,7 +395,7 @@
                         <Border Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="PriorityListTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
-                                <TextBlock x:Name="ProfileEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="#8FA0B5" TextWrapping="Wrap" Visibility="Collapsed" />
+                                <TextBlock x:Name="ProfileEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
                                 <DataGrid x:Name="ProfileGrid" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" IsReadOnly="True" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
@@ -462,7 +433,7 @@
                                 <ColumnDefinition Width="150" />
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="IntervalLabel" VerticalAlignment="Center" />
-                            <TextBox x:Name="IntervalTextBox" Grid.Column="1" />
+                            <ui:NumberBox x:Name="IntervalTextBox" Grid.Column="1" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=IntervalLabel}" />
                             <ComboBox x:Name="IntervalUnitComboBox" Grid.Column="2" Margin="8,0,0,0">
                                 <ComboBoxItem Tag="1" />
                                 <ComboBoxItem Tag="60" />
@@ -475,7 +446,7 @@
                                 <ColumnDefinition Width="120" />
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="FailuresBeforeRecoveryLabel" VerticalAlignment="Center" />
-                            <TextBox x:Name="FailuresTextBox" Grid.Column="1" />
+                            <ui:NumberBox x:Name="FailuresTextBox" Grid.Column="1" Minimum="1" Maximum="100" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=FailuresBeforeRecoveryLabel}" />
                         </Grid>
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
@@ -484,7 +455,7 @@
                                 <ColumnDefinition Width="150" />
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="CooldownLabel" VerticalAlignment="Center" />
-                            <TextBox x:Name="CooldownTextBox" Grid.Column="1" />
+                            <ui:NumberBox x:Name="CooldownTextBox" Grid.Column="1" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=CooldownLabel}" />
                             <ComboBox x:Name="CooldownUnitComboBox" Grid.Column="2" Margin="8,0,0,0">
                                 <ComboBoxItem Tag="1" />
                                 <ComboBoxItem Tag="60" />
@@ -495,6 +466,13 @@
                         <ui:ToggleSwitch x:Name="SoftReconnectCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="WifiAutoEnableCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="DnsFlushCheckBox" Margin="0,9" />
+                        <ui:ToggleSwitch x:Name="HighRiskCheckBox" Margin="0,9" Checked="HighRiskCheckBox_Checked" />
+                        <TextBlock x:Name="HighRiskTipText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,0,0,4" />
+                        <TextBlock x:Name="DnsProbeHostsLabel" Margin="0,12,0,4" />
+                        <TextBox x:Name="DnsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=DnsProbeHostsLabel}" />
+                        <TextBlock x:Name="HttpsProbeHostsLabel" Margin="0,10,0,4" />
+                        <TextBox x:Name="HttpsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=HttpsProbeHostsLabel}" />
+                        <TextBlock x:Name="ProbeTargetsTipText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" />
                         <Button x:Name="SavePolicyButton" HorizontalAlignment="Left" Margin="0,18,0,0" Click="SavePolicy_Click" />
                         <TextBlock x:Name="PolicyStatusText" Margin="0,12,0,0" TextWrapping="Wrap" Opacity="0.78" />
                     </StackPanel>
@@ -526,7 +504,7 @@
                                         <ColumnDefinition Width="0.95*" />
                                     </Grid.ColumnDefinitions>
 
-                                    <Border Grid.RowSpan="2" Background="#0E141B" BorderBrush="#253349" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,0,14,0">
+                                    <Border Grid.RowSpan="2" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,0,14,0">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="Auto" />
@@ -535,29 +513,29 @@
                                             </Grid.RowDefinitions>
                                             <DockPanel Margin="0,0,0,10" LastChildFill="False">
                                                 <StackPanel DockPanel.Dock="Left">
-                                                    <TextBlock x:Name="SpeedGaugePhaseText" Foreground="#DDE6F2" FontWeight="SemiBold" />
-                                                    <TextBlock x:Name="SpeedStatusText" Foreground="#8FA0B5" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0" />
+                                                    <TextBlock x:Name="SpeedGaugePhaseText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" />
+                                                    <TextBlock x:Name="SpeedStatusText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0" />
                                                 </StackPanel>
                                                 <Button x:Name="SpeedRunButton" DockPanel.Dock="Right" Click="SpeedRun_Click" MinWidth="96" />
                                             </DockPanel>
                                             <Canvas Grid.Row="1" Width="420" Height="270" HorizontalAlignment="Center" Margin="0,2,0,0">
-                                                <Path Stroke="#223149" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
-                                                <Path Stroke="#182231" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
-                                                <Path x:Name="SpeedGaugeArc" Stroke="#55E6D5" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                                <Line x:Name="SpeedGaugeNeedle" X1="210" Y1="210" X2="210" Y2="86" Stroke="#F5F0E6" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                                <Ellipse Width="22" Height="22" Fill="#F5F0E6" Canvas.Left="199" Canvas.Top="199" />
-                                                <Ellipse Width="8" Height="8" Fill="#0E141B" Canvas.Left="206" Canvas.Top="206" />
-                                                <TextBlock Text="0" Canvas.Left="88" Canvas.Top="206" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="10" Canvas.Left="112" Canvas.Top="143" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="50" Canvas.Left="154" Canvas.Top="100" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="100" Canvas.Left="195" Canvas.Top="80" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="250" Canvas.Left="254" Canvas.Top="100" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="500" Canvas.Left="291" Canvas.Top="143" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="1000" Canvas.Left="300" Canvas.Top="206" Foreground="#D9E2EF" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock x:Name="SpeedGaugeValueText" Width="160" Canvas.Left="130" Canvas.Top="168" FontSize="36" FontWeight="Light" Foreground="#F7FAFF" TextAlignment="Center" />
-                                                <TextBlock Text="Mbps" Width="160" Canvas.Left="130" Canvas.Top="211" Foreground="#91A2B8" FontSize="12" TextAlignment="Center" />
+                                                <Path Stroke="{DynamicResource CardStrokeColorDefaultBrush}" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
+                                                <Path Stroke="{DynamicResource SurfaceCardBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
+                                                <Path x:Name="SpeedGaugeArc" Stroke="{DynamicResource ChartAccentBrush}" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                <Line x:Name="SpeedGaugeNeedle" X1="210" Y1="210" X2="210" Y2="86" Stroke="{DynamicResource TextFillColorPrimaryBrush}" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                                <Ellipse Width="22" Height="22" Fill="{DynamicResource TextFillColorPrimaryBrush}" Canvas.Left="199" Canvas.Top="199" />
+                                                <Ellipse Width="8" Height="8" Fill="{DynamicResource SurfaceCardBrush}" Canvas.Left="206" Canvas.Top="206" />
+                                                <TextBlock Text="0" Canvas.Left="88" Canvas.Top="206" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="10" Canvas.Left="112" Canvas.Top="143" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="50" Canvas.Left="154" Canvas.Top="100" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="100" Canvas.Left="195" Canvas.Top="80" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="250" Canvas.Left="254" Canvas.Top="100" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="500" Canvas.Left="291" Canvas.Top="143" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock Text="1000" Canvas.Left="300" Canvas.Top="206" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
+                                                <TextBlock x:Name="SpeedGaugeValueText" Width="160" Canvas.Left="130" Canvas.Top="168" FontSize="36" FontWeight="Light" Foreground="{DynamicResource TextFillColorPrimaryBrush}" TextAlignment="Center" />
+                                                <TextBlock Text="Mbps" Width="160" Canvas.Left="130" Canvas.Top="211" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextAlignment="Center" />
                                             </Canvas>
-                                            <Border Grid.Row="2" Height="1" Background="#26364A" Opacity="0.7" Margin="34,0" />
+                                            <Border Grid.Row="2" Height="1" Background="{DynamicResource CardStrokeColorDefaultBrush}" Opacity="0.7" Margin="34,0" />
                                         </Grid>
                                     </Border>
 
@@ -566,27 +544,27 @@
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <Border Background="#111820" BorderBrush="#2C3B50" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
+                                        <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
                                             <StackPanel>
-                                                <TextBlock x:Name="DownloadSpeedLabel" Foreground="#9FB0C4" FontSize="12" />
-                                                <TextBlock x:Name="DownloadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="#F4F8FF" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
-                                                <Border Height="3" Background="#6EA8FF" CornerRadius="2" Margin="0,14,34,0" />
+                                                <TextBlock x:Name="DownloadSpeedLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
+                                                <TextBlock x:Name="DownloadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
+                                                <Border Height="3" Background="{DynamicResource StatusHealthyBrush}" CornerRadius="2" Margin="0,14,34,0" />
                                             </StackPanel>
                                         </Border>
-                                        <Border Grid.Column="1" Background="#111820" BorderBrush="#2C3B50" BorderThickness="1" CornerRadius="8" Padding="14" Margin="8,0,0,0">
+                                        <Border Grid.Column="1" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="8,0,0,0">
                                             <StackPanel>
-                                                <TextBlock x:Name="UploadSpeedLabel" Foreground="#9FB0C4" FontSize="12" />
-                                                <TextBlock x:Name="UploadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="#F4F8FF" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
-                                                <Border Height="3" Background="#F59E0B" CornerRadius="2" Margin="0,14,34,0" />
+                                                <TextBlock x:Name="UploadSpeedLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
+                                                <TextBlock x:Name="UploadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
+                                                <Border Height="3" Background="{DynamicResource StatusWarningBrush}" CornerRadius="2" Margin="0,14,34,0" />
                                             </StackPanel>
                                         </Border>
                                     </Grid>
 
-                                    <Border Grid.Row="1" Grid.Column="1" Background="#111820" BorderBrush="#2C3B50" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,14,0,0">
+                                    <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,14,0,0">
                                         <StackPanel>
-                                            <TextBlock x:Name="SpeedLatencyLabel" Foreground="#9FB0C4" FontSize="12" />
-                                            <TextBlock x:Name="SpeedLatencyText" FontSize="30" FontWeight="SemiBold" Foreground="#F4F8FF" Margin="0,8,0,0" />
-                                            <Border Height="3" Background="#55E6D5" CornerRadius="2" Margin="0,14,64,0" />
+                                            <TextBlock x:Name="SpeedLatencyLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
+                                            <TextBlock x:Name="SpeedLatencyText" FontSize="30" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,0" />
+                                            <Border Height="3" Background="{DynamicResource ChartAccentBrush}" CornerRadius="2" Margin="0,14,64,0" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>
@@ -619,6 +597,7 @@
                                             <DataGridTextColumn x:Name="WebsiteDetailColumn" Binding="{Binding Detail}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
                                     </DataGrid>
+                                    <TextBlock x:Name="WebsiteEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
                                 </StackPanel>
                             </TabItem>
                             <TabItem x:Name="IpInfoToolsTab">
@@ -633,6 +612,7 @@
                                             <DataGridTextColumn x:Name="IpInfoValueColumn" Binding="{Binding Value}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
                                     </DataGrid>
+                                    <TextBlock x:Name="IpInfoEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
                                 </StackPanel>
                             </TabItem>
                             <TabItem x:Name="ReportToolsTab">
@@ -648,6 +628,7 @@
                                             <DataGridTextColumn x:Name="ReportAdviceColumn" Binding="{Binding Advice}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
                                     </DataGrid>
+                                    <TextBlock x:Name="ReportEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
                                 </StackPanel>
                             </TabItem>
                         </TabControl>
@@ -692,6 +673,7 @@
                                 <DataGridTextColumn x:Name="DnsStatusColumn" Binding="{Binding Status}" Width="120" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                             </DataGrid.Columns>
                         </DataGrid>
+                        <TextBlock x:Name="DnsEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
                     </StackPanel>
                 </Border>
 
@@ -730,6 +712,7 @@
                                 <DataGridTextColumn x:Name="QualityDetailColumn" Binding="{Binding Detail}" Width="3*" ElementStyle="{StaticResource GridTextStyle}" />
                             </DataGrid.Columns>
                         </DataGrid>
+                        <TextBlock x:Name="QualityEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
                     </StackPanel>
                 </Border>
 
@@ -753,11 +736,15 @@
                                 <DataGridTextColumn x:Name="AdapterDnsColumn" Binding="{Binding DnsServers}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
                             </DataGrid.Columns>
                         </DataGrid>
+                        <TextBlock x:Name="AdapterEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
                     </StackPanel>
                 </Border>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="LogPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <TextBox x:Name="LogTextBox" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                    <DockPanel>
+                        <Button x:Name="ExportLogsButton" DockPanel.Dock="Top" HorizontalAlignment="Right" Margin="0,0,0,10" Click="ExportLogs_Click" />
+                        <TextBox x:Name="LogTextBox" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
+                    </DockPanel>
                 </Border>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="SettingsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
@@ -774,6 +761,18 @@
                                 <ComboBoxItem Tag="en-US" />
                             </ComboBox>
                         </Grid>
+                        <Grid Margin="0,0,0,18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="120" />
+                                <ColumnDefinition Width="240" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="ThemeLabel" VerticalAlignment="Center" AutomationProperties.LabeledBy="{Binding ElementName=ThemeLabel}" />
+                            <ComboBox x:Name="ThemeComboBox" Grid.Column="1" Width="240" HorizontalAlignment="Left" AutomationProperties.LabeledBy="{Binding ElementName=ThemeLabel}" SelectionChanged="ThemeComboBox_SelectionChanged">
+                                <ComboBoxItem Tag="auto" />
+                                <ComboBoxItem Tag="light" />
+                                <ComboBoxItem Tag="dark" />
+                            </ComboBox>
+                        </Grid>
                         <TextBlock x:Name="TrayTitle" Margin="0,8,0,10" />
                         <TextBlock x:Name="CloseBehaviorLabel" />
                         <ComboBox x:Name="CloseBehaviorComboBox" Margin="0,6,0,14" Width="260" HorizontalAlignment="Left" SelectionChanged="CloseBehaviorComboBox_SelectionChanged">
@@ -784,7 +783,7 @@
                         <ui:ToggleSwitch x:Name="StartMonitoringOnLaunchCheckBox" Margin="0,9" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="StartMinimizedToTrayCheckBox" Margin="0,9" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="ScheduledStartupCheckBox" Margin="0,9" Checked="ScheduledStartup_Changed" Unchecked="ScheduledStartup_Changed" />
-                        <TextBlock x:Name="ScheduledStartupStatusText" Foreground="#8FA0B5" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <TextBlock x:Name="ScheduledStartupStatusText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,0" />
                     </StackPanel>
                 </Border>
             
