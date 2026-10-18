@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace NetGuardian.Core.SystemCommands;
 
@@ -18,10 +19,12 @@ public interface ISystemCommandRunner
 public sealed class ProcessCommandRunner : ISystemCommandRunner
 {
     private readonly TimeSpan _timeout;
+    private readonly Encoding? _outputEncoding;
 
-    public ProcessCommandRunner(TimeSpan? timeout = null)
+    public ProcessCommandRunner(TimeSpan? timeout = null, Encoding? outputEncoding = null)
     {
         _timeout = timeout ?? TimeSpan.FromSeconds(30);
+        _outputEncoding = outputEncoding;
         if (_timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
     }
 
@@ -34,6 +37,8 @@ public sealed class ProcessCommandRunner : ISystemCommandRunner
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            StandardOutputEncoding = _outputEncoding,
+            StandardErrorEncoding = _outputEncoding,
             CreateNoWindow = true
         };
 

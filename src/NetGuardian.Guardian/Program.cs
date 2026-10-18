@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Security.Principal;
 using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Logging;
 using NetGuardian.Core.Models;
@@ -23,10 +24,34 @@ if (!store.TryLoad(out var initialSettings))
 }
 if (args.Contains("--validate"))
 {
-    var eligible = initialSettings.Profiles.Count(profile => profile.Enabled && profile.AutoConnect && profile.CredentialSaved);
-    if (eligible < 2) { Console.Error.WriteLine("无人值守切换至少需要两个已保存凭据且允许自动连接的 Wi-Fi 配置。"); return 78; }
-    Console.WriteLine(JsonSerializer.Serialize(new { 配置 = settingsPath, 网络数量 = initialSettings.Profiles.Count, 可用候选数量 = eligible, 检测间隔秒 = initialSettings.Policy.CheckIntervalSeconds }));
+    var eligible = initialSettings.Profiles.Count(profile => profile.Enabled && profile.AutoConnect);
+    if (eligible < 2) { Console.Error.WriteLine("无人值守切换至少需要两个启用且允许自动连接的 Wi-Fi 配置；请另用 --diagnose 检查 Windows 中的实际可用性。"); return 78; }
+    Console.WriteLine(JsonSerializer.Serialize(new { 配置 = settingsPath, 网络数量 = initialSettings.Profiles.Count, 已配置候选数量 = eligible, 检测间隔秒 = initialSettings.Policy.CheckIntervalSeconds }));
     return 0;
+}
+
+if (args.Contains("--diagnose"))
+{
+    using var diagnosticDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(90));
+    var diagnostic = await GuardianDiagnostics.RunAsync(initialSettings, new WifiClient(), new ConnectivityTesterService(), diagnosticDeadline.Token);
+    var result = JsonSerializer.Serialize(new
+    {
+        Timestamp = DateTimeOffset.UtcNow,
+        ProcessId = Environment.ProcessId,
+        Account = WindowsIdentity.GetCurrent().Name,
+        Sid = WindowsIdentity.GetCurrent().User?.Value,
+        Diagnostic = diagnostic
+    }, new JsonSerializerOptions { WriteIndented = true });
+    var outputIndex = Array.IndexOf(args, "--output");
+    if (outputIndex >= 0 && outputIndex + 1 < args.Length)
+    {
+        var outputPath = Path.GetFullPath(args[outputIndex + 1]);
+        Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+        File.WriteAllText(outputPath + ".tmp", result);
+        File.Move(outputPath + ".tmp", outputPath, overwrite: true);
+    }
+    Console.WriteLine(result);
+    return diagnostic.ReadyForUnattendedRecovery ? 0 : 2;
 }
 
 using var lease = MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
@@ -44,6 +69,8 @@ ConnectivityReport? lastReport = null;
 var progressTicks = DateTimeOffset.UtcNow.UtcTicks;
 var processStartedAt = new DateTimeOffset(Process.GetCurrentProcess().StartTime);
 var wifi = new WifiClient();
+var profileInventory = new WifiProfileInventory(false, []);
+var nextInventoryCheck = DateTimeOffset.MinValue;
 using var engine = new MonitoringEngine(wifi, new ConnectivityTesterService(), commands,
     () => Volatile.Read(ref settings).Policy,
     () => Volatile.Read(ref settings).Profiles,
@@ -90,6 +117,9 @@ engine.StateChanged += (_, _) => Interlocked.Exchange(ref progressTicks, DateTim
 try
 {
     log.Write($"后台守护启动，进程 {Environment.ProcessId}，配置 {settingsPath}");
+    profileInventory = await wifi.GetProfileInventoryAsync(cancellation.Token);
+    WifiProfileAvailability.Apply(settings.Profiles, profileInventory);
+    nextInventoryCheck = DateTimeOffset.UtcNow.AddMinutes(1);
     engine.Start();
     // 不阻塞心跳；引擎负责单轮超时，监督负责最终发现假死。
     var firstCheck = engine.CheckNowAsync(cancellation.Token);
@@ -104,6 +134,14 @@ try
         }
         if (store.TryLoad(out var loaded))
         {
+            if (DateTimeOffset.UtcNow >= nextInventoryCheck)
+            {
+                var inventory = await wifi.GetProfileInventoryAsync(cancellation.Token);
+                if (inventory.Success) profileInventory = inventory;
+                else log.Write($"Windows 无线配置暂不可读取，保留最近有效候选：{inventory.Error}");
+                nextInventoryCheck = DateTimeOffset.UtcNow.AddMinutes(1);
+            }
+            WifiProfileAvailability.Apply(loaded.Profiles, profileInventory);
             var previousInterval = settings.Policy.CheckIntervalSeconds;
             Volatile.Write(ref settings, loaded);
             if (previousInterval != loaded.Policy.CheckIntervalSeconds) engine.UpdateSchedule();

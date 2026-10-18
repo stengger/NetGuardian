@@ -1,6 +1,7 @@
 using NetGuardian.Core.SystemCommands;
 using System.Net.NetworkInformation;
 using System.Security;
+using System.Text;
 using System.Text.RegularExpressions;
 using NetGuardian.Core.Models;
 
@@ -43,8 +44,15 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     public async Task<IReadOnlyList<string>> GetProfileNamesAsync(CancellationToken cancellationToken = default)
     {
+        return (await GetProfileInventoryAsync(cancellationToken)).Names;
+    }
+
+    public async Task<WifiProfileInventory> GetProfileInventoryAsync(CancellationToken cancellationToken = default)
+    {
         var result = await RunNetshAsync(["wlan", "show", "profiles"], cancellationToken);
-        return result.ExitCode == 0 ? ParseProfileNames(result.Output) : [];
+        return result.ExitCode == 0
+            ? new WifiProfileInventory(true, ParseProfileNames(result.Output))
+            : new WifiProfileInventory(false, [], result.Output);
     }
 
     public async Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
@@ -427,7 +435,8 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     private static async Task<(int ExitCode, string Output)> RunNetshAsync(string[] arguments, CancellationToken cancellationToken)
     {
-        var result = await new ProcessCommandRunner().RunAsync("netsh.exe", arguments, cancellationToken);
+        // 无控制台后台进程不能依赖系统默认代码页来解码 netsh 的 UTF-8 输出。
+        var result = await new ProcessCommandRunner(outputEncoding: Encoding.UTF8).RunAsync("netsh.exe", arguments, cancellationToken);
         return (result.ExitCode, result.Output);
     }
 
