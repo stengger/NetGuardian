@@ -8,6 +8,35 @@ namespace NetGuardian.Tests;
 
 public sealed class UnattendedEngineTests
 {
+    [Fact]
+    public async Task 长期连接后的备用网络需要刷新扫描才能连接()
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ScanHandler = _ =>
+        {
+            wifi.ConnectSucceedsFor.Add("B");
+            return Task.FromResult<IReadOnlyList<WifiNetwork>>([]);
+        };
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid,
+            ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal("B", wifi.CurrentSsid);
+        Assert.Equal(0, engine.FailureStreak);
+    }
+
+    [Fact]
+    public async Task 扫描失败仍继续尝试保存的备用配置()
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home", ScanHandler = _ => throw new InvalidOperationException("扫描暂不可用") };
+        wifi.ConnectSucceedsFor.Add("B");
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid,
+            ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal("B", wifi.CurrentSsid);
+    }
+
     private static MonitorPolicy Policy() => new()
     {
         CheckIntervalSeconds = 3600, ConsecutiveFailuresBeforeRecovery = 1,

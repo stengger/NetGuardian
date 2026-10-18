@@ -301,6 +301,18 @@ public sealed class MonitoringEngine : IDisposable
 
         if (policy.EnableAutoSwitch)
         {
+            // 长期关联后可用网络缓存可能过期；刷新失败仍保留已保存配置的连接机会。
+            await TryRecoveryStepAsync(async () =>
+            {
+                using var scanCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                scanCancellation.CancelAfter(TimeSpan.FromSeconds(8));
+                try { await _wifi.ScanAsync(scanCancellation.Token).WaitAsync(scanCancellation.Token); }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    throw new TimeoutException("恢复前无线扫描超过时限，继续尝试保存的配置。");
+                }
+                return true;
+            }, cancellationToken);
             foreach (var profile in RecoveryPlanner.OrderSwitchCandidates(_profilesProvider(), currentSsid))
             {
                 cancellationToken.ThrowIfCancellationRequested();

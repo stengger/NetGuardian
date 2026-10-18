@@ -9,6 +9,13 @@ namespace NetGuardian.Core.Wifi;
 
 public sealed partial class NetshWifiClient : IWifiClient
 {
+    private readonly ISystemCommandRunner _commands;
+
+    public NetshWifiClient(ISystemCommandRunner? commands = null)
+    {
+        _commands = commands ?? new ProcessCommandRunner(outputEncoding: Encoding.UTF8);
+    }
+
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
     {
         var result = await RunNetshAsync(["wlan", "show", "networks", "mode=bssid"], cancellationToken);
@@ -123,7 +130,8 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     public async Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default)
     {
-        var result = await RunNetshAsync(["wlan", "connect", $"name={profileName}", $"ssid={ssid}"], cancellationToken);
+        // 配置已保存真实 SSID；netsh 的 ssid 文本参数在系统代码页下可能误转换中文。
+        var result = await RunNetshAsync(["wlan", "connect", $"name={profileName}"], cancellationToken);
         return result.ExitCode == 0;
     }
 
@@ -433,10 +441,10 @@ public sealed partial class NetshWifiClient : IWifiClient
             """;
     }
 
-    private static async Task<(int ExitCode, string Output)> RunNetshAsync(string[] arguments, CancellationToken cancellationToken)
+    private async Task<(int ExitCode, string Output)> RunNetshAsync(string[] arguments, CancellationToken cancellationToken)
     {
         // 无控制台后台进程不能依赖系统默认代码页来解码 netsh 的 UTF-8 输出。
-        var result = await new ProcessCommandRunner(outputEncoding: Encoding.UTF8).RunAsync("netsh.exe", arguments, cancellationToken);
+        var result = await _commands.RunAsync("netsh.exe", arguments, cancellationToken);
         return (result.ExitCode, result.Output);
     }
 
