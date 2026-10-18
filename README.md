@@ -1,83 +1,99 @@
 # NetGuardian
 
-NetGuardian 是一个面向远程 Windows 电脑的 Wi-Fi 连通性监控与恢复工具。当前版本是 C# / WPF 桌面应用，默认中文界面，支持切换 English。
+面向远程 Windows 实验室电脑的 Wi-Fi 监控与恢复工具。包含 WPF 管理界面和无界面后台守护，要求 .NET 8 桌面运行时；开发、构建才需要 .NET 8 SDK。
 
-## 当前能力
+## 恢复行为
 
-- 现代 WPF 桌面界面，左侧导航、状态卡片、最近事件和网络探针表格
-- 默认中文，设置页可切换 English
-- Native Wi-Fi API 扫描，失败时回退到 `netsh`
-- 可为 Wi-Fi 预设密码，并写入 Windows WLAN Profile，应用配置不保存明文密码
-- Wi-Fi 恢复优先级列表支持拖拽排序、上移/下移和删除
-- 连通性检测：IPv4、默认网关、DNS、公网 HTTPS
-- 检测策略配置：检测间隔、失败阈值、冷却时间、DNS 刷新开关
-- 时间设置支持秒、分钟、小时
-- 系统托盘常驻，可选择关闭窗口时退出或后台运行
-- 项目专属图标，接入窗口、exe 和托盘
-- 正式发布输出 `dist\NetGuardian\NetGuardian.exe`
+- 按策略检测无线设备、SSID、IPv4、DNS 和多个公网 HTTPS 目标。
+- 当前 Wi-Fi 关联正常但校园网上游失效时，尝试重连并验证真实联网；仍失败则按优先级切到另一 Wi-Fi。
+- 只有公网验证成功才报告恢复。失败网络有短期退避，整轮恢复有截止时间。
+- 网关不响应 Ping 不直接认定断网；HTTPS 不把认证页重定向算作成功。
+- 代码 10 等 PnP 无线设备故障独立诊断。高风险恢复明确开启后，才尝试 WLAN 服务、网络接口或 PnP 设备重启。
+- 后台恢复动作冷却记录持久化，进程重启不能绕过。整机重启默认关闭，仅可用于持续设备故障，并且最多每 24 小时尝试一次。
 
-## 环境
+两个 Wi-Fi 必须已经保存 Windows 无线配置，且备用网络确实能独立上网。网页或专用客户端的校园认证尚不支持自动登录；同一网卡物理损坏或两个上游同时故障时，软件不能保证恢复。
 
-需要 .NET 8 SDK。脚本会优先使用系统 PATH 中的 `dotnet`，如果没有配置 PATH，会回退到当前开发机上的：
+## 构建、测试和发布
 
-```text
-E:\Environment\dotnet-sdk-8.0\dotnet.exe
-```
-
-项目不会修改系统 PATH。
-
-## 启动
-
-推荐先发布正式 exe：
+如果 SDK 不在 PATH，先设置环境变量（不修改系统 PATH）：
 
 ```powershell
+$env:NETGUARDIAN_DOTNET = '你的 dotnet.exe 完整路径'
+.\scripts\build.ps1
+& $env:NETGUARDIAN_DOTNET test tests\NetGuardian.Tests\NetGuardian.Tests.csproj
+.\tests\Test-GuardianScripts.ps1
 .\scripts\publish.ps1
 ```
 
-然后双击：
+显式 SDK 路径用户也可用 `& $env:NETGUARDIAN_DOTNET test ...`。发布脚本先还原、测试，再输出：
 
 ```text
-dist\NetGuardian\NetGuardian.exe
+dist\NetGuardian\NetGuardian.exe                    管理界面
+dist\NetGuardian\guardian\NetGuardian.Guardian.exe  后台守护
 ```
 
-开发期也可以双击：
+直接运行发布界面，或使用 `Start-NetGuardian.vbs`。启动正式版不再要求 SDK；启动脚本不会重定向 APPDATA。退出界面时等待正在执行的网络恢复收尾。
 
-```text
-Start-NetGuardian.vbs
-```
+## 安装无人值守后台
 
-它会优先启动已发布 exe；如果还没发布，会自动构建 Debug 版本并启动。
-
-也可以手动构建：
+1. 在界面保存两个 Wi-Fi，配置优先级、探针和恢复策略。高风险恢复按需显式开启。
+2. 管理员 PowerShell 先检查安装内容：
 
 ```powershell
-.\scripts\build.ps1
+.\scripts\register-netguardian-task.ps1 -WhatIf
 ```
 
-Debug 构建后的 exe 位于：
+3. 在具备本地回退方式的维护窗口安装：
+
+```powershell
+.\scripts\register-netguardian-task.ps1 -RunNow
+```
+
+安装程序将发布文件复制到 `%ProgramFiles%\NetGuardian`，首次将用户配置复制到 `%ProgramData%\NetGuardian\settings.json` 并限制写权限；后续默认保留已有机器配置。注册 SYSTEM 开机任务和每分钟监督任务。无需自动登录，也不依赖交互桌面。主任务跟踪真实 Guardian 进程，异常退出会重试；心跳过期会核对任务执行目标和本次启动时间后重新启动。
+
+`-RunNow` 会开始监控并可能按既有策略恢复网络，远程会话可能中断；不加此参数则在下次启动时运行。注册安装完成不等于真实无人值守验收通过。
+
+安装后重新打开界面，自动使用机器配置。后台每五秒热加载有效配置，损坏时保留有效配置或读取备份。界面显示后台状态，并避免与后台同时自动或手动切网；执行手动网络修改前需在维护窗口停止后台。
+
+更新前请先停止旧后台；卸载先停止监督，再请求后台退出并等待恢复收尾，保留程序、配置和日志：
+
+```powershell
+.\scripts\unregister-netguardian-task.ps1
+```
+
+机器配置存在时，界面仍使用它；取消后台后可手动启动界面监控。
+
+## 可选整机重启
+
+只针对长时间持续的无线设备故障，不针对普通上游断网。需在共享 settings.json 显式设置：
+
+```json
+{
+  "enableComputerRestart": true,
+  "deviceFailureMinutesBeforeRestart": 30
+}
+```
+
+以上是已有配置的字段示例，不能拿它替换完整配置。默认关闭，最短设备故障等待十分钟；预留重启预算后，发出六十秒倒计时重启。恢复记录损坏或不可写时禁止此动作。取消倒计时使用管理员命令 `shutdown /a`。实验任务、磁盘加密和远程软件的开机行为必须在启用前确认。
+
+## 配置与日志
+
+- 未安装后台：`%APPDATA%\NetGuardian`。
+- 安装后台后：`%ProgramData%\NetGuardian`，界面与后台共用。
+- `settings.json` / `.bak`：配置和备份，不保存明文无线密码。
+- `logs\app-YYYYMMDD.log`：按天记录；`events-YYYYMM.jsonl`：恢复事件。
+- `guardian-status.json`：进程身份、心跳及最近检测结果。
+- `recovery-budget.json`：跨进程恢复冷却；`alerts\last-high-risk.json`：最近高风险动作。
+
+## 项目目录
 
 ```text
-src\NetGuardian.App\bin\Debug\net8.0-windows\NetGuardian.exe
+src/NetGuardian.Core      检测、恢复状态机、无线 API、配置和日志
+src/NetGuardian.App       WPF 管理界面
+src/NetGuardian.Guardian  不依赖登录的后台进程
+tests                    xUnit 场景测试与无破坏脚本测试
+scripts                  构建、发布、安装、卸载和心跳监督
+docs                     本轮计划、验证记录；archive 保存历史设计与审查
 ```
 
-## 项目结构
-
-```text
-src\NetGuardian.App      WPF 桌面 UI
-src\NetGuardian.Core     核心模型、检测、Wi-Fi API、配置、语言资源
-tests\NetGuardian.Tests  无外部依赖的轻量测试控制台
-```
-
-## 设计原则
-
-远程机器不能一断网就重启网卡。NetGuardian 的恢复策略继续遵循：
-
-```text
-先诊断
--> 轻恢复
--> 当前 Wi-Fi 软重连
--> 按优先级切换 Wi-Fi
--> 最后才考虑 WLAN 服务/网卡重启
-```
-
-重启 WLAN 服务、重启网卡、重置网络栈属于高风险动作，后续服务版本中再以显式开关和冷却策略启用。
+历史报告不是当前功能清单。没有真实故障验收前，不应把模拟测试通过等同于无人值守可靠性已得到现场确认。
