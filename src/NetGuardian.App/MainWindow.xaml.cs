@@ -3199,8 +3199,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         if (_settings.CloseBehavior == "tray")
         {
-            e.Cancel = true;
-            HideToTray();
+            DeferCloseAction(this, e, HideToTray);
             return;
         }
 
@@ -3209,12 +3208,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             e.Cancel = true;
             if (_isCloseDialogShowing) return;
             _isCloseDialogShowing = true;
-            _ = ShowCloseDialogAsync();
+            DeferCloseAction(this, e, () => _ = ShowCloseDialogAsync());
             return;
         }
 
+        DeferCloseAction(this, e, ExitApplication);
+    }
+
+    private static void DeferCloseAction(Window window, CancelEventArgs e, Action action)
+    {
         e.Cancel = true;
-        ExitApplication();
+        // 等 Closing 返回后再关闭、隐藏或询问，避免窗口状态操作重入。
+        _ = window.Dispatcher.BeginInvoke(action);
     }
 
     private async Task ShowCloseDialogAsync()
