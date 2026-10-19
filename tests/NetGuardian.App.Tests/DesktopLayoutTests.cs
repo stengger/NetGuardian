@@ -17,6 +17,56 @@ namespace NetGuardian.App.Tests;
 public sealed class DesktopLayoutTests
 {
     [Theory]
+    [InlineData(1180, "zh-CN")]
+    [InlineData(1040, "zh-CN")]
+    [InlineData(1040, "en-US")]
+    public void 质量检查分组指标与取消操作在长文案下仍可读取(double width, string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            var localizer = new Localizer();
+            localizer.SetLanguage(language);
+            DesktopFixture.ShowPage(window, "QualityPanel");
+            foreach (var (name, key) in new[] { ("QualityToolsTitle", "QualityCheckTitle"), ("QualityScopeText", "QualityCheckScope"), ("QualityStateText", "Checking"), ("QualityPassedText", "QualityNoCurrentResult"), ("QualityGatewayLabel", "QualityGatewayTiming"), ("QualityDnsLabel", "QualityDnsTiming"), ("QualityHttpsLabel", "QualityHttpsTiming"), ("QualityStatusText", "QualityCheckRunning") })
+                ((TextBlock)window.FindName(name)).Text = localizer.T(key);
+            foreach (var name in new[] { "QualityGatewayValue", "QualityDnsValue", "QualityHttpsValue" })
+                ((TextBlock)window.FindName(name)).Text = "—";
+            foreach (var name in new[] { "QualityGatewaySamples", "QualityDnsSamples", "QualityHttpsSamples" })
+                ((TextBlock)window.FindName(name)).Text = localizer.T("QualityNotMeasured");
+            foreach (var (name, key) in new[] { ("QualityProbeColumn", "Probe"), ("QualityResultColumn", "Result"), ("QualityLatencyColumn", "ProbeElapsed"), ("QualityDetailColumn", "Detail") })
+                ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
+            foreach (var (name, key) in new[] { ("QualityRunButton", "RunQualityCheck"), ("QualityCancelButton", "Cancel"), ("QualityOpenSettingsButton", "OpenNetworkSettings") })
+                ((Button)window.FindName(name)).Content = localizer.T(key);
+            ((Button)window.FindName("QualityCancelButton")).Visibility = Visibility.Visible;
+            ((ProgressBar)window.FindName("QualityActivityBar")).Visibility = Visibility.Visible;
+            DesktopFixture.Layout(window, width, 660);
+            foreach (var name in new[] { "QualityGatewayValue", "QualityDnsValue", "QualityHttpsValue", "QualityCancelButton", "QualityProbeGrid" })
+            {
+                var element = (FrameworkElement)window.FindName(name);
+                var bounds = element.TransformToAncestor(window).TransformBounds(new Rect(element.RenderSize));
+                Assert.True(bounds.Top >= 0 && bounds.Bottom <= 640 && bounds.Height >= (name == "QualityProbeGrid" ? 100 : 25), $"{name} 不可达：{bounds}");
+            }
+            Assert.Null(window.FindName("QualityScoreText"));
+            Assert.Null(window.FindName("QualityLatencyText"));
+            DesktopFixture.Save(window, $"quality-running-{width}-{language}.png");
+            ((Button)window.FindName("QualityCancelButton")).Visibility = Visibility.Collapsed;
+            ((ProgressBar)window.FindName("QualityActivityBar")).Visibility = Visibility.Collapsed;
+            ((TextBlock)window.FindName("QualityStateText")).Text = localizer.T("Healthy");
+            ((TextBlock)window.FindName("QualityPassedText")).Text = string.Format(localizer.T("QualityCheckCounts"), 7, 8, "实验室_北楼_5GHz_备用网络", "2026-10-20 00:50:00");
+            ((TextBlock)window.FindName("QualityStatusText")).Text = localizer.T("QualityCheckScope");
+            foreach (var name in new[] { "QualityGatewayValue", "QualityDnsValue", "QualityHttpsValue" })
+                ((TextBlock)window.FindName(name)).Text = "12345.6 ms";
+            foreach (var name in new[] { "QualityGatewaySamples", "QualityDnsSamples", "QualityHttpsSamples" })
+                ((TextBlock)window.FindName(name)).Text = string.Format(localizer.T("QualityTimingSamples"), 2, 3, 2);
+            ((DataGrid)window.FindName("QualityProbeGrid")).ItemsSource = Enumerable.Range(1, 12).Select(i => new { Name = $"HTTPS test-{i}.example", ResultText = localizer.T("Pass"), LatencyText = "12345.6 ms", Detail = "HTTP 200" }).ToList();
+            DesktopFixture.Layout(window, width, 660);
+            var completedGrid = (DataGrid)window.FindName("QualityProbeGrid");
+            Assert.True(completedGrid.ActualHeight >= 100);
+            DesktopFixture.Save(window, $"quality-complete-{width}-{language}.png");
+        });
+    }
+
+    [Theory]
     [InlineData(1180, 760)]
     [InlineData(1040, 660)]
     public void 网络配置页的输入标签操作与表格均位于可用视口(double width, double height)

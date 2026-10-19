@@ -532,10 +532,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void QualityRun_Click(object sender, RoutedEventArgs e)
     {
-        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
-        {
-            await RunUiActionAsync(RunQualityCheckAsync);
-        }
+        await RunQualityCheckAsync();
     }
 
     private async void WebsiteRun_Click(object sender, RoutedEventArgs e)
@@ -1995,16 +1992,19 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 "cloudflare" => "CloudflareDns", "google" => "GoogleDns", "custom" => "CustomDns", _ => "SelectDnsPlan"
             });
         FillDnsFieldsFromSelectedAdapter();
-        QualityToolsTitle.Text = _localizer.T("QualityTools");
+        QualityToolsTitle.Text = _localizer.T("QualityCheckTitle");
+        QualityScopeText.Text = _localizer.T("QualityCheckScope");
         QualityRunButton.Content = _localizer.T("RunQualityCheck");
+        QualityCancelButton.Content = _localizer.T("Cancel");
         QualityOpenSettingsButton.Content = _localizer.T("OpenNetworkSettings");
-        QualityScoreLabel.Text = _localizer.T("QualityScore");
-        QualityLatencyLabel.Text = _localizer.T("AverageLatency");
-        QualityStateLabel.Text = _localizer.T("QualityStatus");
+        QualityGatewayLabel.Text = _localizer.T("QualityGatewayTiming");
+        QualityDnsLabel.Text = _localizer.T("QualityDnsTiming");
+        QualityHttpsLabel.Text = _localizer.T("QualityHttpsTiming");
         QualityProbeColumn.Header = _localizer.T("Probe");
         QualityResultColumn.Header = _localizer.T("Result");
-        QualityLatencyColumn.Header = _localizer.T("Latency");
+        QualityLatencyColumn.Header = _localizer.T("ProbeElapsed");
         QualityDetailColumn.Header = _localizer.T("Detail");
+        RefreshQualityUi();
         RefreshSpeedView();
         WebsiteRunButton.Content = _localizer.T("Test");
         WebsiteAppleButton.Content = "Apple";
@@ -2813,110 +2813,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private async Task RunQualityCheckAsync()
-    {
-        QualityRunButton.IsEnabled = false;
-        QualityStatusText.Text = _localizer.T("Checking");
-        try
-        {
-            var currentSsid = await _wifi.GetCurrentSsidAsync();
-            var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
-            var tester = new ConnectivityTester(_settings.Policy);
-            var report = await tester.RunFullCheckAsync(currentSsid, wifiDiagnostics);
-            ApplyQualityReport(report);
-            Log($"{_localizer.T("QualityTools")}: {QualityScoreText.Text} - {report.Summary}");
-        }
-        finally
-        {
-            QualityRunButton.IsEnabled = true;
-        }
-    }
-
-    private void ApplyQualityReport(ConnectivityReport report)
-    {
-        var score = CalculateQualityScore(report);
-        var successfulLatencies = report.Probes
-            .Where(probe => probe.Ok && probe.LatencyMs.HasValue)
-            .Select(probe => probe.LatencyMs!.Value)
-            .ToList();
-
-        QualityScoreText.Text = $"{score}/100";
-        QualityScoreText.Foreground = score switch
-        {
-            >= 85 => ThemeBrush("StatusHealthyBrush"),
-            >= 60 => ThemeBrush("StatusWarningBrush"),
-            _ => ThemeBrush("StatusDangerBrush")
-        };
-        QualityLatencyText.Text = successfulLatencies.Count == 0
-            ? "-"
-            : $"{successfulLatencies.Average():F0} ms";
-        QualityStateText.Text = $"{QualityStateTextForScore(score)} / {StateText(report.State)}";
-        QualityStatusText.Text = LocalizeSummary(report.Summary);
-
-        _qualityRows.Clear();
-        foreach (var probe in report.Probes)
-        {
-            _qualityRows.Add(new QualityProbeRow(
-                LocalizeProbeName(probe.Name),
-                probe.Ok ? _localizer.T("Pass") : _localizer.T("Fail"),
-                probe.LatencyMs.HasValue ? $"{probe.LatencyMs.Value:F0} ms" : "-",
-                LocalizeProbeDetail(probe.Detail)));
-        }
-    }
-
-    private int CalculateQualityScore(ConnectivityReport report)
-    {
-        var score = report.State switch
-        {
-            NetworkState.Healthy => 100,
-            NetworkState.InternetIssue => 65,
-            NetworkState.DnsIssue => 45,
-            NetworkState.GatewayIssue => 35,
-            NetworkState.WifiDisconnected => 15,
-            NetworkState.WifiDisabled => 0,
-            NetworkState.Disconnected => 0,
-            _ => 25
-        };
-
-        var failedProbeCount = report.Probes.Count(probe => !probe.Ok);
-        score -= failedProbeCount * 6;
-
-        var averageLatency = report.Probes
-            .Where(probe => probe.Ok && probe.LatencyMs.HasValue)
-            .Select(probe => probe.LatencyMs!.Value)
-            .DefaultIfEmpty(0)
-            .Average();
-        score -= averageLatency switch
-        {
-            <= 0 => 0,
-            <= 80 => 0,
-            <= 180 => 5,
-            <= 350 => 12,
-            _ => 22
-        };
-
-        return Math.Clamp(score, 0, 100);
-    }
-
-    private string QualityStateTextForScore(int score)
-    {
-        return score switch
-        {
-            >= 85 => _localizer.T("QualityExcellent"),
-            >= 70 => _localizer.T("QualityGood"),
-            >= 50 => _localizer.T("QualityWeak"),
-            _ => _localizer.T("QualityPoor")
-        };
-    }
-
-    private void ResetQualityUi()
-    {
-        QualityScoreText.Text = "-";
-        QualityLatencyText.Text = "-";
-        QualityStateText.Text = _localizer.T("NotChecked");
-        QualityStatusText.Text = _localizer.T("NotChecked");
-    }
-
     private async Task RunWebsiteTestAsync(string name, string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -2999,10 +2895,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
             var tester = new ConnectivityTester(_settings.Policy);
             var report = await tester.RunFullCheckAsync(currentSsid, wifiDiagnostics);
-            var score = CalculateQualityScore(report);
+            var summary = ConnectivityQualitySummary.From(report);
 
             _reportRows.Clear();
-            AddReportRow("HealthState", $"{score}/100 - {StateText(report.State)}", AdviceForState(report.State));
+            AddReportRow("HealthState", $"{StateText(report.State)} · {string.Format(_localizer.T("QualityChecksPassed"), summary.PassedChecks, summary.TotalChecks)}", AdviceForState(report.State));
             AddReportRow("CurrentNetwork", string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid, _localizer.T("CheckWifiPriority"));
             AddReportRow("IPv4", string.IsNullOrWhiteSpace(report.Ipv4) ? "-" : report.Ipv4, string.IsNullOrWhiteSpace(report.Ipv4) ? _localizer.T("CheckAdapter") : _localizer.T("NoActionNeeded"));
             AddReportRow("Gateway", string.IsNullOrWhiteSpace(report.Gateway) ? "-" : report.Gateway, report.State == NetworkState.GatewayIssue ? _localizer.T("CheckRouter") : _localizer.T("NoActionNeeded"));
@@ -3285,6 +3181,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _countdownTimer.Stop();
         _sidebarSpeedTimer.Stop();
         CleanupSpeedTest();
+        _qualityCancellation?.Cancel();
         DisposeNotifyIcon();
     }
 
