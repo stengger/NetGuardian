@@ -31,7 +31,8 @@ public sealed class RecoveryBudget(string directory)
     }
 }
 
-public sealed class BudgetedRecoveryService(IHighRiskRecoveryService inner, RecoveryBudget budget, Func<TimeSpan> cooldown) : IHighRiskRecoveryService
+public sealed class BudgetedRecoveryService(IHighRiskRecoveryService inner, RecoveryBudget budget, Func<TimeSpan> cooldown,
+    Action<string>? recoveryAttemptCompleted = null) : IHighRiskRecoveryService
 {
     public Task<SystemCommandResult> RestartWlanServiceAsync(CancellationToken cancellationToken = default) =>
         RunAsync("WlanService", inner.RestartWlanServiceAsync, cancellationToken);
@@ -39,26 +40,40 @@ public sealed class BudgetedRecoveryService(IHighRiskRecoveryService inner, Reco
     public Task<SystemCommandResult> RestartAdapterAsync(string adapterName, CancellationToken cancellationToken = default) =>
         RunAsync("Adapter", token => inner.RestartAdapterAsync(adapterName, token), cancellationToken);
 
-    private Task<SystemCommandResult> RunAsync(string action, Func<CancellationToken, Task<SystemCommandResult>> run, CancellationToken token)
+    private async Task<SystemCommandResult> RunAsync(string action, Func<CancellationToken, Task<SystemCommandResult>> run, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        return budget.TryReserve(action, DateTimeOffset.UtcNow, cooldown())
-            ? run(token)
-            : Task.FromResult(new SystemCommandResult(75, "动作仍在持久化冷却期，或无法安全保存恢复记录。"));
+        if (!budget.TryReserve(action, DateTimeOffset.UtcNow, cooldown()))
+            return new SystemCommandResult(75, "动作仍在持久化冷却期，或无法安全保存恢复记录。");
+        try { return await run(token); }
+        finally
+        {
+            // 冷却跳过与取消均不能充当已执行完恢复的证据。
+            if (!token.IsCancellationRequested) recoveryAttemptCompleted?.Invoke(action);
+        }
     }
 }
 
 public static class ComputerRestartPlanner
 {
     public static bool ShouldRestart(bool enabled, NetGuardian.Core.Models.NetworkState state,
-        DateTimeOffset? failedSince, DateTimeOffset now, int minimumMinutes) =>
-        enabled && state == NetGuardian.Core.Models.NetworkState.AdapterFault && failedSince is { } since
+        DateTimeOffset? failedSince, DateTimeOffset now, int minimumMinutes, bool recoveryAttemptsCompleted = false) =>
+        enabled && recoveryAttemptsCompleted && state == NetGuardian.Core.Models.NetworkState.AdapterFault && failedSince is { } since
         && now - since >= TimeSpan.FromMinutes(Math.Max(10, minimumMinutes));
 }
 
 public sealed class DeviceFailureTracker
 {
     private long _sinceTicks;
+    private int _completedAttempts;
+    public bool RecoveryAttemptsCompleted => Volatile.Read(ref _completedAttempts) == 3;
+
+    public void RecordRecoveryAttempt(string action)
+    {
+        if (FailedSince is null) return;
+        var bit = action switch { "WlanService" => 1, "Adapter" => 2, _ => 0 };
+        Interlocked.Or(ref _completedAttempts, bit);
+    }
     public DateTimeOffset? FailedSince
     {
         get
@@ -72,6 +87,10 @@ public sealed class DeviceFailureTracker
     {
         if (state == NetGuardian.Core.Models.NetworkState.AdapterFault)
             Interlocked.CompareExchange(ref _sinceTicks, now.UtcTicks, 0);
-        else Interlocked.Exchange(ref _sinceTicks, 0);
+        else
+        {
+            Interlocked.Exchange(ref _sinceTicks, 0);
+            Interlocked.Exchange(ref _completedAttempts, 0);
+        }
     }
 }

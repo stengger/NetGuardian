@@ -84,7 +84,8 @@ using var engine = new MonitoringEngine(wifi, new ConnectivityTesterService(), c
     () => Volatile.Read(ref settings).Policy,
     () => Volatile.Read(ref settings).Profiles,
     highRiskService: new BudgetedRecoveryService(new HighRiskRecoveryService(commands), budget,
-        () => TimeSpan.FromMinutes(Volatile.Read(ref settings).Policy.HighRiskCooldownMinutes)));
+        () => TimeSpan.FromMinutes(Volatile.Read(ref settings).Policy.HighRiskCooldownMinutes),
+        deviceFailures.RecordRecoveryAttempt));
 engine.CheckCompleted += (_, e) =>
 {
     state = e.Report.State.ToString();
@@ -162,7 +163,8 @@ try
         if (firstCheck.IsCompleted) await firstCheck;
         if (!engine.IsChecking && ComputerRestartPlanner.ShouldRestart(settings.EnableComputerRestart,
             Volatile.Read(ref lastReport)?.State ?? NetworkState.Healthy,
-            deviceFailures.FailedSince, DateTimeOffset.UtcNow, settings.DeviceFailureMinutesBeforeRestart))
+            deviceFailures.FailedSince, DateTimeOffset.UtcNow, settings.DeviceFailureMinutesBeforeRestart,
+            deviceFailures.RecoveryAttemptsCompleted))
         {
             // 重启前重新核对设备层，禁止依据恢复前的陈旧报告重启电脑。
             var fresh = await wifi.GetAdapterDiagnosticsAsync(cancellation.Token);
