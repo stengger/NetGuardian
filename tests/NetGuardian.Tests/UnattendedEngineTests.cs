@@ -9,6 +9,33 @@ namespace NetGuardian.Tests;
 public sealed class UnattendedEngineTests
 {
     [Fact]
+    public async Task 停止期间连接请求未收尾不能释放检查控制权()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var wifi = new FakeWifiClient { CurrentSsid = "Home", ConnectHandler = (_, _) =>
+        {
+            entered.TrySetResult();
+            return release.Task;
+        }};
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid, NetworkState.InternetIssue))), Policy());
+        engine.Start();
+        var check = engine.CheckNowAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        engine.Stop();
+        try
+        {
+            await Task.Delay(50);
+            Assert.True(engine.IsChecking);
+            Assert.False(check.IsCompleted);
+        }
+        finally { release.TrySetResult(true); }
+        await check.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.False(engine.IsChecking);
+        Assert.Single(wifi.ConnectAttempts);
+    }
+
+    [Fact]
     public async Task 链路过渡期间SSID短暂消失时仍等待目标网络()
     {
         var wifi = new FakeWifiClient { CurrentSsid = "Home" };

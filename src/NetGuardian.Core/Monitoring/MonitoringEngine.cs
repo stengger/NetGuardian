@@ -438,7 +438,10 @@ public sealed class MonitoringEngine : IDisposable
     private async Task<bool> ConnectAndValidateAsync(MonitorPolicy policy, string ssid, TimeSpan timeout, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (!await _wifi.ConnectAsync(ssid, token).WaitAsync(token))
+        // 已启动的连接操作必须收尾后才释放检查控制权，避免停止后延迟切网。
+        var accepted = await _wifi.ConnectAsync(ssid, token);
+        token.ThrowIfCancellationRequested();
+        if (!accepted)
         {
             Raise(EngineEventKind.CheckError, $"连接网络“{ssid}”的请求失败：{_wifi.LastConnectionFailure ?? "系统未提供原因。"}");
             return false;

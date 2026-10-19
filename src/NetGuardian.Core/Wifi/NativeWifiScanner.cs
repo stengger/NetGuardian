@@ -4,7 +4,7 @@ using NetGuardian.Core.Models;
 
 namespace NetGuardian.Core.Wifi;
 
-public sealed class NativeWifiScanner
+public sealed class NativeWifiScanner : INativeWifiConnector
 {
     private const uint WlanClientVersion = 2;
     private const uint WlanAvailableNetworkIncludeAllAdhocProfiles = 0x00000001;
@@ -50,6 +50,35 @@ public sealed class NativeWifiScanner
         {
             WlanCloseHandle(handle, IntPtr.Zero);
         }
+    }
+
+    public bool TryConnectProfile(string profileName, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        LastNativeError = null;
+        var result = WlanOpenHandle(WlanClientVersion, IntPtr.Zero, out _, out var handle);
+        if (result != ErrorSuccess) { LastNativeError = result; return false; }
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (var wlanInterface in EnumerateInterfaces(handle, error => LastNativeError = error))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var interfaceGuid = wlanInterface.InterfaceGuid;
+                var parameters = new WlanConnectionParameters
+                {
+                    ConnectionMode = 0, // 使用已保存的配置。
+                    ProfileName = profileName,
+                    BssType = 1 // 基础结构网络；SSID 由配置内的原始字节确定。
+                };
+                cancellationToken.ThrowIfCancellationRequested();
+                result = WlanConnect(handle, ref interfaceGuid, ref parameters, IntPtr.Zero);
+                if (result == ErrorSuccess) { LastNativeError = null; return true; }
+                LastNativeError = result;
+            }
+            return false;
+        }
+        finally { WlanCloseHandle(handle, IntPtr.Zero); }
     }
 
     public bool SaveProfile(string ssid, string? password, string authentication)
@@ -321,6 +350,10 @@ public sealed class NativeWifiScanner
         IntPtr ieData,
         IntPtr reserved);
 
+    [DllImport("wlanapi.dll", ExactSpelling = true)]
+    private static extern uint WlanConnect(IntPtr clientHandle, ref Guid interfaceGuid,
+        ref WlanConnectionParameters parameters, IntPtr reserved);
+
     [DllImport("wlanapi.dll")]
     private static extern uint WlanGetAvailableNetworkList(
         IntPtr clientHandle,
@@ -374,6 +407,17 @@ public sealed class NativeWifiScanner
         public Guid InterfaceGuid;
         public uint DataSize;
         public IntPtr DataPtr;
+    }
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct WlanConnectionParameters
+    {
+        public uint ConnectionMode;
+        [MarshalAs(UnmanagedType.LPWStr)] public string ProfileName;
+        public IntPtr Ssid;
+        public IntPtr DesiredBssids;
+        public uint BssType;
+        public uint Flags;
     }
 
     [StructLayout(LayoutKind.Sequential)]

@@ -308,6 +308,7 @@ internal sealed class FakeWifiClient : IWifiClient
     public List<string> ConnectAttempts { get; } = [];
     public Func<CancellationToken, Task<IReadOnlyList<WifiNetwork>>>? ScanHandler { get; set; }
     public Func<string?>? ReadCurrentSsid { get; set; }
+    public Func<string, CancellationToken, Task<bool>>? ConnectHandler { get; set; }
     public WifiAdapterDiagnostics? Diagnostics { get; set; }
 
     public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
@@ -340,6 +341,7 @@ internal sealed class FakeWifiClient : IWifiClient
     public Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default)
     {
         ConnectAttempts.Add(ssid);
+        if (ConnectHandler is not null) return ConnectHandler(ssid, cancellationToken);
         if (ConnectSucceedsFor.Contains(ssid))
         {
             CurrentSsid = ssid;

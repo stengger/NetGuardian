@@ -5,8 +5,15 @@ namespace NetGuardian.Core.Wifi;
 public sealed class WifiClient : IWifiClient
 {
     private readonly NativeWifiScanner _nativeScanner = new();
-    private readonly NetshWifiClient _netsh = new();
-    public string? LastConnectionFailure => _netsh.LastConnectionFailure;
+    private readonly INativeWifiConnector _nativeConnector;
+    private readonly IWifiClient _netsh;
+    public string? LastConnectionFailure { get; private set; }
+
+    public WifiClient(INativeWifiConnector? nativeConnector = null, IWifiClient? fallback = null)
+    {
+        _nativeConnector = nativeConnector ?? _nativeScanner;
+        _netsh = fallback ?? new NetshWifiClient();
+    }
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
     {
@@ -75,12 +82,29 @@ public sealed class WifiClient : IWifiClient
 
     public Task<bool> ConnectAsync(string ssid, CancellationToken cancellationToken = default)
     {
-        return _netsh.ConnectAsync(ssid, cancellationToken);
+        return ConnectProfileAsync(ssid, ssid, cancellationToken);
     }
 
-    public Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default)
+    public async Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default)
     {
-        return _netsh.ConnectProfileAsync(profileName, ssid, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        LastConnectionFailure = null;
+        string nativeFailure;
+        try
+        {
+            var accepted = await Task.Run(() => _nativeConnector.TryConnectProfile(profileName, cancellationToken), cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (accepted) return true;
+            nativeFailure = $"原生 WLAN 请求未接受，错误码：{_nativeConnector.LastNativeError?.ToString() ?? "未提供"}";
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
+        {
+            nativeFailure = $"原生 WLAN 请求异常：{ex.Message}";
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        var connected = await _netsh.ConnectProfileAsync(profileName, ssid, cancellationToken);
+        if (!connected) LastConnectionFailure = $"{nativeFailure}；{_netsh.LastConnectionFailure ?? "回退连接请求未接受。"}";
+        return connected;
     }
 
     public Task<bool> DeleteProfileAsync(string profileName, CancellationToken cancellationToken = default)
