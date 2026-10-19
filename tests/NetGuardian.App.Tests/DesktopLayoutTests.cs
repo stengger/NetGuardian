@@ -19,6 +19,33 @@ public sealed class DesktopLayoutTests
     [Theory]
     [InlineData("zh-CN")]
     [InlineData("en-US")]
+    public void 侧栏流量范围和二进制单位在紧凑窗口内可读(string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            var localizer = new Localizer();
+            localizer.SetLanguage(language);
+            ((TextBlock)window.FindName("SidebarSpeedTitle")).Text = localizer.T("InterfaceTraffic");
+            ((TextBlock)window.FindName("SidebarSpeedScopeText")).Text = localizer.T("InterfaceTrafficSummary");
+            ((TextBlock)window.FindName("SidebarUploadSpeedText")).Text = "12.3";
+            ((TextBlock)window.FindName("SidebarUploadUnitText")).Text = "MiB/s";
+            ((TextBlock)window.FindName("SidebarDownloadSpeedText")).Text = "512";
+            ((TextBlock)window.FindName("SidebarDownloadUnitText")).Text = "KiB/s";
+            DesktopFixture.Layout(window, 1040, 660);
+            foreach (var name in new[] { "SidebarSpeedScopeText", "SidebarUploadUnitText", "SidebarDownloadUnitText" })
+            {
+                var control = (FrameworkElement)window.FindName(name);
+                var bounds = control.TransformToAncestor(window).TransformBounds(new Rect(control.RenderSize));
+                Assert.InRange(bounds.Left, 0, 224);
+                Assert.InRange(bounds.Bottom, 0, 610);
+            }
+            DesktopFixture.Save(window, $"sidebar-traffic-{language}.png");
+        });
+    }
+
+    [Theory]
+    [InlineData("zh-CN")]
+    [InlineData("en-US")]
     public void 扫描错误长文本不会挤掉周围网络表格(string language)
     {
         DesktopFixture.Run(window =>

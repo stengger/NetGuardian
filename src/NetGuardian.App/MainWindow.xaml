@@ -190,6 +190,7 @@
                 <Border x:Name="SidebarSpeedCard" Width="184" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,64" Background="Transparent" BorderThickness="0" Padding="10,0,10,10" Panel.ZIndex="2" Visibility="{Binding IsPaneOpen, ElementName=RootNavigation, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>
                         <TextBlock x:Name="SidebarSpeedTitle" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        <TextBlock x:Name="SidebarSpeedScopeText" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
                         <Canvas Width="158" Height="38" Margin="0,10,0,10">
                             <Polyline x:Name="SidebarDownloadLine" Stroke="{DynamicResource StatusHealthyBrush}" StrokeThickness="1.8" StrokeLineJoin="Round" />
                             <Polyline x:Name="SidebarUploadLine" Stroke="{DynamicResource StatusWarningBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" />

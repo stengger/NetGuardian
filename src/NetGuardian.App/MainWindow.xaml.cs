@@ -80,9 +80,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ConnectivityReportSelection _reportSelection = new();
     private bool _isNotifyIconDisposed;
     private bool _resourcesCleaned;
-    private DateTimeOffset? _lastSidebarSpeedSampleAt;
-    private long? _lastSidebarReceivedBytes;
-    private long? _lastSidebarSentBytes;
+    private long? _lastSidebarSpeedTimestamp;
+    private readonly NetworkTrafficSampler _trafficSampler = new();
     private Point _dragStartPoint;
     private WifiProfile? _draggedProfile;
 
@@ -2064,7 +2063,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ((ComboBoxItem)CloseBehaviorComboBox.Items[0]).Content = _localizer.T("CloseAsk");
         ((ComboBoxItem)CloseBehaviorComboBox.Items[1]).Content = _localizer.T("CloseExit");
         ((ComboBoxItem)CloseBehaviorComboBox.Items[2]).Content = _localizer.T("CloseTray");
-        SidebarSpeedTitle.Text = _localizer.T("RealtimeSpeed");
+        SidebarSpeedTitle.Text = _localizer.T("InterfaceTraffic");
+        SidebarSpeedScopeText.Text = _localizer.T("InterfaceTrafficSummary");
         if (HealthStateText.Text == "" || HealthStateText.Text == "尚未检测" || HealthStateText.Text == "Not checked")
         {
             HealthStateText.Text = _localizer.T("NotChecked");
@@ -2202,25 +2202,24 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void UpdateSidebarSpeed()
     {
-        var now = DateTimeOffset.Now;
-        var (receivedBytes, sentBytes) = ReadNetworkByteTotals();
-        var downloadBytesPerSecond = 0d;
-        var uploadBytesPerSecond = 0d;
-
-        if (_lastSidebarSpeedSampleAt.HasValue
-            && _lastSidebarReceivedBytes.HasValue
-            && _lastSidebarSentBytes.HasValue)
+        var now = Stopwatch.GetTimestamp();
+        var rate = _trafficSampler.Sample(ReadNetworkByteCounters(), _lastSidebarSpeedTimestamp is { } last
+            ? Stopwatch.GetElapsedTime(last, now) : TimeSpan.Zero);
+        _lastSidebarSpeedTimestamp = now;
+        var scope = _localizer.T("InterfaceTrafficScope");
+        if (rate is null)
         {
-            var elapsedSeconds = Math.Max(0.1, (now - _lastSidebarSpeedSampleAt.Value).TotalSeconds);
-            var receivedDelta = Math.Max(0, receivedBytes - _lastSidebarReceivedBytes.Value);
-            var sentDelta = Math.Max(0, sentBytes - _lastSidebarSentBytes.Value);
-            downloadBytesPerSecond = receivedDelta / elapsedSeconds;
-            uploadBytesPerSecond = sentDelta / elapsedSeconds;
+            _downloadSpeedSamples.Clear();
+            _uploadSpeedSamples.Clear();
+            SidebarDownloadSpeedText.Text = SidebarUploadSpeedText.Text = "—";
+            SidebarDownloadUnitText.Text = SidebarUploadUnitText.Text = "";
+            SidebarCompactDownloadText.Text = SidebarCompactUploadText.Text = "—";
+            SetTrafficTooltips($"{_localizer.T("TrafficAwaitingSample")}\n{scope}");
+            DrawSidebarSpeedLines();
+            return;
         }
-
-        _lastSidebarSpeedSampleAt = now;
-        _lastSidebarReceivedBytes = receivedBytes;
-        _lastSidebarSentBytes = sentBytes;
+        var downloadBytesPerSecond = rate.DownloadBytesPerSecond;
+        var uploadBytesPerSecond = rate.UploadBytesPerSecond;
 
         PushSpeedSample(_downloadSpeedSamples, downloadBytesPerSecond);
         PushSpeedSample(_uploadSpeedSamples, uploadBytesPerSecond);
@@ -2228,15 +2227,27 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SetRateText(SidebarUploadSpeedText, SidebarUploadUnitText, uploadBytesPerSecond);
         SidebarCompactDownloadText.Text = FormatRateCompact(downloadBytesPerSecond);
         SidebarCompactUploadText.Text = FormatRateCompact(uploadBytesPerSecond);
-        SidebarSpeedCompact.ToolTip = $"\u2191 {FormatRate(uploadBytesPerSecond)}   \u2193 {FormatRate(downloadBytesPerSecond)}";
+        SetTrafficTooltips($"↑ {FormatRate(uploadBytesPerSecond)}   ↓ {FormatRate(downloadBytesPerSecond)}\n{string.Format(_localizer.T("TrafficSampledInterfaces"), rate.SampledInterfaces, rate.CurrentInterfaces)}\n{scope}");
         DrawSidebarSpeedLines();
     }
 
-    private static (long ReceivedBytes, long SentBytes) ReadNetworkByteTotals()
+    private void SetTrafficTooltips(string text)
     {
-        long receivedBytes = 0;
-        long sentBytes = 0;
-        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces()
+        foreach (var card in new[] { SidebarSpeedCard, SidebarSpeedCompact })
+        {
+            if (card.ToolTip is ToolTip { Content: TextBlock content }) content.Text = text;
+            else card.ToolTip = new ToolTip { Content = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, MaxWidth = 320 } };
+            System.Windows.Automation.AutomationProperties.SetHelpText(card, text);
+        }
+    }
+
+    private static IReadOnlyList<NetworkByteCounter> ReadNetworkByteCounters()
+    {
+        var counters = new List<NetworkByteCounter>();
+        NetworkInterface[] interfaces;
+        try { interfaces = NetworkInterface.GetAllNetworkInterfaces(); }
+        catch (NetworkInformationException) { return counters; }
+        foreach (var networkInterface in interfaces
             .Where(item => item.OperationalStatus == OperationalStatus.Up
                 && item.NetworkInterfaceType != NetworkInterfaceType.Loopback
                 && item.NetworkInterfaceType != NetworkInterfaceType.Tunnel))
@@ -2244,15 +2255,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             try
             {
                 var statistics = networkInterface.GetIPv4Statistics();
-                receivedBytes += statistics.BytesReceived;
-                sentBytes += statistics.BytesSent;
+                counters.Add(new(networkInterface.Id, statistics.BytesReceived, statistics.BytesSent));
             }
             catch (NetworkInformationException)
             {
             }
         }
 
-        return (receivedBytes, sentBytes);
+        return counters;
     }
 
     private static void PushSpeedSample(Queue<double> samples, double value)
@@ -2315,18 +2325,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private static string FormatRateCompact(double bytesPerSecond)
     {
         var (value, unit) = FormatRateParts(bytesPerSecond);
-        return value + unit switch
+        return value + (unit switch
         {
-            "KB/s" => "K",
-            "MB/s" => "M",
-            "GB/s" => "G",
+            "KiB/s" => "Ki",
+            "MiB/s" => "Mi",
+            "GiB/s" => "Gi",
             _ => "B"
-        };
+        });
     }
 
     private static (string Value, string Unit) FormatRateParts(double bytesPerSecond)
     {
-        var units = new[] { "B/s", "KB/s", "MB/s", "GB/s" };
+        var units = new[] { "B/s", "KiB/s", "MiB/s", "GiB/s" };
         var value = Math.Max(0, bytesPerSecond);
         var unitIndex = 0;
         while (value >= 1024 && unitIndex < units.Length - 1)
