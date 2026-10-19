@@ -206,10 +206,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void Scan_Click(object sender, RoutedEventArgs e)
     {
-        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
-        {
-            await RunUiActionAsync(ScanWifiAsync);
-        }
+        await RunUiActionAsync(ScanWifiAsync);
     }
 
     private async void AddSelected_Click(object sender, RoutedEventArgs e)
@@ -1066,35 +1063,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         profile.LastFailureAt = DateTimeOffset.Now;
         profile.FailureCount++;
         ProfileGrid.Items.Refresh();
-    }
-
-    private async Task ScanWifiAsync()
-    {
-        ScanButton.IsEnabled = false;
-        Log(_localizer.T("Scanning"));
-        try
-        {
-            var networks = await _wifi.ScanAsync();
-            _nearbyNetworks.Clear();
-            foreach (var network in networks)
-            {
-                _nearbyNetworks.Add(CreateNearbyWifiRow(network));
-            }
-
-            UpdateEmptyStates();
-            RefreshNearbyPriorityMarkers();
-            UpdateWifiSelectionUi();
-            Log(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
-            SetToolOutput(string.Format(_localizer.T("ScanDone"), _nearbyNetworks.Count));
-        }
-        catch (Exception ex)
-        {
-            Log(ex.Message, UiLogLevel.Error);
-        }
-        finally
-        {
-            ScanButton.IsEnabled = true;
-        }
     }
 
     private async Task AddWifiProfileAsync(NearbyWifiRow? network, string? initialPassword = null)
@@ -2106,6 +2074,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (_reportSelection.Report is { } currentReport) ApplyReport(currentReport, _reportSelection.Origin, forceRefresh: true);
         RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
+        RefreshWifiScanUi();
         UpdateEmptyStates();
         UpdateMonitorStatus();
         UpdateTrayText();
@@ -3162,6 +3131,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _countdownTimer.Stop();
         _sidebarSpeedTimer.Stop();
         CleanupSpeedTest();
+        _wifiScan.Cancel();
         _qualityCancellation?.Cancel();
         _immediateCheckCancellation?.Cancel();
         DisposeNotifyIcon();

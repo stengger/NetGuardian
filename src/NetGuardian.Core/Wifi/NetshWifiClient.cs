@@ -20,6 +20,9 @@ public sealed partial class NetshWifiClient : IWifiClient
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
     {
         var result = await RunNetshAsync(["wlan", "show", "networks", "mode=bssid"], cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (result.ExitCode != 0)
+            throw new InvalidOperationException($"Wi-Fi 扫描命令失败（退出码 {result.ExitCode}）。{Environment.NewLine}{result.Output}");
         return ParseScanOutput(result.Output);
     }
 

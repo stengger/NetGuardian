@@ -19,6 +19,24 @@ public sealed class DesktopLayoutTests
     [Theory]
     [InlineData("zh-CN")]
     [InlineData("en-US")]
+    public void 扫描错误长文本不会挤掉周围网络表格(string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "WifiPanel");
+            var localizer = new Localizer();
+            localizer.SetLanguage(language);
+            ((TextBlock)window.FindName("WifiScanStatusText")).Text = localizer.T("WifiScanFailed") + "\n" + string.Join("\n", Enumerable.Repeat("访问被拒绝。请检查位置权限。", 20));
+            DesktopFixture.Layout(window, 1040, 660);
+            var grid = (DataGrid)window.FindName("NearbyGrid");
+            Assert.True(grid.ActualHeight >= 90, $"扫描错误后表格仅 {grid.ActualHeight} DIP");
+            DesktopFixture.Save(window, $"wifi-scan-failed-{language}.png");
+        });
+    }
+
+    [Theory]
+    [InlineData("zh-CN")]
+    [InlineData("en-US")]
     public void 日志筛选和多行详情展开后仍保留可用记录列表(string language)
     {
         DesktopFixture.Run(window =>

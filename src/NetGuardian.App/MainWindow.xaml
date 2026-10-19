@@ -350,6 +350,7 @@
                     </Grid.RowDefinitions>
                     <WrapPanel Margin="0,0,0,8">
                         <Button x:Name="ScanButton" Click="Scan_Click" Margin="0,0,6,6" />
+                        <Button x:Name="WifiScanCancelButton" Click="WifiScanCancel_Click" Visibility="Collapsed" Margin="0,0,6,6" />
                         <Button x:Name="AddSelectedButton" Click="AddSelected_Click" Margin="0,0,6,6" />
                         <Button x:Name="SetPasswordButton" Click="SetPassword_Click" Margin="0,0,6,6" />
                         <Button x:Name="ImportPasswordButton" Click="ImportPassword_Click" Margin="0,0,6,6" />
@@ -362,7 +363,13 @@
                     <Border x:Name="WifiSelectionBar" Grid.Row="1" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
                         <TextBlock x:Name="CurrentWifiSelectionText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </Border>
-                    <TextBlock x:Name="DragHintText" Grid.Row="2" Margin="0,0,0,12" Opacity="0.72" TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                        <TextBlock x:Name="DragHintText" Opacity="0.72" TextWrapping="Wrap" />
+                        <ScrollViewer MaxHeight="48" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,4,0,0">
+                            <TextBlock x:Name="WifiScanStatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                        </ScrollViewer>
+                        <ProgressBar x:Name="WifiScanActivity" IsIndeterminate="True" Height="3" Margin="0,4,0,0" Visibility="Collapsed" />
+                    </StackPanel>
                     <Grid x:Name="WifiListsGrid" Grid.Row="3">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
@@ -523,6 +530,7 @@
                                     <WrapPanel>
                                         <Button x:Name="ToolsCheckButton" Click="CheckNow_Click" Margin="0,0,8,8" />
                                         <Button x:Name="ToolsScanButton" Click="Scan_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="ToolsScanCancelButton" Click="WifiScanCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                                         <Button x:Name="ToolsNetworkSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
                                     </WrapPanel>
                                     <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
