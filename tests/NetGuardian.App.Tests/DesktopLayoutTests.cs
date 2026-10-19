@@ -81,7 +81,7 @@ public sealed class DesktopLayoutTests
             ((ComboBox)window.FindName("AdapterTargetComboBox")).Items.Add("实验室 WLAN 2");
             ((ComboBox)window.FindName("AdapterTargetComboBox")).SelectedIndex = 0;
             ((DataGrid)window.FindName("DnsGrid")).ItemsSource = Enumerable.Range(1, 25).Select(i => new { Adapter = $"实验室网络接口 {i}", Servers = "223.5.5.5, 223.6.6.6", Source = "未确认", Status = "链路已连接" }).ToList();
-            ((DataGrid)window.FindName("AdapterGrid")).ItemsSource = Enumerable.Range(1, 25).Select(i => new { Name = $"实验室网络接口 {i}", Type = "Wireless80211", Status = "已连接", Ipv4 = "192.168.31.89", Gateway = "192.168.31.1", DnsServers = "223.5.5.5, 223.6.6.6" }).ToList();
+            ((DataGrid)window.FindName("AdapterGrid")).ItemsSource = Enumerable.Range(1, 25).Select(i => new { Name = $"实验室网络接口 {i}", Type = "无线网络", Status = "链路已连接", Ipv4 = "192.168.31.89", Gateway = "192.168.31.1", DnsServers = "223.5.5.5, 2001:4860:4860::8888" }).ToList();
             foreach (var page in new[] { "DnsPanel", "NetworkPanel" })
             {
                 DesktopFixture.ShowPage(window, page);
@@ -306,7 +306,7 @@ internal static class DesktopFixture
             else if (element is ContentControl content) content.Content = localizer.T(key);
         }
         ((ComboBoxItem)((ComboBox)window.FindName("DnsPresetComboBox")).Items[0]).Content = localizer.T("SelectDnsPlan");
-        foreach (var (name, key) in new[] { ("DnsAdapterColumn", "Adapter"), ("DnsServersColumn", "DnsServers"), ("DnsSourceColumn", "Source"), ("DnsStatusColumn", "StatusColumn"), ("AdapterNameColumn", "Adapter"), ("AdapterTypeColumn", "Type"), ("AdapterStatusColumn", "StatusColumn"), ("AdapterIpv4Column", "IPv4"), ("AdapterGatewayColumn", "Gateway"), ("AdapterDnsColumn", "DnsServers") })
+        foreach (var (name, key) in new[] { ("DnsAdapterColumn", "Adapter"), ("DnsServersColumn", "DnsServersAll"), ("DnsSourceColumn", "Source"), ("DnsStatusColumn", "StatusColumn"), ("AdapterNameColumn", "Adapter"), ("AdapterTypeColumn", "Type"), ("AdapterStatusColumn", "StatusColumn"), ("AdapterIpv4Column", "IPv4"), ("AdapterGatewayColumn", "Gateway"), ("AdapterDnsColumn", "DnsServersAll") })
             ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
         foreach (var (name, key) in new[] { ("NearbySsidColumn", "Ssid"), ("NearbySignalColumn", "Signal"), ("NearbySecurityColumn", "Security"), ("NearbyPriorityColumn", "PriorityState"), ("ProfileSsidColumn", "Ssid"), ("ProfilePriorityColumn", "Priority"), ("ProfileCredentialColumn", "CredentialSaved"), ("ProfileEnabledColumn", "Enabled"), ("ProfileFailuresColumn", "Failures") })
             ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
