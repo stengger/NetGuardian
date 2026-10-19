@@ -307,15 +307,17 @@ internal sealed class FakeWifiClient : IWifiClient
     public HashSet<string> ConnectSucceedsFor { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<string> ConnectAttempts { get; } = [];
     public Func<CancellationToken, Task<IReadOnlyList<WifiNetwork>>>? ScanHandler { get; set; }
+    public Func<string?>? ReadCurrentSsid { get; set; }
+    public WifiAdapterDiagnostics? Diagnostics { get; set; }
 
     public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
         => ScanHandler?.Invoke(cancellationToken) ?? Task.FromResult<IReadOnlyList<WifiNetwork>>([]);
 
     public Task<string?> GetCurrentSsidAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(CurrentSsid);
+        => Task.FromResult(ReadCurrentSsid is null ? CurrentSsid : ReadCurrentSsid());
 
     public Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default)
-        => Task.FromResult(new WifiAdapterDiagnostics(
+        => Task.FromResult(Diagnostics ?? new WifiAdapterDiagnostics(
             "Wi-Fi", AdapterPresent: true, AdapterUp: true,
             HardwareRadioOn: true, SoftwareRadioOn: true,
             State: "connected", Detail: ""));

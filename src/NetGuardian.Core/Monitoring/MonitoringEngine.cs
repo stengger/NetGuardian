@@ -448,23 +448,24 @@ public sealed class MonitoringEngine : IDisposable
         var validationToken = validation.Token;
         try
         {
-            if (!await WaitForSsidAsync(ssid, timeout, validationToken)) return false;
             while (true)
             {
+                if (!await WaitForSsidAsync(ssid, timeout, validationToken)) return false;
                 var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(validationToken).WaitAsync(validationToken);
                 // 公网探测保留独立预算，不能被已结束的地址等待预算截断。
                 var report = await ProbeAsync(policy, ssid, diagnostics, token);
                 token.ThrowIfCancellationRequested();
                 if (report.Ok) return true;
-                // 关联先于 DHCP 完成；仅地址未就绪允许等待，已确认的上游故障继续换网。
-                if (report.State != NetworkState.Disconnected)
+                // 连接建立期间接口状态及 SSID 可能短暂回落，明确的关闭或设备故障不等待。
+                var canWaitForConnection = (report.State is NetworkState.Disconnected or NetworkState.WifiDisabled or NetworkState.WifiDisconnected)
+                    && diagnostics.AdapterPresent && (diagnostics.ProblemCode is null or 0)
+                    && diagnostics.HardwareRadioOn != false && diagnostics.SoftwareRadioOn != false;
+                if (!canWaitForConnection)
                 {
                     Raise(EngineEventKind.CheckError, $"网络“{ssid}”连接后校验失败：{report.State}，{report.Summary}");
                     return false;
                 }
                 await DelayAsync(SsidPollInterval > TimeSpan.Zero ? SsidPollInterval : TimeSpan.FromMilliseconds(1), validationToken);
-                var actualSsid = await _wifi.GetCurrentSsidAsync(validationToken).WaitAsync(validationToken);
-                if (!RecoveryPlanner.SsidEquals(actualSsid, ssid)) return false;
             }
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested && !token.IsCancellationRequested)

@@ -9,6 +9,61 @@ namespace NetGuardian.Tests;
 public sealed class UnattendedEngineTests
 {
     [Fact]
+    public async Task 链路过渡期间SSID短暂消失时仍等待目标网络()
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ConnectSucceedsFor.UnionWith(["A", "B"]);
+        var probes = 0;
+        var missingSsidReads = 0;
+        wifi.ReadCurrentSsid = () => wifi.CurrentSsid == "A" && probes == 1 && missingSsidReads++ == 0 ? null : wifi.CurrentSsid;
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid,
+            ssid == "A" ? ++probes == 1 ? NetworkState.WifiDisconnected : NetworkState.Healthy
+            : ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal(new[] { "A" }, wifi.ConnectAttempts);
+        Assert.Equal(2, probes);
+    }
+
+    [Theory]
+    [InlineData(false, true, true, null)]
+    [InlineData(true, false, true, null)]
+    [InlineData(true, true, false, null)]
+    [InlineData(true, true, true, 10)]
+    public async Task 无线明确关闭或设备故障时不作为链路过渡等待(bool hardwareOn, bool softwareOn, bool present, int? problemCode)
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home", Diagnostics = new("Wi-Fi", present, false, hardwareOn, softwareOn, "disconnected", "", ProblemCode: problemCode) };
+        wifi.ConnectSucceedsFor.UnionWith(["A", "B"]);
+        var probes = 0;
+        using var engine = Engine(wifi, new((ssid, _) =>
+        {
+            if (ssid == "A") probes++;
+            return Task.FromResult(Report(ssid, ssid == "A" ? NetworkState.WifiDisabled : ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue));
+        }), Policy());
+        engine.Start();
+        await engine.CheckNowAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(1, probes);
+        Assert.Equal("B", wifi.CurrentSsid);
+    }
+
+    [Theory]
+    [InlineData(NetworkState.WifiDisabled)]
+    [InlineData(NetworkState.WifiDisconnected)]
+    public async Task 连接请求接受后的链路过渡状态等待就绪(NetworkState transitionalState)
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ConnectSucceedsFor.UnionWith(["A", "B"]);
+        var probes = 0;
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid,
+            ssid == "A" ? ++probes == 1 ? transitionalState : NetworkState.Healthy
+            : ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal(new[] { "A" }, wifi.ConnectAttempts);
+        Assert.Equal(2, probes);
+    }
+
+    [Fact]
     public async Task 地址就绪后的完整探测保留独立时限()
     {
         var wifi = new FakeWifiClient { CurrentSsid = "Home" };
