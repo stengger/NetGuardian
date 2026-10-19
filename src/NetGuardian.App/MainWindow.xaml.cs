@@ -534,38 +534,26 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void WebsiteRun_Click(object sender, RoutedEventArgs e)
     {
-        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
-        {
-            await RunUiActionAsync(() => RunWebsiteTestAsync(_localizer.T("CustomWebsite"), WebsiteUrlTextBox.Text));
-        }
+        await RunUiActionAsync(() => RunWebsiteTestAsync(_localizer.T("CustomWebsite"), WebsiteUrlTextBox.Text));
     }
 
     private async void WebsitePreset_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button button && button.Tag is string url)
+        if (!_websiteSession.IsBusy && sender is Button button && button.Tag is string url)
         {
             WebsiteUrlTextBox.Text = url;
-            using (SetBusy(button))
-            {
-                await RunUiActionAsync(() => RunWebsiteTestAsync(button.Content?.ToString() ?? url, url));
-            }
+            await RunUiActionAsync(() => RunWebsiteTestAsync(button.Content?.ToString() ?? url, url));
         }
     }
 
     private async void IpInfoRefresh_Click(object sender, RoutedEventArgs e)
     {
-        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
-        {
-            await RunUiActionAsync(RefreshPublicIpInfoAsync);
-        }
+        await RunUiActionAsync(RefreshPublicIpInfoAsync);
     }
 
     private async void ReportRun_Click(object sender, RoutedEventArgs e)
     {
-        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
-        {
-            await RunUiActionAsync(RunDiagnosticReportAsync);
-        }
+        await RunUiActionAsync(RunDiagnosticReportAsync);
     }
 
     private void ToolsNetworkSettings_Click(object sender, RoutedEventArgs e)
@@ -2016,11 +2004,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         WebsiteNameColumn.Header = _localizer.T("Website");
         WebsiteStatusColumn.Header = _localizer.T("StatusColumn");
         WebsiteHttpColumn.Header = "HTTP";
-        WebsiteDnsColumn.Header = "DNS";
-        WebsiteLatencyColumn.Header = _localizer.T("Latency");
+        WebsiteDnsColumn.Header = _localizer.T("WebsiteDnsTime");
+        WebsiteLatencyColumn.Header = _localizer.T("WebsiteHttpTime");
         WebsiteAddressColumn.Header = "IP";
         WebsiteDetailColumn.Header = _localizer.T("Detail");
-        IpInfoRefreshButton.Content = _localizer.T("RefreshStatus");
+        IpInfoRefreshButton.Content = _localizer.T("QueryPublicIpInfo");
         IpInfoNameColumn.Header = _localizer.T("Item");
         IpInfoValueColumn.Header = _localizer.T("Value");
         ReportRunButton.Content = _localizer.T("RunDiagnosticReport");
@@ -2075,6 +2063,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
         RefreshWifiScanUi();
+        RefreshWebsiteUi();
+        RefreshIpToolUi();
+        RefreshDiagnosticReportUi();
         UpdateEmptyStates();
         UpdateMonitorStatus();
         UpdateTrayText();
@@ -2812,114 +2803,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             supportsIpv4 ? adapter.GetIPProperties().GetIPv4Properties()?.IsDhcpEnabled : null);
     }
 
-    private async Task RunWebsiteTestAsync(string name, string url)
-    {
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            WebsiteStatusText.Text = _localizer.T("EnterWebsiteUrl");
-            return;
-        }
-
-        WebsiteRunButton.IsEnabled = false;
-        WebsiteStatusText.Text = _localizer.T("WebsiteTesting");
-        try
-        {
-            var result = await _websiteTester.TestAsync(name, url);
-            var row = new WebsiteTestRow(
-                string.IsNullOrWhiteSpace(name) ? result.Host : name,
-                result.Success ? _localizer.T("Pass") : _localizer.T("Fail"),
-                result.StatusCode?.ToString() ?? "-",
-                FormatLatency(result.DnsLatencyMs),
-                FormatLatency(result.HttpLatencyMs),
-                string.IsNullOrWhiteSpace(result.Address) ? "-" : result.Address,
-                string.IsNullOrWhiteSpace(result.Detail) ? result.Url : result.Detail);
-            _websiteRows.Insert(0, row);
-            while (_websiteRows.Count > 20)
-            {
-                _websiteRows.RemoveAt(_websiteRows.Count - 1);
-            }
-
-            WebsiteStatusText.Text = string.Format(_localizer.T("WebsiteTestDone"), row.Name, row.Status, row.HttpLatency);
-            DiagnosticLog($"{_localizer.T("WebsiteTools")}: {row.Name} {row.Status} {row.HttpLatency}",
-                result.Success ? UiLogLevel.Information : UiLogLevel.Warning);
-        }
-        catch (Exception ex)
-        {
-            WebsiteStatusText.Text = ex.Message;
-            DiagnosticLog(ex.Message, UiLogLevel.Error);
-        }
-        finally
-        {
-            WebsiteRunButton.IsEnabled = true;
-        }
-    }
-
-    private async Task RefreshPublicIpInfoAsync()
-    {
-        IpInfoRefreshButton.IsEnabled = false;
-        IpInfoStatusText.Text = _localizer.T("Checking");
-        try
-        {
-            var info = await _publicIpInfo.GetAsync();
-            _ipInfoRows.Clear();
-            AddIpInfoRow("PublicIp", info.Ip);
-            AddIpInfoRow("CountryRegion", $"{info.Country} ({info.CountryCode})");
-            AddIpInfoRow("City", string.Join(", ", new[] { info.Region, info.City }.Where(item => !string.IsNullOrWhiteSpace(item) && item != "-")));
-            AddIpInfoRow("Isp", info.Isp);
-            AddIpInfoRow("Organization", info.Organization);
-            AddIpInfoRow("AutonomousSystem", info.AutonomousSystem);
-            AddIpInfoRow("Timezone", info.Timezone);
-            AddIpInfoRow("Coordinates", $"{info.Longitude:F4}, {info.Latitude:F4}");
-            AddIpInfoRow("LastRefresh", info.RefreshedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-            IpInfoStatusText.Text = string.Format(_localizer.T("IpInfoRefreshed"), info.Ip);
-            DiagnosticLog($"{_localizer.T("IpInfoTools")}: {info.Ip}");
-        }
-        catch (Exception ex)
-        {
-            IpInfoStatusText.Text = ex.Message;
-            DiagnosticLog(ex.Message, UiLogLevel.Error);
-        }
-        finally
-        {
-            IpInfoRefreshButton.IsEnabled = true;
-        }
-    }
-
-    private async Task RunDiagnosticReportAsync()
-    {
-        ReportRunButton.IsEnabled = false;
-        ReportStatusText.Text = _localizer.T("Checking");
-        try
-        {
-            var currentSsid = await _wifi.GetCurrentSsidAsync();
-            var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync();
-            var tester = new ConnectivityTester(_settings.Policy);
-            var report = await tester.RunFullCheckAsync(currentSsid, wifiDiagnostics);
-            var summary = ConnectivityQualitySummary.From(report);
-
-            _reportRows.Clear();
-            AddReportRow("HealthState", $"{StateText(report.State)} · {string.Format(_localizer.T("QualityChecksPassed"), summary.PassedChecks, summary.TotalChecks)}", AdviceForState(report.State));
-            AddReportRow("CurrentNetwork", string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid, _localizer.T("CheckWifiPriority"));
-            AddReportRow("IPv4", string.IsNullOrWhiteSpace(report.Ipv4) ? "-" : report.Ipv4, string.IsNullOrWhiteSpace(report.Ipv4) ? _localizer.T("CheckAdapter") : _localizer.T("NoActionNeeded"));
-            AddReportRow("Gateway", string.IsNullOrWhiteSpace(report.Gateway) ? "-" : report.Gateway, report.State == NetworkState.GatewayIssue ? _localizer.T("CheckRouter") : _localizer.T("NoActionNeeded"));
-            AddReportRow("DnsTools", ProbeSummary(report, "DNS"), report.State == NetworkState.DnsIssue ? _localizer.T("TryDnsSettings") : _localizer.T("NoActionNeeded"));
-            AddReportRow("Internet", ProbeSummary(report, "HTTPS"), report.State == NetworkState.InternetIssue ? _localizer.T("CheckProxyOrIsp") : _localizer.T("NoActionNeeded"));
-            AddReportRow("FailureStreak", _engine.FailureStreak.ToString(), _engine.FailureStreak > 0 ? _localizer.T("WatchNextCheck") : _localizer.T("NoActionNeeded"));
-
-            ReportStatusText.Text = $"{StateText(report.State)} - {LocalizeSummary(report.Summary)}";
-            DiagnosticLog($"{_localizer.T("ReportTools")}: {ReportStatusText.Text}");
-        }
-        catch (Exception ex)
-        {
-            ReportStatusText.Text = ex.Message;
-            DiagnosticLog(ex.Message, UiLogLevel.Error);
-        }
-        finally
-        {
-            ReportRunButton.IsEnabled = true;
-        }
-    }
-
     private void AddIpInfoRow(string key, string value)
     {
         _ipInfoRows.Add(new IpInfoRow(_localizer.T(key), string.IsNullOrWhiteSpace(value) ? "-" : value));
@@ -2968,7 +2851,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private static string FormatLatency(double? latencyMs)
     {
-        return latencyMs.HasValue ? $"{latencyMs.Value:F0} ms" : "-";
+        return latencyMs is { } value && double.IsFinite(value) && value >= 0 ? $"{value:F0} ms" : "-";
     }
 
     private string LocalizeOperationalStatus(OperationalStatus status)
@@ -3142,6 +3025,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _sidebarSpeedTimer.Stop();
         CleanupSpeedTest();
         _wifiScan.Cancel();
+        _websiteSession.Cancel();
+        _ipSession.Cancel();
+        _diagnosticSession.Cancel();
         _qualityCancellation?.Cancel();
         _immediateCheckCancellation?.Cancel();
         DisposeNotifyIcon();
@@ -3169,7 +3055,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private sealed record ProbeRow(string Name, string ResultText, string LatencyText, string Detail);
     private sealed record QualityProbeRow(string Name, string ResultText, string LatencyText, string Detail);
-    private sealed record WebsiteTestRow(string Name, string Status, string HttpStatus, string DnsLatency, string HttpLatency, string Address, string Detail);
+    private sealed record WebsiteTestRow(string Name, string Status, string HttpStatus, string DnsLatency, string HttpLatency, string Address, string Detail, string TimeText);
     private sealed record IpInfoRow(string Name, string Value);
     private sealed record DiagnosticReportRow(string Item, string Result, string Advice);
     private sealed record DnsAdapterOption(string Id, string Name, bool HasDefaultGateway);

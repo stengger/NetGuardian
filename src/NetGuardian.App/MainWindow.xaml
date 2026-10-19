@@ -542,66 +542,85 @@
                                 <views:SpeedTestView x:Name="SpeedView" Margin="0,14,0,0" />
                             </TabItem>
                             <TabItem x:Name="WebsiteToolsTab">
-                                <StackPanel Margin="0,12,0,0">
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
                                     <Grid Margin="0,0,0,12">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBox x:Name="WebsiteUrlTextBox" Margin="0,0,8,0" />
+                                        <TextBox AutomationProperties.Name="URL" x:Name="WebsiteUrlTextBox" Margin="0,0,8,0" />
                                         <Button x:Name="WebsiteRunButton" Grid.Column="1" Click="WebsiteRun_Click" />
                                     </Grid>
-                                    <WrapPanel Margin="0,0,0,12">
+                                    <WrapPanel Grid.Row="1" Margin="0,0,0,4">
                                         <Button x:Name="WebsiteAppleButton" Tag="https://www.apple.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
                                         <Button x:Name="WebsiteGitHubButton" Tag="https://github.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
                                         <Button x:Name="WebsiteGoogleButton" Tag="https://www.google.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
                                         <Button x:Name="WebsiteYouTubeButton" Tag="https://www.youtube.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="WebsiteCancelButton" Click="WebsiteCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                                     </WrapPanel>
-                                    <TextBlock x:Name="WebsiteStatusText" Margin="0,0,0,10" TextWrapping="Wrap" />
-                                    <DataGrid x:Name="WebsiteGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="320">
+                                    <StackPanel Grid.Row="2">
+                                        <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="WebsiteStatusText" Margin="0,0,0,10" TextWrapping="Wrap" /></ScrollViewer>
+                                        <ProgressBar x:Name="WebsiteActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
+                                    <DataGrid Grid.Row="3" x:Name="WebsiteGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
                                         <DataGrid.Columns>
-                                            <DataGridTextColumn x:Name="WebsiteNameColumn" Binding="{Binding Name}" Width="130" ElementStyle="{StaticResource GridTextStyle}" />
-                                            <DataGridTextColumn x:Name="WebsiteStatusColumn" Binding="{Binding Status}" Width="100" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
-                                            <DataGridTextColumn x:Name="WebsiteHttpColumn" Binding="{Binding HttpStatus}" Width="110" ElementStyle="{StaticResource GridTextStyle}" />
-                                            <DataGridTextColumn x:Name="WebsiteDnsColumn" Binding="{Binding DnsLatency}" Width="120" ElementStyle="{StaticResource GridTextStyle}" />
-                                            <DataGridTextColumn x:Name="WebsiteLatencyColumn" Binding="{Binding HttpLatency}" Width="120" ElementStyle="{StaticResource GridTextStyle}" />
-                                            <DataGridTextColumn x:Name="WebsiteAddressColumn" Binding="{Binding Address}" Width="150" ElementStyle="{StaticResource GridTextStyle}" />
-                                            <DataGridTextColumn x:Name="WebsiteDetailColumn" Binding="{Binding Detail}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="160" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteNameColumn" Binding="{Binding Name}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteStatusColumn" Binding="{Binding Status}" Width="100" MinWidth="100" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteHttpColumn" Binding="{Binding HttpStatus}" Width="110" MinWidth="110" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteDnsColumn" Binding="{Binding DnsLatency}" Width="120" MinWidth="120" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteLatencyColumn" Binding="{Binding HttpLatency}" Width="150" MinWidth="150" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteAddressColumn" Binding="{Binding Address}" Width="150" MinWidth="150" ElementStyle="{StaticResource GridTextStyle}" />
+                                            <DataGridTextColumn x:Name="WebsiteDetailColumn" Binding="{Binding Detail}" Width="2*" MinWidth="200" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
                                     </DataGrid>
-                                    <TextBlock x:Name="WebsiteEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
-                                </StackPanel>
+                                    <StackPanel Grid.Row="4" Margin="0,8,0,0">
+                                        <TextBlock x:Name="WebsiteHistoryHintText" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                                        <TextBlock x:Name="WebsiteEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed" />
+                                    </StackPanel>
+                                </Grid>
                             </TabItem>
                             <TabItem x:Name="IpInfoToolsTab">
-                                <StackPanel Margin="0,12,0,0">
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
                                     <WrapPanel>
                                         <Button x:Name="IpInfoRefreshButton" Click="IpInfoRefresh_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="IpInfoCancelButton" Click="IpInfoCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                                     </WrapPanel>
-                                    <TextBlock x:Name="IpInfoStatusText" Margin="0,4,0,10" TextWrapping="Wrap" />
-                                    <DataGrid x:Name="IpInfoGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="340">
+                                    <StackPanel Grid.Row="1">
+                                        <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="IpInfoStatusText" Margin="0,4,0,10" TextWrapping="Wrap" /></ScrollViewer>
+                                        <ProgressBar x:Name="IpInfoActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
+                                    <DataGrid Grid.Row="2" x:Name="IpInfoGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="IpInfoNameColumn" Binding="{Binding Name}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="IpInfoValueColumn" Binding="{Binding Value}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
                                     </DataGrid>
-                                    <TextBlock x:Name="IpInfoEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
-                                </StackPanel>
+                                    <TextBlock Grid.Row="3" x:Name="IpInfoEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
+                                </Grid>
                             </TabItem>
                             <TabItem x:Name="ReportToolsTab">
-                                <StackPanel Margin="0,12,0,0">
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+
                                     <WrapPanel>
                                         <Button x:Name="ReportRunButton" Click="ReportRun_Click" Margin="0,0,8,8" />
+                                        <Button x:Name="ReportCancelButton" Click="ReportCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                                     </WrapPanel>
-                                    <TextBlock x:Name="ReportStatusText" Margin="0,4,0,10" TextWrapping="Wrap" />
-                                    <DataGrid x:Name="ReportGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" MinHeight="340">
+                                    <StackPanel Grid.Row="1">
+                                        <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="ReportStatusText" Margin="0,4,0,10" TextWrapping="Wrap" /></ScrollViewer>
+                                        <ProgressBar x:Name="ReportActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
+                                    <DataGrid Grid.Row="2" x:Name="ReportGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="ReportItemColumn" Binding="{Binding Item}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="ReportResultColumn" Binding="{Binding Result}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="ReportAdviceColumn" Binding="{Binding Advice}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
                                     </DataGrid>
-                                    <TextBlock x:Name="ReportEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
-                                </StackPanel>
+                                    <TextBlock Grid.Row="3" x:Name="ReportEmptyText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
+                                </Grid>
                             </TabItem>
                         </TabControl>
                     </Grid>

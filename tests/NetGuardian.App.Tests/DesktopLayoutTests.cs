@@ -17,6 +17,45 @@ namespace NetGuardian.App.Tests;
 public sealed class DesktopLayoutTests
 {
     [Theory]
+    [InlineData("Website", "zh-CN")]
+    [InlineData("Website", "en-US")]
+    [InlineData("IpInfo", "zh-CN")]
+    [InlineData("IpInfo", "en-US")]
+    [InlineData("Report", "zh-CN")]
+    [InlineData("Report", "en-US")]
+    public void 诊断工具取消和长错误状态下仍保留结果表格(string tool, string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "ToolsPanel");
+            ((TabControl)window.FindName("ToolsTabControl")).SelectedItem = window.FindName(tool + "ToolsTab");
+            var localizer = new Localizer();
+            localizer.SetLanguage(language);
+            ((TextBlock)window.FindName(tool + "StatusText")).Text = localizer.T("DiagnosticFailed") + "\n" + string.Join("\n", Enumerable.Repeat("保留完整错误原文以便排查。", 20));
+            var cancel = (Button)window.FindName(tool + "CancelButton");
+            cancel.Visibility = Visibility.Visible;
+            cancel.Content = localizer.T("Cancel");
+            ((ProgressBar)window.FindName(tool + "Activity")).Visibility = Visibility.Visible;
+            if (tool == "Website")
+            {
+                ((TextBlock)window.FindName("WebsiteHistoryHintText")).Text = localizer.T("WebsiteHistoryHint");
+                ((Button)window.FindName("WebsiteRunButton")).Content = localizer.T("Test");
+                foreach (var site in new[] { "Apple", "GitHub", "Google", "YouTube" }) ((Button)window.FindName("Website" + site + "Button")).Content = site;
+                foreach (var (name, key) in new[] { ("WebsiteTimeColumn", "LogTime"), ("WebsiteNameColumn", "Website"), ("WebsiteStatusColumn", "StatusColumn"), ("WebsiteDnsColumn", "WebsiteDnsTime"), ("WebsiteLatencyColumn", "WebsiteHttpTime"), ("WebsiteDetailColumn", "Detail") })
+                    ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
+                ((DataGridColumn)window.FindName("WebsiteHttpColumn")).Header = "HTTP";
+                ((DataGridColumn)window.FindName("WebsiteAddressColumn")).Header = "IP";
+            }
+            DesktopFixture.Layout(window, 1040, 660);
+            var grid = (DataGrid)window.FindName(tool + "Grid");
+            Assert.True(grid.ActualHeight >= 150, $"{tool} 结果表仅 {grid.ActualHeight} DIP");
+            var bounds = cancel.TransformToAncestor(window).TransformBounds(new Rect(cancel.RenderSize));
+            Assert.True(bounds.Bottom < 635 && bounds.Top > 0, $"取消按钮不可达：{bounds}");
+            DesktopFixture.Save(window, $"diagnostic-{tool}-{language}.png");
+        });
+    }
+
+    [Theory]
     [InlineData("zh-CN")]
     [InlineData("en-US")]
     public void 侧栏流量范围和二进制单位在紧凑窗口内可读(string language)
