@@ -65,6 +65,12 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     public async Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
     {
+        if (adapterName?.StartsWith("PCI\\", StringComparison.OrdinalIgnoreCase) == true
+            || adapterName?.StartsWith("USB\\", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var enabled = await _commands.RunAsync("pnputil.exe", ["/enable-device", adapterName], cancellationToken);
+            return enabled.Ok;
+        }
         var name = string.IsNullOrWhiteSpace(adapterName) ? GetPrimaryWifiInterface()?.Name : adapterName.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {

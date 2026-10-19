@@ -92,6 +92,8 @@ public static class RecoveryPlanner
     /// <summary>Whether the Wi-Fi adapter should be auto-enabled before probing.</summary>
     public static bool ShouldTryEnableWifi(MonitorPolicy policy, WifiAdapterDiagnostics diagnostics)
     {
+        // 代码22表示设备被禁用；代码10等启动故障交由分级设备恢复处理。
+        if (diagnostics.ProblemCode is > 0 and not 22) return false;
         if (!policy.EnableWifiAdapterAutoEnable || !diagnostics.AdapterPresent)
         {
             return false;

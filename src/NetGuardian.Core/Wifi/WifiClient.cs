@@ -7,12 +7,15 @@ public sealed class WifiClient : IWifiClient
     private readonly NativeWifiScanner _nativeScanner = new();
     private readonly INativeWifiConnector _nativeConnector;
     private readonly IWifiClient _netsh;
+    private readonly WifiDeviceInspector _deviceInspector;
     public string? LastConnectionFailure { get; private set; }
 
-    public WifiClient(INativeWifiConnector? nativeConnector = null, IWifiClient? fallback = null)
+    public WifiClient(INativeWifiConnector? nativeConnector = null, IWifiClient? fallback = null,
+        WifiDeviceInspector? deviceInspector = null)
     {
         _nativeConnector = nativeConnector ?? _nativeScanner;
         _netsh = fallback ?? new NetshWifiClient();
+        _deviceInspector = deviceInspector ?? new WifiDeviceInspector(new NetGuardian.Core.SystemCommands.ProcessCommandRunner());
     }
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
@@ -42,9 +45,11 @@ public sealed class WifiClient : IWifiClient
     {
         var result = await _netsh.GetAdapterDiagnosticsAsync(cancellationToken);
         if (result.AdapterPresent && result.AdapterUp) return result;
-        var fault = await new WifiDeviceInspector(new NetGuardian.Core.SystemCommands.ProcessCommandRunner()).FindFaultAsync(cancellationToken);
+        var fault = await _deviceInspector.FindFaultAsync(cancellationToken);
         return fault is null ? result : result with
         {
+            // PnP仍报告物理设备存在；禁用后没有WLAN接口不等于设备消失。
+            AdapterPresent = true,
             AdapterName = fault.InstanceId,
             DeviceInstanceId = fault.InstanceId,
             ProblemCode = fault.ProblemCode,
