@@ -63,6 +63,8 @@ dist\NetGuardian\guardian\NetGuardian.Guardian.exe  后台守护
 
 健康、Windows 配置可读取且至少两个启用的自动连接候选实际可用时返回 0，否则返回 2；输出不包含无线密码。`--validate` 仅检查磁盘配置，不依据可能过时的凭据标记判断 Windows 中的实际可用性。
 
+需要定位后台扫描差异时，在 `--diagnose` 后加 `--scan`，额外输出原生扫描错误码、原生及 netsh 可见网络；不会执行连接或恢复动作。
+
 更新前请先停止旧后台；卸载先停止监督，再请求后台退出并等待恢复收尾，保留程序、配置和日志：
 
 ```powershell

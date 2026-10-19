@@ -15,24 +15,27 @@ public sealed class NativeWifiScanner
     private const uint ErrorSuccess = 0;
     private static readonly TimeSpan ScanFallbackDelay = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan ScanNotificationTimeout = TimeSpan.FromSeconds(4);
+    public uint? LastNativeError { get; private set; }
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
     {
+        LastNativeError = null;
         var openResult = WlanOpenHandle(WlanClientVersion, IntPtr.Zero, out _, out var handle);
         if (openResult != ErrorSuccess)
         {
+            LastNativeError = openResult;
             return [];
         }
 
         try
         {
-            var interfaces = EnumerateInterfaces(handle);
-            await ScanAndWaitAsync(handle, interfaces, cancellationToken);
+            var interfaces = EnumerateInterfaces(handle, error => LastNativeError = error);
+            await ScanAndWaitAsync(handle, interfaces, cancellationToken, error => LastNativeError = error);
 
             var networks = new List<WifiNetwork>();
             foreach (var wlanInterface in interfaces)
             {
-                networks.AddRange(GetAvailableNetworks(handle, wlanInterface.InterfaceGuid));
+                networks.AddRange(GetAvailableNetworks(handle, wlanInterface.InterfaceGuid, error => LastNativeError = error));
             }
 
             return networks
@@ -91,11 +94,12 @@ public sealed class NativeWifiScanner
         }
     }
 
-    private static IReadOnlyList<WlanInterfaceInfo> EnumerateInterfaces(IntPtr handle)
+    private static IReadOnlyList<WlanInterfaceInfo> EnumerateInterfaces(IntPtr handle, Action<uint>? reportError = null)
     {
         var result = WlanEnumInterfaces(handle, IntPtr.Zero, out var listPointer);
         if (result != ErrorSuccess || listPointer == IntPtr.Zero)
         {
+            if (result != ErrorSuccess) reportError?.Invoke(result);
             return [];
         }
 
@@ -120,12 +124,13 @@ public sealed class NativeWifiScanner
         }
     }
 
-    private static IReadOnlyList<WifiNetwork> GetAvailableNetworks(IntPtr handle, Guid interfaceGuid)
+    private static IReadOnlyList<WifiNetwork> GetAvailableNetworks(IntPtr handle, Guid interfaceGuid, Action<uint>? reportError = null)
     {
         var flags = WlanAvailableNetworkIncludeAllAdhocProfiles | WlanAvailableNetworkIncludeAllManualHiddenProfiles;
         var result = WlanGetAvailableNetworkList(handle, ref interfaceGuid, flags, IntPtr.Zero, out var listPointer);
         if (result != ErrorSuccess || listPointer == IntPtr.Zero)
         {
+            if (result != ErrorSuccess) reportError?.Invoke(result);
             return [];
         }
 
@@ -161,7 +166,7 @@ public sealed class NativeWifiScanner
     private static async Task ScanAndWaitAsync(
         IntPtr handle,
         IReadOnlyList<WlanInterfaceInfo> interfaces,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Action<uint>? reportError = null)
     {
         if (interfaces.Count == 0)
         {
@@ -211,6 +216,7 @@ public sealed class NativeWifiScanner
                 var scanResult = WlanScan(handle, ref interfaceGuid, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
                 if (scanResult != ErrorSuccess)
                 {
+                    reportError?.Invoke(scanResult);
                     lock (syncRoot)
                     {
                         pending.Remove(interfaceGuid);

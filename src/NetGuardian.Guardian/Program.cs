@@ -34,13 +34,22 @@ if (args.Contains("--diagnose"))
 {
     using var diagnosticDeadline = new CancellationTokenSource(TimeSpan.FromSeconds(90));
     var diagnostic = await GuardianDiagnostics.RunAsync(initialSettings, new WifiClient(), new ConnectivityTesterService(), diagnosticDeadline.Token);
+    object? scanDiagnostic = null;
+    if (args.Contains("--scan"))
+    {
+        var scanner = new NativeWifiScanner();
+        var nativeNetworks = await scanner.ScanAsync(diagnosticDeadline.Token);
+        var netshNetworks = await new NetshWifiClient().ScanAsync(diagnosticDeadline.Token);
+        scanDiagnostic = new { NativeError = scanner.LastNativeError, NativeNetworks = nativeNetworks, NetshNetworks = netshNetworks };
+    }
     var result = JsonSerializer.Serialize(new
     {
         Timestamp = DateTimeOffset.UtcNow,
         ProcessId = Environment.ProcessId,
         Account = WindowsIdentity.GetCurrent().Name,
         Sid = WindowsIdentity.GetCurrent().User?.Value,
-        Diagnostic = diagnostic
+        Diagnostic = diagnostic,
+        Scan = scanDiagnostic
     }, new JsonSerializerOptions { WriteIndented = true });
     var outputIndex = Array.IndexOf(args, "--output");
     if (outputIndex >= 0 && outputIndex + 1 < args.Length)
