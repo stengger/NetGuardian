@@ -7,6 +7,9 @@
     <SolidColorBrush x:Key="SurfaceCardBrush" Color="#272C33" />
     <SolidColorBrush x:Key="StrokeInputBrush" Color="#7A8694" />
     <SolidColorBrush x:Key="ChartAccentBrush" Color="#55E6D5" />
+    <!-- 方向颜色独立于健康和警告状态。 -->
+    <SolidColorBrush x:Key="SpeedDownloadBrush" Color="#6EA8FF" />
+    <SolidColorBrush x:Key="SpeedUploadBrush" Color="#55E6D5" />
     <!-- Row selection: accent at 15% alpha. -->
     <SolidColorBrush x:Key="RowSelectedBrush" Color="#266EA8FF" />
     <!-- Chart secondary strokes (gauge track / hairline). -->

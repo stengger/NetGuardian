@@ -162,6 +162,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ApplyLanguage();
         InitializeDnsControls();
         ResetQualityUi();
+        InitializeSpeedTest();
         ResetSpeedUi();
         ResetIpInfoUi();
         ResetReportUi();
@@ -460,14 +461,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
         {
             await RunUiActionAsync(RunQualityCheckAsync);
-        }
-    }
-
-    private async void SpeedRun_Click(object sender, RoutedEventArgs e)
-    {
-        using (SetBusy((System.Windows.Controls.Primitives.ButtonBase)sender))
-        {
-            await RunUiActionAsync(RunSpeedTestAsync);
         }
     }
 
@@ -1905,10 +1898,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityResultColumn.Header = _localizer.T("Result");
         QualityLatencyColumn.Header = _localizer.T("Latency");
         QualityDetailColumn.Header = _localizer.T("Detail");
-        SpeedRunButton.Content = _localizer.T("RunSpeedTest");
-        DownloadSpeedLabel.Text = _localizer.T("DownloadSpeed");
-        UploadSpeedLabel.Text = _localizer.T("UploadSpeed");
-        SpeedLatencyLabel.Text = _localizer.T("Latency");
+        RefreshSpeedView();
         WebsiteRunButton.Content = _localizer.T("Test");
         WebsiteAppleButton.Content = "Apple";
         WebsiteGitHubButton.Content = "GitHub";
@@ -2014,7 +2004,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SetTooltip(DnsApplyButton, "DnsApplyTip");
         SetTooltip(QualityRunButton, "QualityRunTip");
         SetTooltip(QualityOpenSettingsButton, "OpenNetworkSettingsTip");
-        SetTooltip(SpeedRunButton, "SpeedRunTip");
         SetTooltip(WebsiteRunButton, "WebsiteRunTip");
         SetTooltip(IpInfoRefreshButton, "IpInfoRefreshTip");
         SetTooltip(ReportRunButton, "ReportRunTip");
@@ -2798,54 +2787,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityStatusText.Text = _localizer.T("NotChecked");
     }
 
-    private async Task RunSpeedTestAsync()
-    {
-        SpeedRunButton.IsEnabled = false;
-        SpeedStatusText.Text = _localizer.T("SpeedTesting");
-        UpdateSpeedGauge(0, _localizer.T("SpeedTesting"));
-        try
-        {
-            var progress = new Progress<NetworkSpeedTestProgress>(ApplySpeedProgress);
-            var result = await _speedTester.RunAsync(progress);
-            DownloadSpeedText.Text = FormatMbps(result.DownloadMbps);
-            UploadSpeedText.Text = FormatMbps(result.UploadMbps);
-            SpeedLatencyText.Text = result.LatencyMs.HasValue ? $"{result.LatencyMs.Value:F0} ms" : "-";
-            UpdateSpeedGauge(Math.Max(result.DownloadMbps, result.UploadMbps), _localizer.T("SpeedTestComplete"));
-            SpeedStatusText.Text = string.Format(_localizer.T("SpeedTestDone"), result.CheckedAt.ToString("yyyy-MM-dd HH:mm:ss"));
-            Log($"{_localizer.T("SpeedTools")}: {DownloadSpeedText.Text} / {UploadSpeedText.Text} / {SpeedLatencyText.Text}");
-        }
-        catch (Exception ex)
-        {
-            SpeedStatusText.Text = ex.Message;
-            Log(ex.Message);
-        }
-        finally
-        {
-            SpeedRunButton.IsEnabled = true;
-        }
-    }
-
-    private void ApplySpeedProgress(NetworkSpeedTestProgress progress)
-    {
-        if (progress.LatencyMs.HasValue)
-        {
-            SpeedLatencyText.Text = $"{progress.LatencyMs.Value:F0} ms";
-        }
-
-        if (progress.Mbps.HasValue)
-        {
-            if (progress.Phase.Equals("Upload", StringComparison.OrdinalIgnoreCase))
-            {
-                UploadSpeedText.Text = FormatMbps(progress.Mbps.Value);
-                UpdateSpeedGauge(progress.Mbps.Value, _localizer.T("UploadSpeed"));
-                return;
-            }
-
-            DownloadSpeedText.Text = FormatMbps(progress.Mbps.Value);
-            UpdateSpeedGauge(progress.Mbps.Value, _localizer.T("DownloadSpeed"));
-        }
-    }
-
     private async Task RunWebsiteTestAsync(string name, string url)
     {
         if (string.IsNullOrWhiteSpace(url))
@@ -2989,15 +2930,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return $"{probes.Count(probe => probe.Ok)}/{probes.Count}";
     }
 
-    private void ResetSpeedUi()
-    {
-        DownloadSpeedText.Text = "-";
-        UploadSpeedText.Text = "-";
-        SpeedLatencyText.Text = "-";
-        SpeedStatusText.Text = _localizer.T("NotChecked");
-        UpdateSpeedGauge(0, _localizer.T("NotChecked"));
-    }
-
     private void ResetIpInfoUi()
     {
         IpInfoStatusText.Text = _localizer.T("NotChecked");
@@ -3008,58 +2940,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ReportStatusText.Text = _localizer.T("NotChecked");
     }
 
-    private static string FormatMbps(double mbps)
-    {
-        return $"{mbps:F1} Mbps";
-    }
-
     private static string FormatLatency(double? latencyMs)
     {
         return latencyMs.HasValue ? $"{latencyMs.Value:F0} ms" : "-";
-    }
-
-    private void UpdateSpeedGauge(double mbps, string phase)
-    {
-        var progress = NormalizeGaugeSpeed(mbps);
-        SpeedGaugeArc.Data = progress <= 0 ? Geometry.Empty : CreateGaugeArc(progress);
-        var needlePoint = GaugePoint(200 + (140 * progress), 124);
-        SpeedGaugeNeedle.X2 = needlePoint.X;
-        SpeedGaugeNeedle.Y2 = needlePoint.Y;
-        SpeedGaugeValueText.Text = mbps > 0 ? $"{mbps:F1}" : "-";
-        SpeedGaugePhaseText.Text = phase;
-    }
-
-    private static double NormalizeGaugeSpeed(double mbps)
-    {
-        if (mbps <= 0)
-        {
-            return 0;
-        }
-
-        return Math.Clamp(Math.Log10(mbps + 1) / Math.Log10(1001), 0, 1);
-    }
-
-    private static Geometry CreateGaugeArc(double progress)
-    {
-        var start = GaugePoint(200, 135);
-        var end = GaugePoint(200 + (140 * progress), 135);
-        var figure = new PathFigure { StartPoint = start, IsClosed = false, IsFilled = false };
-        figure.Segments.Add(new ArcSegment(
-            end,
-            new Size(135, 135),
-            0,
-            false,
-            SweepDirection.Clockwise,
-            true));
-        return new PathGeometry([figure]);
-    }
-
-    private static Point GaugePoint(double angleDegrees, double radius)
-    {
-        const double centerX = 210;
-        const double centerY = 210;
-        var radians = angleDegrees * Math.PI / 180;
-        return new Point(centerX + (Math.Cos(radians) * radius), centerY + (Math.Sin(radians) * radius));
     }
 
     private string LocalizeOperationalStatus(OperationalStatus status)
@@ -3271,6 +3154,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _ = ReleaseMonitorLeaseWhenIdleAsync();
         _countdownTimer.Stop();
         _sidebarSpeedTimer.Stop();
+        CleanupSpeedTest();
         DisposeNotifyIcon();
     }
 

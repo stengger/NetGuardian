@@ -78,6 +78,9 @@ CHECKS = [
     ("StrokeInputBrush", "stroke", "SurfaceCardBrush"),
     # Chart accent is a graphical stroke; treat as non-text 3:1 on the card.
     ("ChartAccentBrush", "stroke", "SurfaceCardBrush"),
+    # 测速方向标签与主按钮共用方向色，独立于健康状态语义。
+    ("SpeedDownloadBrush", "text", "SurfaceCardBrush"),
+    ("SpeedUploadBrush", "text", "SurfaceCardBrush"),
 ]
 
 TARGETS = {"text": 4.5, "stroke": 3.0}

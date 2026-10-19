@@ -18,26 +18,40 @@ public sealed class NetworkSpeedTestService
         Timeout = TimeSpan.FromSeconds(20)
     };
 
+    private readonly HttpClient _client;
+
+    public NetworkSpeedTestService() : this(SharedHttpClient) { }
+
+    public NetworkSpeedTestService(HttpClient client) => _client = client;
+
     public async Task<NetworkSpeedTestResult> RunAsync(
         IProgress<NetworkSpeedTestProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new("Latency", null, null));
         var latency = await MeasureLatencyAsync(progress, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new("Download", null, null));
         var download = await MeasureDownloadAsync(progress, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        progress?.Report(new("Upload", null, null));
         var upload = await MeasureUploadAsync(progress, cancellationToken);
-        return new NetworkSpeedTestResult(download.Mbps, upload.Mbps, latency, download.Bytes, upload.Bytes, DateTimeOffset.Now);
+        return new NetworkSpeedTestResult(download.Mbps, upload.Mbps, latency.Ms, download.Bytes, upload.Bytes, DateTimeOffset.Now, latency.Count);
     }
 
-    private static async Task<double?> MeasureLatencyAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
+    private async Task<(double? Ms, int Count)> MeasureLatencyAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
     {
         var samples = new List<double>();
         foreach (var url in new[] { "https://www.microsoft.com/", "https://www.baidu.com/" })
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            using var deadline = CreateDeadline(cancellationToken);
             var stopwatch = Stopwatch.StartNew();
             try
             {
                 using var request = new HttpRequestMessage(HttpMethod.Head, url);
-                using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token);
                 stopwatch.Stop();
                 if ((int)response.StatusCode is >= 200 and < 500)
                 {
@@ -46,57 +60,75 @@ public sealed class NetworkSpeedTestService
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 stopwatch.Stop();
             }
         }
 
         double? latency = samples.Count == 0 ? null : samples.Average();
-        progress?.Report(new NetworkSpeedTestProgress("Latency", null, latency));
-        return latency;
+        progress?.Report(new NetworkSpeedTestProgress("Latency", null, latency, true, samples.Count));
+        return (latency, samples.Count);
     }
 
-    private static async Task<(double Mbps, long Bytes)> MeasureDownloadAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
+    private async Task<(double Mbps, long Bytes)> MeasureDownloadAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
     {
+        using var deadline = CreateDeadline(cancellationToken);
+        var token = deadline.Token;
         using var request = new HttpRequestMessage(HttpMethod.Get, $"https://speed.cloudflare.com/__down?bytes={DownloadBytes}");
-        using var response = await SharedHttpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
         response.EnsureSuccessStatusCode();
 
-        await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        await using var stream = await response.Content.ReadAsStreamAsync(token);
         var buffer = new byte[64 * 1024];
         long bytes = 0;
         var stopwatch = Stopwatch.StartNew();
+        var lastReport = TimeSpan.Zero;
         while (bytes < DownloadBytes)
         {
-            var read = await stream.ReadAsync(buffer, cancellationToken);
+            var read = await stream.ReadAsync(buffer, token);
             if (read == 0)
             {
                 break;
             }
 
             bytes += read;
-            progress?.Report(new NetworkSpeedTestProgress("Download", ToMbps(bytes, stopwatch.Elapsed), null));
+            if (stopwatch.Elapsed - lastReport >= TimeSpan.FromMilliseconds(150))
+            {
+                progress?.Report(new NetworkSpeedTestProgress("Download", ToMbps(bytes, stopwatch.Elapsed), null));
+                lastReport = stopwatch.Elapsed;
+            }
         }
 
         stopwatch.Stop();
+        if (bytes != DownloadBytes) throw new IOException("下载响应未完整接收。");
         var mbps = ToMbps(bytes, stopwatch.Elapsed);
-        progress?.Report(new NetworkSpeedTestProgress("Download", mbps, null));
+        progress?.Report(new NetworkSpeedTestProgress("Download", mbps, null, true));
         return (mbps, bytes);
     }
 
-    private static async Task<(double Mbps, long Bytes)> MeasureUploadAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
+    private async Task<(double Mbps, long Bytes)> MeasureUploadAsync(IProgress<NetworkSpeedTestProgress>? progress, CancellationToken cancellationToken)
     {
+        using var deadline = CreateDeadline(cancellationToken);
         await using var payload = new RepeatingPayloadStream(UploadBytes);
         using var content = new StreamContent(payload, 64 * 1024);
         content.Headers.ContentLength = UploadBytes;
         content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
 
         var stopwatch = Stopwatch.StartNew();
-        using var response = await SharedHttpClient.PostAsync($"https://speed.cloudflare.com/__up?bytes={UploadBytes}", content, cancellationToken);
+        using var response = await _client.PostAsync($"https://speed.cloudflare.com/__up?bytes={UploadBytes}", content, deadline.Token);
         stopwatch.Stop();
         response.EnsureSuccessStatusCode();
         var mbps = ToMbps(UploadBytes, stopwatch.Elapsed);
-        progress?.Report(new NetworkSpeedTestProgress("Upload", mbps, null));
+        progress?.Report(new NetworkSpeedTestProgress("Upload", mbps, null, true));
         return (mbps, UploadBytes);
+    }
+
+    private static CancellationTokenSource CreateDeadline(CancellationToken cancellationToken)
+    {
+        var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        // ResponseHeadersRead 之后的流读取也必须有截止时间。
+        deadline.CancelAfter(TimeSpan.FromSeconds(20));
+        return deadline;
     }
 
     private static double ToMbps(long bytes, TimeSpan elapsed)
@@ -208,6 +240,7 @@ public sealed record NetworkSpeedTestResult(
     double? LatencyMs,
     long DownloadBytes,
     long UploadBytes,
-    DateTimeOffset CheckedAt);
+    DateTimeOffset CheckedAt,
+    int LatencySampleCount = 0);
 
-public sealed record NetworkSpeedTestProgress(string Phase, double? Mbps, double? LatencyMs);
+public sealed record NetworkSpeedTestProgress(string Phase, double? Mbps, double? LatencyMs, bool IsPhaseComplete = false, int LatencySampleCount = 0);

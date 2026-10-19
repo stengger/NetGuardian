@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+        xmlns:views="clr-namespace:NetGuardian.App.Views"
         Title="NetGuardian"
         Icon="Assets/app.ico"
         Width="1180"
@@ -479,9 +480,13 @@
                 </Border>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ToolsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <StackPanel>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
                         <TextBlock x:Name="ToolsTitle" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <TabControl x:Name="ToolsTabControl">
+                        <TabControl x:Name="ToolsTabControl" Grid.Row="1">
                             <TabItem x:Name="QuickToolsTab">
                                 <StackPanel Margin="0,12,0,0">
                                     <WrapPanel>
@@ -494,80 +499,7 @@
                                 </StackPanel>
                             </TabItem>
                             <TabItem x:Name="SpeedToolsTab">
-                                <Grid Margin="0,14,0,0">
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="1.25*" />
-                                        <ColumnDefinition Width="0.95*" />
-                                    </Grid.ColumnDefinitions>
-
-                                    <Border Grid.RowSpan="2" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,0,14,0">
-                                        <Grid>
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto" />
-                                                <RowDefinition Height="*" />
-                                                <RowDefinition Height="Auto" />
-                                            </Grid.RowDefinitions>
-                                            <DockPanel Margin="0,0,0,10" LastChildFill="False">
-                                                <StackPanel DockPanel.Dock="Left">
-                                                    <TextBlock x:Name="SpeedGaugePhaseText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" />
-                                                    <TextBlock x:Name="SpeedStatusText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0" />
-                                                </StackPanel>
-                                                <Button x:Name="SpeedRunButton" DockPanel.Dock="Right" Click="SpeedRun_Click" MinWidth="96" />
-                                            </DockPanel>
-                                            <Canvas Grid.Row="1" Width="420" Height="270" HorizontalAlignment="Center" Margin="0,2,0,0">
-                                                <Path Stroke="{DynamicResource CardStrokeColorDefaultBrush}" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
-                                                <Path Stroke="{DynamicResource SurfaceCardBrush}" StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Data="M 83,210 A 135,135 0 0 1 337,210" />
-                                                <Path x:Name="SpeedGaugeArc" Stroke="{DynamicResource ChartAccentBrush}" StrokeThickness="30" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                                <Line x:Name="SpeedGaugeNeedle" X1="210" Y1="210" X2="210" Y2="86" Stroke="{DynamicResource TextFillColorPrimaryBrush}" StrokeThickness="6" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
-                                                <Ellipse Width="22" Height="22" Fill="{DynamicResource TextFillColorPrimaryBrush}" Canvas.Left="199" Canvas.Top="199" />
-                                                <Ellipse Width="8" Height="8" Fill="{DynamicResource SurfaceCardBrush}" Canvas.Left="206" Canvas.Top="206" />
-                                                <TextBlock Text="0" Canvas.Left="88" Canvas.Top="206" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="10" Canvas.Left="112" Canvas.Top="143" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="50" Canvas.Left="154" Canvas.Top="100" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="100" Canvas.Left="195" Canvas.Top="80" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="250" Canvas.Left="254" Canvas.Top="100" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="500" Canvas.Left="291" Canvas.Top="143" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock Text="1000" Canvas.Left="300" Canvas.Top="206" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontWeight="SemiBold" Opacity="0.74" />
-                                                <TextBlock x:Name="SpeedGaugeValueText" Width="160" Canvas.Left="130" Canvas.Top="168" FontSize="36" FontWeight="Light" Foreground="{DynamicResource TextFillColorPrimaryBrush}" TextAlignment="Center" />
-                                                <TextBlock Text="Mbps" Width="160" Canvas.Left="130" Canvas.Top="211" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextAlignment="Center" />
-                                            </Canvas>
-                                            <Border Grid.Row="2" Height="1" Background="{DynamicResource CardStrokeColorDefaultBrush}" Opacity="0.7" Margin="34,0" />
-                                        </Grid>
-                                    </Border>
-
-                                    <Grid Grid.Column="1">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-                                        <Border Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
-                                            <StackPanel>
-                                                <TextBlock x:Name="DownloadSpeedLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
-                                                <TextBlock x:Name="DownloadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
-                                                <Border Height="3" Background="{DynamicResource StatusHealthyBrush}" CornerRadius="2" Margin="0,14,34,0" />
-                                            </StackPanel>
-                                        </Border>
-                                        <Border Grid.Column="1" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="8,0,0,0">
-                                            <StackPanel>
-                                                <TextBlock x:Name="UploadSpeedLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
-                                                <TextBlock x:Name="UploadSpeedText" FontSize="28" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,0" TextTrimming="CharacterEllipsis" />
-                                                <Border Height="3" Background="{DynamicResource StatusWarningBrush}" CornerRadius="2" Margin="0,14,34,0" />
-                                            </StackPanel>
-                                        </Border>
-                                    </Grid>
-
-                                    <Border Grid.Row="1" Grid.Column="1" Background="{DynamicResource SurfaceCardBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,14,0,0">
-                                        <StackPanel>
-                                            <TextBlock x:Name="SpeedLatencyLabel" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" />
-                                            <TextBlock x:Name="SpeedLatencyText" FontSize="30" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,0" />
-                                            <Border Height="3" Background="{DynamicResource ChartAccentBrush}" CornerRadius="2" Margin="0,14,64,0" />
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
+                                <views:SpeedTestView x:Name="SpeedView" Margin="0,14,0,0" />
                             </TabItem>
                             <TabItem x:Name="WebsiteToolsTab">
                                 <StackPanel Margin="0,12,0,0">
@@ -632,7 +564,7 @@
                                 </StackPanel>
                             </TabItem>
                         </TabControl>
-                    </StackPanel>
+                    </Grid>
                 </Border>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="DnsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">

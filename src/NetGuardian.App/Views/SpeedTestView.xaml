@@ -1,0 +1,191 @@
+<UserControl x:Class="NetGuardian.App.Views.SpeedTestView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Focusable="False" UseLayoutRounding="True" FontFamily="Segoe UI" FontSize="14">
+    <UserControl.Resources>
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CornerCard}" />
+            <Setter Property="Padding" Value="20" />
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="Secondary" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+        </Style>
+        <Style x:Key="MetricValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="32" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="TextWrapping" Value="NoWrap" />
+        </Style>
+        <Style x:Key="MetricUnit" TargetType="TextBlock" BasedOn="{StaticResource Secondary}">
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="Margin" Value="7,0,0,7" />
+        </Style>
+        <Style x:Key="Action" TargetType="Button">
+            <Setter Property="Padding" Value="16,9" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.98" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderThickness" Value="2" />
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.96" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PrimaryAction" TargetType="Button" BasedOn="{StaticResource Action}">
+            <Setter Property="Background" Value="{DynamicResource SpeedDownloadBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SpeedDownloadBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource SurfaceCardBrush}" />
+        </Style>
+    </UserControl.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <Grid Margin="0,0,0,18">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Margin="0,0,16,0">
+                <TextBlock x:Name="TitleText" FontSize="24" FontWeight="SemiBold" />
+                <TextBlock x:Name="IntroText" Style="{StaticResource Secondary}" Margin="0,6,0,0" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" VerticalAlignment="Top">
+                <Button x:Name="RunButton" Style="{StaticResource PrimaryAction}" Click="Run_Click" FontWeight="SemiBold" />
+                <Button x:Name="CancelButton" Style="{StaticResource Action}" Click="Cancel_Click" Margin="0,8,0,0" Visibility="Collapsed" />
+            </StackPanel>
+        </Grid>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False"
+                      Padding="0,0,8,8" Focusable="False">
+            <StackPanel x:Name="ContentPanel" SizeChanged="ContentPanel_SizeChanged" Margin="0,2,0,0">
+
+                <Grid x:Name="MetricsGrid" Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Border x:Name="DownloadCard" Style="{StaticResource Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock x:Name="DownloadLabel" Foreground="{DynamicResource SpeedDownloadBrush}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
+                                <TextBlock x:Name="DownloadValue" Style="{StaticResource MetricValue}" />
+                                <TextBlock Text="Mbps" Style="{StaticResource MetricUnit}" />
+                            </StackPanel>
+                            <TextBlock x:Name="DownloadState" Style="{StaticResource Secondary}" />
+                            <TextBlock x:Name="DownloadHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="UploadCard" Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock x:Name="UploadLabel" Foreground="{DynamicResource SpeedUploadBrush}" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
+                                <TextBlock x:Name="UploadValue" Style="{StaticResource MetricValue}" />
+                                <TextBlock Text="Mbps" Style="{StaticResource MetricUnit}" />
+                            </StackPanel>
+                            <TextBlock x:Name="UploadState" Style="{StaticResource Secondary}" />
+                            <TextBlock x:Name="UploadHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="ResponseCard" Grid.Column="2" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock x:Name="ResponseLabel" FontWeight="SemiBold" />
+                            <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
+                                <TextBlock x:Name="ResponseValue" Style="{StaticResource MetricValue}" />
+                                <TextBlock Text="ms" Style="{StaticResource MetricUnit}" />
+                            </StackPanel>
+                            <TextBlock x:Name="ResponseState" Style="{StaticResource Secondary}" />
+                            <TextBlock x:Name="ResponseHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <Border x:Name="ProcessCard" Style="{StaticResource Card}" Margin="0,0,0,16">
+                    <StackPanel>
+                        <DockPanel LastChildFill="True">
+                            <TextBlock x:Name="ElapsedText" DockPanel.Dock="Right" Style="{StaticResource Secondary}" Margin="16,2,0,0" />
+                            <TextBlock x:Name="StatusText" FontSize="16" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
+                        </DockPanel>
+                        <TextBlock x:Name="StatusHint" Style="{StaticResource Secondary}" Margin="0,7,0,16" />
+                        <UniformGrid Columns="3">
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock x:Name="ResponseStepLabel" FontWeight="SemiBold" />
+                                <TextBlock x:Name="ResponseStepState" Style="{StaticResource Secondary}" Margin="0,5,0,0" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,12,0">
+                                <TextBlock x:Name="DownloadStepLabel" FontWeight="SemiBold" />
+                                <TextBlock x:Name="DownloadStepState" Style="{StaticResource Secondary}" Margin="0,5,0,0" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock x:Name="UploadStepLabel" FontWeight="SemiBold" />
+                                <TextBlock x:Name="UploadStepState" Style="{StaticResource Secondary}" Margin="0,5,0,0" />
+                            </StackPanel>
+                        </UniformGrid>
+                        <ProgressBar x:Name="RunningIndicator" Height="3" IsIndeterminate="True" Foreground="{DynamicResource SpeedDownloadBrush}"
+                                     Margin="0,18,0,0" Visibility="Collapsed" AutomationProperties.Name="" />
+                        <TextBlock x:Name="CheckedAtText" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
+                        <Expander x:Name="FailureExpander" Visibility="Collapsed" Margin="0,14,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                            <TextBox x:Name="FailureText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent"
+                                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" MaxHeight="120" VerticalScrollBarVisibility="Auto" />
+                        </Expander>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock x:Name="MethodTitle" FontWeight="SemiBold" />
+                        <TextBlock x:Name="TrafficText" Style="{StaticResource Secondary}" Margin="0,8,0,0" />
+                        <TextBlock x:Name="TargetText" Style="{StaticResource Secondary}" Margin="0,5,0,0" />
+                        <TextBlock x:Name="MethodText" Style="{StaticResource Secondary}" Margin="0,5,0,0" />
+                        <Expander x:Name="MethodExpander" Margin="0,12,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                            <TextBlock x:Name="MethodDetail" Style="{StaticResource Secondary}" Margin="0,8,0,0" />
+                        </Expander>
+                        <WrapPanel Margin="0,16,0,0">
+                            <Button x:Name="CopyButton" Style="{StaticResource Action}" Click="Copy_Click" IsEnabled="False" />
+                            <TextBlock x:Name="CopyFeedback" Style="{StaticResource Secondary}" VerticalAlignment="Center" Margin="12,0,0,0" AutomationProperties.LiveSetting="Polite" />
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

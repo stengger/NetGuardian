@@ -7,6 +7,9 @@
     <SolidColorBrush x:Key="SurfaceCardBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="StrokeInputBrush" Color="#8A94A2" />
     <SolidColorBrush x:Key="ChartAccentBrush" Color="#0D9488" />
+    <!-- 方向颜色独立于健康和警告状态。 -->
+    <SolidColorBrush x:Key="SpeedDownloadBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="SpeedUploadBrush" Color="#087F73" />
     <SolidColorBrush x:Key="RowSelectedBrush" Color="#262563EB" />
     <SolidColorBrush x:Key="ChartTrackBrush" Color="#D5DAE1" />
 </ResourceDictionary>
