@@ -7,6 +7,7 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="..\..\src\NetGuardian.App\MainWindow.xaml" LogicalName="MainWindow.xaml" />
     <ProjectReference Include="..\..\src\NetGuardian.App\NetGuardian.App.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />

@@ -766,7 +766,7 @@
                                 <ColumnDefinition Width="120" />
                                 <ColumnDefinition Width="240" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="ThemeLabel" VerticalAlignment="Center" AutomationProperties.LabeledBy="{Binding ElementName=ThemeLabel}" />
+                            <TextBlock x:Name="ThemeLabel" VerticalAlignment="Center" />
                             <ComboBox x:Name="ThemeComboBox" Grid.Column="1" Width="240" HorizontalAlignment="Left" AutomationProperties.LabeledBy="{Binding ElementName=ThemeLabel}" SelectionChanged="ThemeComboBox_SelectionChanged">
                                 <ComboBoxItem Tag="auto" />
                                 <ComboBoxItem Tag="light" />
