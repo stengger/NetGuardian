@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
+using NetGuardian.App.Presentation;
 using NetGuardian.Core.Network;
 
 namespace NetGuardian.App;
@@ -54,7 +55,7 @@ public partial class MainWindow
             var result = await _speedTester.RunAsync(progress, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             _speedSession.Complete(id, result);
-            Log($"{_localizer.T("SpeedTools")}: ↓ {result.DownloadMbps:F1} Mbps / ↑ {result.UploadMbps:F1} Mbps / {_localizer.T("SpeedResponse")}: {FormatLatency(result.LatencyMs)}");
+            Log($"{_localizer.T("SpeedTools")}: ↓ {result.DownloadMbps:F1} Mbps / ↑ {result.UploadMbps:F1} Mbps / {_localizer.T("SpeedResponse")}: {FormatLatency(result.LatencyMs)}", UiLogLevel.Information, UiLogSource.Diagnostic);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
@@ -67,7 +68,7 @@ public partial class MainWindow
         catch (Exception exception)
         {
             _speedSession.Fail(id, exception.Message);
-            Log(exception.Message);
+            Log(exception.Message, UiLogLevel.Error, UiLogSource.Diagnostic);
         }
         finally
         {

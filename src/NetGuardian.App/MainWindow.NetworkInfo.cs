@@ -47,7 +47,7 @@ public partial class MainWindow
             DnsStatusText.Text = _localizer.T("NetworkReadFailed");
             DnsEmptyText.Text = _localizer.T("NetworkReadFailed");
             UpdateDnsApplyAvailability();
-            Log($"{_localizer.T("DnsTools")}: {ex.Message}");
+            NetworkLog($"{_localizer.T("DnsTools")}: {ex.Message}", UiLogLevel.Error);
             UpdateEmptyStates();
         });
         if (success)
@@ -68,7 +68,7 @@ public partial class MainWindow
             AdapterTargetComboBox.ItemsSource = null;
             AdapterStatusText.Text = _localizer.T("NetworkReadFailed");
             AdapterEmptyText.Text = _localizer.T("NetworkReadFailed");
-            Log($"{_localizer.T("AdapterTools")}: {ex.Message}");
+            NetworkLog($"{_localizer.T("AdapterTools")}: {ex.Message}", UiLogLevel.Error);
             UpdateEmptyStates();
         });
         if (success)

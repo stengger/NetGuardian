@@ -80,7 +80,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ConnectivityReportSelection _reportSelection = new();
     private bool _isNotifyIconDisposed;
     private bool _resourcesCleaned;
-    private int _logLineCount;
     private DateTimeOffset? _lastSidebarSpeedSampleAt;
     private long? _lastSidebarReceivedBytes;
     private long? _lastSidebarSentBytes;
@@ -106,6 +105,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _journal = journal;
         _snackbar = snackbarService;
         _localizer = localizer;
+        _eventLogStore = new EventLogStore(localizer, MaxLogLines);
         _wifi = wifi;
         _connectivityTester = connectivityTester;
         _commandRunner = commandRunner;
@@ -154,6 +154,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         WebsiteGrid.ItemsSource = _websiteRows;
         IpInfoGrid.ItemsSource = _ipInfoRows;
         ReportGrid.ItemsSource = _reportRows;
+        InitializeLogView();
 
         _snackbar.SetSnackbarPresenter(RootSnackbar);
 
@@ -500,8 +501,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                         var result = await _networkConfiguration.RenewDhcpAsync(target.Name);
                         var refreshed = RefreshAdapterInfo();
                         var status = SetDhcpOperationMessage(result.Success ? "DhcpTargetDone" : "DhcpTargetFailed", !refreshed, target.Name, result.ExitCode);
-                        Log(status);
-                        if (!string.IsNullOrWhiteSpace(result.Output)) Log(result.Output);
+                        NetworkLog(status, result.Success ? UiLogLevel.Information : UiLogLevel.Error);
+                        if (!string.IsNullOrWhiteSpace(result.Output)) NetworkLog(result.Output);
                         ShowFeedback(_localizer.T(result.Success ? "CommandCompletedTitle" : "ActionFailedTitle"), status,
                             result.Success && refreshed ? FeedbackSeverity.Success : FeedbackSeverity.Warning);
                         return result.Success;
@@ -510,7 +511,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     {
                         var refreshed = RefreshAdapterInfo();
                         var status = SetDhcpOperationMessage(commandStarted ? "DhcpInterruptedCheckCurrent" : "NetworkTargetChanged", !refreshed, target.Name);
-                        Log($"{target.Name}: {ex.Message}");
+                        NetworkLog($"{target.Name}: {ex.Message}", UiLogLevel.Error);
                         ShowFeedback(_localizer.T("ActionFailedTitle"), status, FeedbackSeverity.Warning);
                         return false;
                     }
@@ -778,7 +779,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             if (!_resourcesCleaned)
             {
-                Log(ex.Message);
+                Log(ex.Message, UiLogLevel.Error);
                 ShowFeedback(_localizer.T("ActionFailedTitle"), ex.Message, FeedbackSeverity.Warning);
             }
         }
@@ -806,7 +807,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             ApplyReport(e.Report);
             UpdateWeeklySummary();
-            Log($"{e.Report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {e.Report.State}: {e.Report.Summary}");
+            EngineLog($"{e.Report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {e.Report.State}: {e.Report.Summary}", e.Report.Ok ? UiLogLevel.Information : UiLogLevel.Warning);
             SetToolOutput($"{StateText(e.Report.State)}{Environment.NewLine}{LocalizeSummary(e.Report.Summary)}");
         });
     }
@@ -827,57 +828,58 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         switch (e.Kind)
         {
             case EngineEventKind.MonitorStarted:
-                Log(_localizer.T("MonitorStartedLog"));
+                EngineLog(_localizer.T("MonitorStartedLog"));
                 break;
             case EngineEventKind.MonitorStopped:
-                Log(_localizer.T("MonitorStoppedLog"));
+                EngineLog(_localizer.T("MonitorStoppedLog"));
                 break;
             case EngineEventKind.TryingEnableWifiAdapter:
-                Log(string.Format(_localizer.T("TryingEnableWifiAdapter"), args[0]));
+                EngineLog(string.Format(_localizer.T("TryingEnableWifiAdapter"), args[0]));
                 break;
             case EngineEventKind.WifiAdapterEnabled:
-                Log(_localizer.T("WifiAdapterEnabled"));
+                EngineLog(_localizer.T("WifiAdapterEnabled"));
                 break;
             case EngineEventKind.WifiAdapterEnableFailed:
-                Log(_localizer.T("WifiAdapterEnableFailed"));
+                EngineLog(_localizer.T("WifiAdapterEnableFailed"), UiLogLevel.Error);
                 break;
             case EngineEventKind.CheckError:
-                Log(args[0]?.ToString() ?? _localizer.T("CheckFailedLog"));
+                EngineLog(args[0]?.ToString() ?? _localizer.T("CheckFailedLog"), UiLogLevel.Error);
                 break;
             case EngineEventKind.RecoveryCooldownActive:
-                Log(string.Format(_localizer.T("RecoveryCooldownActive"), FormatDuration((TimeSpan)args[0]!)));
+                EngineLog(string.Format(_localizer.T("RecoveryCooldownActive"), FormatDuration((TimeSpan)args[0]!)));
                 break;
             case EngineEventKind.RecoveryStarted:
                 _journal.RecordRecoveryStarted(args[0] is int streak ? streak : 0);
-                Log(string.Format(_localizer.T("RecoveryStarted"), args[0]));
+                EngineLog(string.Format(_localizer.T("RecoveryStarted"), args[0]));
                 break;
             case EngineEventKind.RecoveryDnsFlush:
-                Log(_localizer.T("RecoveryDnsFlush"));
+                EngineLog(_localizer.T("RecoveryDnsFlush"));
                 break;
             case EngineEventKind.RecoveryDnsFlushCompleted:
             {
                 var label = _localizer.T("FlushDns");
-                Log(args[0] is true
+                EngineLog(args[0] is true
                     ? string.Format(_localizer.T("CommandDone"), label)
-                    : string.Format(_localizer.T("CommandFailed"), label, args[1]));
+                    : string.Format(_localizer.T("CommandFailed"), label, args[1]),
+                    args[0] is true ? UiLogLevel.Information : UiLogLevel.Warning);
                 if (args[2] is string output && !string.IsNullOrWhiteSpace(output))
                 {
-                    Log(output);
+                    EngineLog(output, args[0] is true ? UiLogLevel.Information : UiLogLevel.Warning);
                 }
 
                 break;
             }
             case EngineEventKind.RecoveryReconnectCurrent:
-                Log(string.Format(_localizer.T("RecoveryReconnectCurrent"), args[0]));
+                EngineLog(string.Format(_localizer.T("RecoveryReconnectCurrent"), args[0]));
                 break;
             case EngineEventKind.RecoverySwitchWifi:
-                Log(string.Format(_localizer.T("RecoverySwitchWifi"), args[0]));
+                EngineLog(string.Format(_localizer.T("RecoverySwitchWifi"), args[0]));
                 break;
             case EngineEventKind.RecoveryWifiConnected:
             {
                 _journal.RecordRecoveryResult(true, args[0]?.ToString());
                 var connectedMessage = string.Format(_localizer.T("RecoveryWifiConnected"), args[0]);
-                Log(connectedMessage);
+                EngineLog(connectedMessage);
                 if (!IsVisible || WindowState == WindowState.Minimized)
                 {
                     ShowTrayBalloon(connectedMessage, Forms.ToolTipIcon.Info);
@@ -888,14 +890,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 break;
             }
             case EngineEventKind.RecoveryNoActionsEnabled:
-                Log(_localizer.T("RecoveryNoActionsEnabled"));
+                EngineLog(_localizer.T("RecoveryNoActionsEnabled"));
                 break;
             case EngineEventKind.RecoveryFailed:
             {
                 _journal.RecordRecoveryResult(false, null);
                 SaveSettings();
                 var failedMessage = _localizer.T("RecoveryFailed");
-                Log(failedMessage);
+                EngineLog(failedMessage, UiLogLevel.Warning);
                 if (!IsVisible || WindowState == WindowState.Minimized)
                 {
                     ShowTrayBalloon(failedMessage, Forms.ToolTipIcon.Error);
@@ -905,12 +907,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 break;
             }
             case EngineEventKind.HighRiskCooldownActive:
-                Log(string.Format(_localizer.T("HighRiskCooldownActive"), FormatDuration((TimeSpan)args[0]!)));
+                EngineLog(string.Format(_localizer.T("HighRiskCooldownActive"), FormatDuration((TimeSpan)args[0]!)));
                 break;
             case EngineEventKind.HighRiskActionStarted:
             {
                 var message = string.Format(_localizer.T("HighRiskActionStarted"), args[0]);
-                Log(message);
+                EngineLog(message, UiLogLevel.Warning);
                 ShowTrayBalloon(message);
                 break;
             }
@@ -928,7 +930,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     action,
                     _localizer.T(commandOk ? "HighRiskCmdOk" : "HighRiskCmdFailed"),
                     _localizer.T(networkOk ? "HighRiskNetRecovered" : "HighRiskNetStillDown"));
-                Log(message);
+                EngineLog(message, commandOk && networkOk ? UiLogLevel.Information : UiLogLevel.Warning);
                 ShowTrayBalloon(message);
                 UpdateWeeklySummary();
                 break;
@@ -1087,7 +1089,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex)
         {
-            Log(ex.Message);
+            Log(ex.Message, UiLogLevel.Error);
         }
         finally
         {
@@ -1920,6 +1922,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         AdapterNavButton.Content = _localizer.T("AdapterTools");
         LogNavButton.Content = _localizer.T("Log");
         ExportLogsButton.Content = _localizer.T("ExportLogs");
+        RefreshLogLanguage();
         SettingsNavButton.Content = _localizer.T("Settings");
         CheckNowButton.Content = _localizer.T("CheckNow");
         StartMonitorButton.Content = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
@@ -2374,7 +2377,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex)
         {
-            Log(ex.Message);
+            Log(ex.Message, UiLogLevel.Error);
             ShowFeedback(_localizer.T("ActionFailedTitle"), ex.Message, FeedbackSeverity.Danger);
         }
     }
@@ -2522,18 +2525,18 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task RunSystemNetworkCommandCoreAsync(string fileName, string[] arguments, string label)
     {
-        Log($"{label}...");
+        NetworkLog($"{label}...");
         SetToolOutput($"{label}...");
         var result = await _commandRunner.RunAsync(fileName, arguments);
         var output = result.Output;
         var status = result.Ok
             ? string.Format(_localizer.T("CommandDone"), label)
             : string.Format(_localizer.T("CommandFailed"), label, result.ExitCode);
-        Log(status);
+        NetworkLog(status, result.Ok ? UiLogLevel.Information : UiLogLevel.Error);
 
         if (!string.IsNullOrWhiteSpace(output))
         {
-            Log(output);
+            NetworkLog(output);
         }
 
         SetToolOutput(string.IsNullOrWhiteSpace(output) ? status : $"{status}{Environment.NewLine}{Environment.NewLine}{output}");
@@ -2627,7 +2630,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             var refreshed = RefreshDnsInfo();
             var status = SetDnsOperationMessage(result.Success ? "DnsTargetApplied" : result.WasCanceled ? "DnsPartialCanceled" : result.MayHaveChanged ? "DnsMayHaveChanged" : "DnsApplyFailed",
                 !refreshed, result.Success ? [adapter.Name] : [result.ExitCode]);
-            Log(status);
+            NetworkLog(status, result.Success ? UiLogLevel.Information : UiLogLevel.Error);
             if (result.Success)
             {
                 ShowFeedback(_localizer.T("DnsAppliedTitle"), status, refreshed ? FeedbackSeverity.Success : FeedbackSeverity.Warning);
@@ -2639,7 +2642,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
             if (!string.IsNullOrWhiteSpace(result.Output))
             {
-                Log(result.Output);
+                NetworkLog(result.Output);
             }
 
         }
@@ -2647,7 +2650,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             var refreshed = RefreshDnsInfo();
             SetDnsOperationMessage("DnsInterruptedCheckCurrent", !refreshed);
-            Log(ex.Message);
+            NetworkLog(ex.Message, UiLogLevel.Error);
             ShowFeedback(_localizer.T("ActionFailedTitle"), DnsStatusText.Text, FeedbackSeverity.Warning);
         }
     }
@@ -2858,12 +2861,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             }
 
             WebsiteStatusText.Text = string.Format(_localizer.T("WebsiteTestDone"), row.Name, row.Status, row.HttpLatency);
-            Log($"{_localizer.T("WebsiteTools")}: {row.Name} {row.Status} {row.HttpLatency}");
+            DiagnosticLog($"{_localizer.T("WebsiteTools")}: {row.Name} {row.Status} {row.HttpLatency}",
+                result.Success ? UiLogLevel.Information : UiLogLevel.Warning);
         }
         catch (Exception ex)
         {
             WebsiteStatusText.Text = ex.Message;
-            Log(ex.Message);
+            DiagnosticLog(ex.Message, UiLogLevel.Error);
         }
         finally
         {
@@ -2889,12 +2893,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             AddIpInfoRow("Coordinates", $"{info.Longitude:F4}, {info.Latitude:F4}");
             AddIpInfoRow("LastRefresh", info.RefreshedAt.ToString("yyyy-MM-dd HH:mm:ss"));
             IpInfoStatusText.Text = string.Format(_localizer.T("IpInfoRefreshed"), info.Ip);
-            Log($"{_localizer.T("IpInfoTools")}: {info.Ip}");
+            DiagnosticLog($"{_localizer.T("IpInfoTools")}: {info.Ip}");
         }
         catch (Exception ex)
         {
             IpInfoStatusText.Text = ex.Message;
-            Log(ex.Message);
+            DiagnosticLog(ex.Message, UiLogLevel.Error);
         }
         finally
         {
@@ -2924,12 +2928,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             AddReportRow("FailureStreak", _engine.FailureStreak.ToString(), _engine.FailureStreak > 0 ? _localizer.T("WatchNextCheck") : _localizer.T("NoActionNeeded"));
 
             ReportStatusText.Text = $"{StateText(report.State)} - {LocalizeSummary(report.Summary)}";
-            Log($"{_localizer.T("ReportTools")}: {ReportStatusText.Text}");
+            DiagnosticLog($"{_localizer.T("ReportTools")}: {ReportStatusText.Text}");
         }
         catch (Exception ex)
         {
             ReportStatusText.Text = ex.Message;
-            Log(ex.Message);
+            DiagnosticLog(ex.Message, UiLogLevel.Error);
         }
         finally
         {
@@ -3001,41 +3005,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         return duration.TotalMinutes >= 1 ? $"{duration.Minutes}m {duration.Seconds}s" : $"{Math.Max(0, duration.Seconds)}s";
-    }
-
-    private void Log(string message)
-    {
-        _fileLog.Write(message);
-        var line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {message}";
-        LogTextBox.AppendText(line + Environment.NewLine);
-        _logLineCount++;
-        TrimLogTextBox();
-        LogTextBox.ScrollToEnd();
-        _recentEvents.Insert(0, line);
-        while (_recentEvents.Count > 6)
-        {
-            _recentEvents.RemoveAt(_recentEvents.Count - 1);
-        }
-
-        UpdateEmptyStates();
-    }
-
-    private void TrimLogTextBox()
-    {
-        while (_logLineCount > MaxLogLines)
-        {
-            var text = LogTextBox.Text;
-            var firstLineEnd = text.IndexOf(Environment.NewLine, StringComparison.Ordinal);
-            if (firstLineEnd < 0)
-            {
-                _logLineCount = 1;
-                return;
-            }
-
-            LogTextBox.Text = text[(firstLineEnd + Environment.NewLine.Length)..];
-            LogTextBox.CaretIndex = LogTextBox.Text.Length;
-            _logLineCount--;
-        }
     }
 
     private Forms.NotifyIcon CreateNotifyIcon()
@@ -3171,7 +3140,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex)
         {
-            Log(ex.Message);
+            Log(ex.Message, UiLogLevel.Error);
         }
         finally
         {

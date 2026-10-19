@@ -744,10 +744,52 @@
                 </Border>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="LogPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <DockPanel>
-                        <Button x:Name="ExportLogsButton" DockPanel.Dock="Top" HorizontalAlignment="Right" Margin="0,0,0,10" Click="ExportLogs_Click" />
-                        <TextBox x:Name="LogTextBox" BorderThickness="0" IsReadOnly="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" />
-                    </DockPanel>
+                    <Grid>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <StackPanel Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="145" /><ColumnDefinition Width="170" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock x:Name="LogSearchLabel" Margin="0,0,0,4" />
+                                    <TextBox x:Name="LogSearchTextBox" TextChanged="LogFilter_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LogSearchLabel}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                    <TextBlock x:Name="LogLevelLabel" Margin="0,0,0,4" />
+                                    <ComboBox x:Name="LogLevelComboBox" SelectedIndex="0" SelectionChanged="LogFilter_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LogLevelLabel}">
+                                        <ComboBoxItem Tag="all" /><ComboBoxItem Tag="Information" /><ComboBoxItem Tag="Warning" /><ComboBoxItem Tag="Error" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Margin="0,0,12,0">
+                                    <TextBlock x:Name="LogSourceLabel" Margin="0,0,0,4" />
+                                    <ComboBox x:Name="LogSourceComboBox" SelectedIndex="0" SelectionChanged="LogFilter_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LogSourceLabel}">
+                                        <ComboBoxItem Tag="all" /><ComboBoxItem Tag="Interface" /><ComboBoxItem Tag="Monitor" /><ComboBoxItem Tag="Diagnostic" /><ComboBoxItem Tag="Network" />
+                                    </ComboBox>
+                                </StackPanel>
+                                <Button x:Name="ExportLogsButton" Grid.Column="3" VerticalAlignment="Bottom" Click="ExportLogs_Click" />
+                            </Grid>
+                            <TextBlock x:Name="LogScopeText" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,0" />
+                        </StackPanel>
+                        <Grid Grid.Row="1">
+                            <DataGrid x:Name="LogGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" PreviewMouseWheel="LogReading_MouseWheel" PreviewKeyDown="LogReading_KeyDown" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn x:Name="LogTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="155" ElementStyle="{StaticResource GridTextStyle}" />
+                                    <DataGridTextColumn x:Name="LogLevelColumn" Binding="{Binding LevelText}" Width="80" MinWidth="75" ElementStyle="{StaticResource GridTextStyle}" />
+                                    <DataGridTextColumn x:Name="LogSourceColumn" Binding="{Binding SourceText}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
+                                    <DataGridTemplateColumn x:Name="LogMessageColumn" Width="*" MinWidth="200">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Summary}" ToolTip="{Binding Message}" Style="{StaticResource GridTextStyle}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                            <TextBlock x:Name="LogEmptyText" Margin="12,54,12,0" VerticalAlignment="Top" TextWrapping="Wrap" IsHitTestVisible="False" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </Grid>
+                        <Expander x:Name="LogDetailsExpander" Grid.Row="2" Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                            <TextBox x:Name="LogDetailsTextBox" Text="{Binding SelectedItem.Message, ElementName=LogGrid, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="120" VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" />
+                        </Expander>
+                        <DockPanel Grid.Row="3" Margin="0,8,0,0">
+                            <CheckBox x:Name="LogFollowCheckBox" DockPanel.Dock="Right" IsChecked="True" Checked="LogFollow_Changed" Unchecked="LogFollow_Changed" />
+                            <TextBlock x:Name="LogCountText" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                        </DockPanel>
+                    </Grid>
                 </Border>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="SettingsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">

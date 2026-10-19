@@ -29,7 +29,7 @@ public partial class MainWindow
             var report = await _connectivityTester.RunFullCheckAsync(_settings.Policy, ssid, diagnostics, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             _qualitySession.Complete(runId, report);
-            Log($"{_localizer.T("QualityCheckTitle")}: {StateText(report.State)} - {report.Summary}");
+            Log($"{_localizer.T("QualityCheckTitle")}: {StateText(report.State)} - {report.Summary}", report.Ok ? UiLogLevel.Information : UiLogLevel.Warning, UiLogSource.Diagnostic);
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
@@ -38,7 +38,7 @@ public partial class MainWindow
         catch (Exception ex)
         {
             _qualitySession.Fail(runId, ex.Message);
-            Log($"{_localizer.T("QualityCheckFailed")}: {ex.Message}");
+            Log($"{_localizer.T("QualityCheckFailed")}: {ex.Message}", UiLogLevel.Error, UiLogSource.Diagnostic);
         }
         finally
         {

@@ -16,6 +16,59 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class DesktopLayoutTests
 {
+    [Theory]
+    [InlineData("zh-CN")]
+    [InlineData("en-US")]
+    public void 日志筛选和多行详情展开后仍保留可用记录列表(string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "LogPanel");
+            var localizer = new Localizer();
+            localizer.SetLanguage(language);
+            foreach (var (name, key) in new[] { ("LogSearchLabel", "LogSearch"), ("LogLevelLabel", "LogLevel"), ("LogSourceLabel", "LogSource"), ("LogEmptyText", "LogNoMatches") })
+                ((TextBlock)window.FindName(name)).Text = localizer.T(key);
+            ((TextBlock)window.FindName("LogScopeText")).Text = string.Format(localizer.T("LogSessionScope"), 500);
+            ((TextBlock)window.FindName("LogCountText")).Text = string.Format(localizer.T("LogVisibleCount"), 100, 100);
+            ((TextBlock)window.FindName("LogEmptyText")).Visibility = Visibility.Collapsed;
+            ((CheckBox)window.FindName("LogFollowCheckBox")).Content = localizer.T("LogFollowLatest");
+            ((CheckBox)window.FindName("LogFollowCheckBox")).IsChecked = false;
+            ((Button)window.FindName("ExportLogsButton")).Content = localizer.T("ExportLogs");
+            foreach (var (name, key) in new[] { ("LogTimeColumn", "LogTime"), ("LogLevelColumn", "LogLevel"), ("LogSourceColumn", "LogSource"), ("LogMessageColumn", "LogMessage") })
+                ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
+            foreach (ComboBoxItem item in ((ComboBox)window.FindName("LogLevelComboBox")).Items)
+                item.Content = localizer.T(item.Tag?.ToString() == "all" ? "LogAllLevels" : $"LogLevel{item.Tag}");
+            foreach (ComboBoxItem item in ((ComboBox)window.FindName("LogSourceComboBox")).Items)
+                item.Content = localizer.T(item.Tag?.ToString() == "all" ? "LogAllSources" : $"LogSource{item.Tag}");
+            var store = new NetGuardian.App.Presentation.EventLogStore(localizer);
+            for (var i = 0; i < 100; i++) store.Add($"DNS 检查记录 {i}\n" + string.Join("\n", Enumerable.Repeat("完整诊断内容与异常原文，不截断记录。", 12)), NetGuardian.App.Presentation.UiLogLevel.Error, NetGuardian.App.Presentation.UiLogSource.Network);
+            var grid = (DataGrid)window.FindName("LogGrid");
+            grid.ItemsSource = store.Entries;
+            grid.SelectedIndex = 0;
+            var details = (Expander)window.FindName("LogDetailsExpander");
+            details.Header = localizer.T("LogSelectedDetails");
+            details.IsExpanded = true;
+            DesktopFixture.Layout(window, 1040, 660);
+            var frame = new System.Windows.Threading.DispatcherFrame();
+            var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
+            timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
+            timer.Start();
+            System.Windows.Threading.Dispatcher.PushFrame(frame);
+            window.UpdateLayout();
+            var original = (TextBox)window.FindName("LogDetailsTextBox");
+            Assert.StartsWith("DNS 检查记录 0", original.Text);
+            Assert.Equal(0, original.VerticalOffset);
+            Assert.True(grid.ActualHeight >= 100, $"日志表仅 {grid.ActualHeight} DIP");
+            foreach (var name in new[] { "LogSearchTextBox", "ExportLogsButton", "LogFollowCheckBox" })
+            {
+                var control = (FrameworkElement)window.FindName(name);
+                var bounds = control.TransformToAncestor(window).TransformBounds(new Rect(control.RenderSize));
+                Assert.True(bounds.Top >= 0 && bounds.Bottom < 645, $"{name} 不可达：{bounds}");
+            }
+            DesktopFixture.Save(window, $"logs-expanded-1040-{language}.png");
+        });
+    }
+
     [Fact]
     public void 首页显示检查来源与时间后保留探针区域()
     {
@@ -220,7 +273,7 @@ internal static class DesktopFixture
                     element.Name = XName.Get(element.Name.LocalName, "clr-namespace:NetGuardian.App.Views;assembly=NetGuardian");
                 foreach (var element in document.Descendants().Where(e => e.Name.NamespaceName == "clr-namespace:NetGuardian.App.Presentation"))
                     element.Name = XName.Get(element.Name.LocalName, "clr-namespace:NetGuardian.App.Presentation;assembly=NetGuardian");
-                var events = new HashSet<string> { "Closing", "StateChanged", "Click", "SelectionChanged", "Checked", "Unchecked", "PreviewMouseLeftButtonUp", "PreviewMouseLeftButtonDown", "MouseMove", "MouseDoubleClick", "Drop" };
+                var events = new HashSet<string> { "Closing", "StateChanged", "Click", "TextChanged", "SelectionChanged", "Checked", "Unchecked", "PreviewMouseLeftButtonUp", "PreviewMouseLeftButtonDown", "PreviewMouseWheel", "PreviewKeyDown", "MouseMove", "MouseDoubleClick", "Drop" };
                 foreach (var attribute in document.Descendants().Attributes().Where(a => events.Contains(a.Name.LocalName)).ToList()) attribute.Remove();
                 window = (Window)XamlReader.Parse(document.ToString(), new ParserContext
                 {
