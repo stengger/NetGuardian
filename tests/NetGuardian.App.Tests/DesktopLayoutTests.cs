@@ -13,8 +13,54 @@ using Xunit;
 
 namespace NetGuardian.App.Tests;
 
+[Collection("WPF 桌面")]
 public sealed class DesktopLayoutTests
 {
+    [Theory]
+    [InlineData(1180, 760)]
+    [InlineData(1040, 660)]
+    public void 网络配置页的输入标签操作与表格均位于可用视口(double width, double height)
+    {
+        DesktopFixture.Run(window =>
+        {
+            ((ComboBox)window.FindName("DnsAdapterComboBox")).Items.Add("实验室无线网络接口（完整目标名称）");
+            ((ComboBox)window.FindName("DnsAdapterComboBox")).SelectedIndex = 0;
+            ((ComboBox)window.FindName("DnsPresetComboBox")).SelectedIndex = 0;
+            ((Button)window.FindName("DnsApplyButton")).IsEnabled = false;
+            ((TextBlock)window.FindName("DnsCurrentText")).Text = "当前系统 DNS 地址：223.5.5.5, 223.6.6.6, fec0:0:0:ffff::1。自动 / 手动来源未确认；IPv6 地址仅供查看。";
+            ((ComboBox)window.FindName("AdapterTargetComboBox")).Items.Add("实验室 WLAN 2");
+            ((ComboBox)window.FindName("AdapterTargetComboBox")).SelectedIndex = 0;
+            ((DataGrid)window.FindName("DnsGrid")).ItemsSource = Enumerable.Range(1, 25).Select(i => new { Adapter = $"实验室网络接口 {i}", Servers = "223.5.5.5, 223.6.6.6", Source = "未确认", Status = "链路已连接" }).ToList();
+            ((DataGrid)window.FindName("AdapterGrid")).ItemsSource = Enumerable.Range(1, 25).Select(i => new { Name = $"实验室网络接口 {i}", Type = "Wireless80211", Status = "已连接", Ipv4 = "192.168.31.89", Gateway = "192.168.31.1", DnsServers = "223.5.5.5, 223.6.6.6" }).ToList();
+            foreach (var page in new[] { "DnsPanel", "NetworkPanel" })
+            {
+                DesktopFixture.ShowPage(window, page);
+                DesktopFixture.Layout(window, width, height);
+                var grid = (DataGrid)window.FindName(page == "DnsPanel" ? "DnsGrid" : "AdapterGrid");
+                var bounds = grid.TransformToAncestor(window).TransformBounds(new Rect(grid.RenderSize));
+                Assert.True(bounds.Height >= 100 && bounds.Bottom <= height - 20, $"{page} 表格超出视口：{bounds}");
+                if (page == "NetworkPanel")
+                {
+                    Assert.True(grid.Columns[0].ActualWidth >= 180, $"适配器名称列仅 {grid.Columns[0].ActualWidth} DIP");
+                    Assert.True(grid.Columns[3].ActualWidth >= 140, $"IPv4 列仅 {grid.Columns[3].ActualWidth} DIP；各列：{string.Join(", ", grid.Columns.Select(c => $"{c.Width}/{c.ActualWidth:F1}"))}");
+                }
+                foreach (var name in page == "DnsPanel"
+                    ? new[] { "DnsAdapterComboBox", "DnsPresetComboBox", "DnsPrimaryTextBox", "DnsSecondaryTextBox", "DnsApplyButton" }
+                    : new[] { "AdapterTargetComboBox", "AdapterRenewDhcpButton" })
+                {
+                    var control = (FrameworkElement)window.FindName(name);
+                    var controlBounds = control.TransformToAncestor(window).TransformBounds(new Rect(control.RenderSize));
+                    Assert.True(controlBounds.Height >= 25 && controlBounds.Bottom <= height - 20, $"{name} 不可达：{controlBounds}");
+                }
+                DesktopFixture.Save(window, $"{page}-{width}.png");
+            }
+            Assert.NotNull(window.FindName("DnsPrimaryLabel"));
+            Assert.NotNull(window.FindName("DnsSecondaryLabel"));
+            Assert.NotNull(window.FindName("DnsCurrentText"));
+            Assert.NotNull(window.FindName("AdapterTargetComboBox"));
+        });
+    }
+
     [Theory]
     [InlineData(1180, 760)]
     [InlineData(1040, 660)]
@@ -193,7 +239,15 @@ internal static class DesktopFixture
             ["ImportPasswordButton"] = "ImportPassword", ["AddManualButton"] = "AddManual", ["MoveUpButton"] = "MoveUp",
             ["MoveDownButton"] = "MoveDown", ["RemoveButton"] = "Remove", ["ConnectButton"] = "Connect",
             ["WifiSelectionText"] = "SelectWifiFirst", ["DragHintText"] = "DoubleClickWifiHint",
-            ["ToolsTitle"] = "SystemNetworkTools"
+            ["ToolsTitle"] = "SystemNetworkTools",
+            ["DnsTargetLabel"] = "DnsTargetLabel", ["DnsPlanLabel"] = "DnsPlanLabel",
+            ["DnsPrimaryLabel"] = "DnsPrimaryLabel", ["DnsSecondaryLabel"] = "DnsSecondaryLabel",
+            ["DnsRefreshButton"] = "RefreshStatus", ["DnsFlushButton"] = "FlushDns",
+            ["DnsApplyButton"] = "ApplyDns", ["DnsToolsHint"] = "DnsToolsHint",
+            ["DnsStatusText"] = "SelectDnsPlan", ["AdapterTargetLabel"] = "AdapterTargetLabel",
+            ["AdapterRefreshButton"] = "RefreshStatus", ["AdapterSettingsButton"] = "OpenNetworkSettings",
+            ["AdapterRenewDhcpButton"] = "RenewDhcp", ["AdapterToolsHint"] = "AdapterToolsHint",
+            ["AdapterStatusText"] = "SelectDhcpAdapter"
         };
         foreach (var (name, key) in labels)
         {
@@ -201,6 +255,9 @@ internal static class DesktopFixture
             if (element is TextBlock text) text.Text = localizer.T(key);
             else if (element is ContentControl content) content.Content = localizer.T(key);
         }
+        ((ComboBoxItem)((ComboBox)window.FindName("DnsPresetComboBox")).Items[0]).Content = localizer.T("SelectDnsPlan");
+        foreach (var (name, key) in new[] { ("DnsAdapterColumn", "Adapter"), ("DnsServersColumn", "DnsServers"), ("DnsSourceColumn", "Source"), ("DnsStatusColumn", "StatusColumn"), ("AdapterNameColumn", "Adapter"), ("AdapterTypeColumn", "Type"), ("AdapterStatusColumn", "StatusColumn"), ("AdapterIpv4Column", "IPv4"), ("AdapterGatewayColumn", "Gateway"), ("AdapterDnsColumn", "DnsServers") })
+            ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
         foreach (var (name, key) in new[] { ("NearbySsidColumn", "Ssid"), ("NearbySignalColumn", "Signal"), ("NearbySecurityColumn", "Security"), ("NearbyPriorityColumn", "PriorityState"), ("ProfileSsidColumn", "Ssid"), ("ProfilePriorityColumn", "Priority"), ("ProfileCredentialColumn", "CredentialSaved"), ("ProfileEnabledColumn", "Enabled"), ("ProfileFailuresColumn", "Failures") })
             ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
         foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"), ("QualityNavButton", "QualityTools"), ("ToolsNavButton", "Tools"), ("DnsNavButton", "DnsTools"), ("AdapterNavButton", "AdapterTools"), ("PolicyNavButton", "Policy"), ("LogNavButton", "Log"), ("SettingsNavButton", "Settings"), ("CheckNowButton", "CheckNow"), ("StartMonitorButton", "StartMonitor"), ("StopButton", "Stop"), ("QuickToolsTab", "QuickTools"), ("SpeedToolsTab", "SpeedTools"), ("WebsiteToolsTab", "WebsiteTools"), ("IpInfoToolsTab", "IpInfoTools"), ("ReportToolsTab", "ReportTools") })

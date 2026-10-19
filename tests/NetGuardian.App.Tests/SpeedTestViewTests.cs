@@ -12,6 +12,7 @@ using Xunit;
 
 namespace NetGuardian.App.Tests;
 
+[Collection("WPF 桌面")]
 public sealed class SpeedTestViewTests
 {
     [Fact]
