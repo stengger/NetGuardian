@@ -6,6 +6,10 @@ public sealed class Localizer
     {
         ["zh-CN"] = new()
         {
+            ["ReportSourceManual"] = "手动检查",
+            ["ReportSourceBackground"] = "后台守护检查",
+            ["ReportSourceForeground"] = "界面监控检查",
+            ["ConnectivityReportContext"] = "{0} · {1}",
             ["LinkUp"] = "链路已连接",
             ["LinkDown"] = "链路未连接",
             ["LinkDormant"] = "链路休眠",
@@ -469,6 +473,10 @@ public sealed class Localizer
         },
         ["en-US"] = new()
         {
+            ["ReportSourceManual"] = "Manual check",
+            ["ReportSourceBackground"] = "Background guardian check",
+            ["ReportSourceForeground"] = "Foreground monitor check",
+            ["ConnectivityReportContext"] = "{0} · {1}",
             ["LinkUp"] = "Link connected",
             ["LinkDown"] = "Link disconnected",
             ["LinkDormant"] = "Link dormant",

@@ -75,6 +75,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private bool _isSyncingScheduledStartup;
     private bool _isSyncingHighRiskToggle;
     private bool _isFirstRun;
+    private bool _isImmediateCheckRunning;
+    private CancellationTokenSource? _immediateCheckCancellation;
+    private readonly ConnectivityReportSelection _reportSelection = new();
     private bool _isNotifyIconDisposed;
     private bool _resourcesCleaned;
     private int _logLineCount;
@@ -750,6 +753,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task RunCheckAsync()
     {
+        if (_isImmediateCheckRunning || _engine.IsChecking || _resourcesCleaned) return;
+        using var cancellation = new CancellationTokenSource();
+        _immediateCheckCancellation = cancellation;
+        _isImmediateCheckRunning = true;
+        UpdateMonitorStatus();
         try
         {
             if (_engine.IsMonitoring)
@@ -759,14 +767,26 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             else
             {
                 // 手动检测只读，不能绕过后台控制锁自动启用网卡。
-                var diagnostics = await _wifi.GetAdapterDiagnosticsAsync();
-                var ssid = await _wifi.GetCurrentSsidAsync();
-                ApplyReport(await _connectivityTester.RunFullCheckAsync(_settings.Policy, ssid, diagnostics));
+                var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(cancellation.Token);
+                var ssid = await _wifi.GetCurrentSsidAsync(cancellation.Token);
+                var report = await _connectivityTester.RunFullCheckAsync(_settings.Policy, ssid, diagnostics, cancellation.Token);
+                if (!_resourcesCleaned) ApplyReport(report, ConnectivityReportOrigin.Manual);
             }
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            Log(ex.Message);
+            if (!_resourcesCleaned)
+            {
+                Log(ex.Message);
+                ShowFeedback(_localizer.T("ActionFailedTitle"), ex.Message, FeedbackSeverity.Warning);
+            }
+        }
+        finally
+        {
+            _isImmediateCheckRunning = false;
+            _immediateCheckCancellation = null;
+            if (!_resourcesCleaned) UpdateMonitorStatus();
         }
     }
 
@@ -1674,8 +1694,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return string.IsNullOrWhiteSpace(ssid) ? _localizer.T("HiddenWifi") : ssid;
     }
 
-    private void ApplyReport(ConnectivityReport report)
+    private void ApplyReport(ConnectivityReport report, ConnectivityReportOrigin origin = ConnectivityReportOrigin.Foreground, bool forceRefresh = false)
     {
+        if (_resourcesCleaned) return;
+        var unchanged = _reportSelection.Report?.CheckedAt == report.CheckedAt && _reportSelection.Origin == origin;
+        if (!_reportSelection.TryAccept(report, origin) || unchanged && !forceRefresh) return;
         HealthStateText.Text = StateText(report.State);
         HealthStateText.Foreground = report.State switch
         {
@@ -1685,6 +1708,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _ => ThemeBrush("StatusDangerBrush")
         };
         SummaryText.Text = LocalizeSummary(report.Summary);
+        ReportContextText.Text = string.Format(_localizer.T("ConnectivityReportContext"), _localizer.T(origin switch
+        {
+            ConnectivityReportOrigin.Manual => "ReportSourceManual", ConnectivityReportOrigin.Background => "ReportSourceBackground", _ => "ReportSourceForeground"
+        }), report.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"));
+        ReportContextText.Visibility = Visibility.Visible;
         CurrentSsidText.Text = string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid;
         ProbeGrid.ItemsSource = report.Probes.Select(probe => new ProbeRow(
             LocalizeProbeName(probe.Name),
@@ -2072,6 +2100,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         ApplyTooltips();
+        if (_reportSelection.Report is { } currentReport) ApplyReport(currentReport, _reportSelection.Origin, forceRefresh: true);
         RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();
         UpdateEmptyStates();
@@ -2159,7 +2188,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void UpdateMonitorStatus()
     {
         var background = GuardianStatusStore.Read(GuardianPaths.MachineDirectory);
-        var presentation = MonitorStatusPresentation.Create(_engine.IsMonitoring, _engine.IsChecking, background, DateTimeOffset.UtcNow, _localizer);
+        var presentation = MonitorStatusPresentation.Create(_engine.IsMonitoring, _engine.IsChecking || _isImmediateCheckRunning, background, DateTimeOffset.UtcNow, _localizer);
         MonitorStateText.Text = presentation.OwnerText;
         HeaderStateText.Text = presentation.ActivityText;
         System.Windows.Automation.AutomationProperties.SetName(StatusDot, presentation.ActivityText);
@@ -2172,9 +2201,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         StartMonitorButton.Content = _localizer.T(_engine.IsMonitoring ? "Monitoring" : "StartMonitor");
         StartMonitorButton.IsEnabled = presentation.CanStart;
         StopButton.IsEnabled = presentation.CanStop;
+        CheckNowButton.IsEnabled = presentation.CanCheck;
+        CheckNowButton.Content = _localizer.T(_isImmediateCheckRunning ? "Checking" : "CheckNow");
+        UpdateTrayText(presentation);
         if (presentation.HasBackground && background is not null)
         {
-            if (background.Report is { } report) ApplyReport(report);
+            if (background.Report is { } report) ApplyReport(report, ConnectivityReportOrigin.Background);
             FailureStreakText.Text = background.FailureStreak.ToString();
             NextCheckText.Text = background.NextCheckAt.HasValue
                 ? FormatDuration(background.NextCheckAt.Value > DateTimeOffset.Now ? background.NextCheckAt.Value - DateTimeOffset.Now : TimeSpan.Zero)
@@ -2193,7 +2225,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             NextCheckText.Text = "-";
         }
 
-        UpdateTrayText();
         UpdateFirstRunGuide();
     }
 
@@ -3017,26 +3048,27 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             Text = "NetGuardian"
         };
         var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add(_localizer.T("ShowWindow"), null, (_, _) => Dispatcher.Invoke(ShowFromTray));
-        menu.Items.Add(_localizer.T("CheckNow"), null, (_, _) => Dispatcher.Invoke(async () => await RunCheckAsync()));
-        menu.Items.Add(_localizer.T("StartMonitor"), null, (_, _) => Dispatcher.Invoke(async () => await StartMonitoringAsync()));
-        menu.Items.Add(_localizer.T("Stop"), null, (_, _) => Dispatcher.Invoke(StopMonitoring));
+        menu.Items.Add(_localizer.T("ShowWindow"), null, (_, _) => Dispatcher.Invoke(ShowFromTray)).Name = "ShowWindow";
+        menu.Items.Add(_localizer.T("CheckNow"), null, (_, _) => Dispatcher.Invoke(async () => await RunCheckAsync())).Name = "CheckNow";
+        menu.Items.Add(_localizer.T("StartMonitor"), null, (_, _) => Dispatcher.Invoke(async () => await StartMonitoringAsync())).Name = "StartMonitor";
+        menu.Items.Add(_localizer.T("Stop"), null, (_, _) => Dispatcher.Invoke(StopMonitoring)).Name = "Stop";
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add(_localizer.T("Exit"), null, (_, _) => Dispatcher.Invoke(ExitApplication));
+        menu.Items.Add(_localizer.T("Exit"), null, (_, _) => Dispatcher.Invoke(ExitApplication)).Name = "Exit";
         notifyIcon.ContextMenuStrip = menu;
         notifyIcon.DoubleClick += (_, _) => Dispatcher.Invoke(ShowFromTray);
         return notifyIcon;
     }
 
-    private void UpdateTrayText()
+    private void UpdateTrayText(MonitorStatusPresentation? presentation = null)
     {
-        if (_notifyIcon is null)
+        if (_notifyIcon is null || _isNotifyIconDisposed)
         {
             return;
         }
 
-        var state = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped");
-        _notifyIcon.Text = $"NetGuardian - {state}";
+        presentation ??= MonitorStatusPresentation.Create(_engine.IsMonitoring, _engine.IsChecking || _isImmediateCheckRunning,
+            GuardianStatusStore.Read(GuardianPaths.MachineDirectory), DateTimeOffset.UtcNow, _localizer);
+        TrayMonitorPresenter.Apply(_notifyIcon, presentation, _localizer);
     }
 
     private void ShowFromTray()
@@ -3162,6 +3194,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _sidebarSpeedTimer.Stop();
         CleanupSpeedTest();
         _qualityCancellation?.Cancel();
+        _immediateCheckCancellation?.Cancel();
         DisposeNotifyIcon();
     }
 

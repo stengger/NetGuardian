@@ -16,6 +16,29 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class DesktopLayoutTests
 {
+    [Fact]
+    public void 首页显示检查来源与时间后保留探针区域()
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "StatusPanel");
+            var localizer = new Localizer();
+            foreach (var (name, key) in new[] { ("HealthStateLabel", "HealthState"), ("HealthStateText", "InternetIssue"), ("MonitorStateLabel", "MonitorStatus"), ("MonitorStateText", "BackgroundMonitoring"), ("NextCheckLabel", "NextCheck"), ("CurrentNetworkLabel", "CurrentNetwork"), ("ProbeTitleText", "CheckNow"), ("RecentEventsTitle", "RecentEvents") })
+                ((TextBlock)window.FindName(name)).Text = localizer.T(key);
+            ((TextBlock)window.FindName("SummaryText")).Text = "公网 HTTPS 探针未达到通过数量，请检查上游网络或代理设置。";
+            ((TextBlock)window.FindName("CurrentSsidText")).Text = "实验室_北楼_5GHz_备用网络";
+            ((TextBlock)window.FindName("ReportContextText")).Text = "手动检查 · 2026-10-20 01:00:00";
+            ((TextBlock)window.FindName("ReportContextText")).Visibility = Visibility.Visible;
+            DesktopFixture.Layout(window, 1040, 660);
+            var probe = (DataGrid)window.FindName("ProbeGrid");
+            Assert.True(probe.ActualHeight >= 100);
+            var context = (FrameworkElement)window.FindName("ReportContextText");
+            var bounds = context.TransformToAncestor(window).TransformBounds(new Rect(context.RenderSize));
+            Assert.True(bounds.Bottom < 640 && bounds.Height > 10);
+            DesktopFixture.Save(window, "home-report-context-1040.png");
+        });
+    }
+
     [Theory]
     [InlineData(1180, "zh-CN")]
     [InlineData(1040, "zh-CN")]
