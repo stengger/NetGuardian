@@ -103,7 +103,7 @@ public partial class MainWindow
             AddIpInfoRow("Organization", info.Organization);
             AddIpInfoRow("AutonomousSystem", info.AutonomousSystem);
             AddIpInfoRow("Timezone", info.Timezone);
-            AddIpInfoRow("Coordinates", $"{info.Longitude:F4}, {info.Latitude:F4}");
+            AddIpInfoRow("IpCoordinates", PublicIpPresentation.Coordinates(info.Latitude, info.Longitude, _localizer.T("UnknownData")));
             AddIpInfoRow("LastRefresh", info.RefreshedAt.ToString("yyyy-MM-dd HH:mm:ss"));
             IpInfoStatusText.Text = string.Format(_localizer.T("IpInfoQueryResult"), info.Ip, info.RefreshedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"));
         }

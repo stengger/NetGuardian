@@ -16,8 +16,14 @@ public sealed class PublicIpInfoService
     };
 
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
+    private readonly HttpClient _httpClient;
     private PublicIpInfo? _cachedInfo;
     private DateTimeOffset _cachedAt = DateTimeOffset.MinValue;
+
+    public PublicIpInfoService(HttpClient? httpClient = null)
+    {
+        _httpClient = httpClient ?? SharedHttpClient;
+    }
 
     public async Task<PublicIpInfo> GetAsync(CancellationToken cancellationToken = default)
     {
@@ -66,9 +72,9 @@ public sealed class PublicIpInfoService
         return info;
     }
 
-    private static async Task<PublicIpInfo> QueryIpWhoAsync(CancellationToken cancellationToken)
+    private async Task<PublicIpInfo> QueryIpWhoAsync(CancellationToken cancellationToken)
     {
-        var response = await SharedHttpClient.GetFromJsonAsync<IpWhoResponse>(
+        var response = await _httpClient.GetFromJsonAsync<IpWhoResponse>(
             "https://ipwho.is/?lang=zh-CN",
             cancellationToken);
 
@@ -98,9 +104,9 @@ public sealed class PublicIpInfoService
             DateTimeOffset.Now);
     }
 
-    private static async Task<PublicIpInfo> QueryIpifyAsync(CancellationToken cancellationToken)
+    private async Task<PublicIpInfo> QueryIpifyAsync(CancellationToken cancellationToken)
     {
-        var response = await SharedHttpClient.GetFromJsonAsync<IpifyResponse>(
+        var response = await _httpClient.GetFromJsonAsync<IpifyResponse>(
             "https://api.ipify.org?format=json",
             cancellationToken);
 
@@ -111,7 +117,6 @@ public sealed class PublicIpInfoService
 
         return new PublicIpInfo(
             response.Ip,
-            "Unknown",
             "-",
             "-",
             "-",
@@ -119,8 +124,9 @@ public sealed class PublicIpInfoService
             "-",
             "-",
             "-",
-            0,
-            0,
+            "-",
+            null,
+            null,
             DateTimeOffset.Now);
     }
 
@@ -154,10 +160,10 @@ public sealed class PublicIpInfoService
         public IpWhoTimezone? Timezone { get; init; }
 
         [JsonPropertyName("latitude")]
-        public double Latitude { get; init; }
+        public double? Latitude { get; init; }
 
         [JsonPropertyName("longitude")]
-        public double Longitude { get; init; }
+        public double? Longitude { get; init; }
     }
 
     private sealed class IpWhoConnection
@@ -195,6 +201,6 @@ public sealed record PublicIpInfo(
     string Organization,
     string AutonomousSystem,
     string Timezone,
-    double Latitude,
-    double Longitude,
+    double? Latitude,
+    double? Longitude,
     DateTimeOffset RefreshedAt);
