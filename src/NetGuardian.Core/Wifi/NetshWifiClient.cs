@@ -10,6 +10,7 @@ namespace NetGuardian.Core.Wifi;
 public sealed partial class NetshWifiClient : IWifiClient
 {
     private readonly ISystemCommandRunner _commands;
+    public string? LastConnectionFailure { get; private set; }
 
     public NetshWifiClient(ISystemCommandRunner? commands = null)
     {
@@ -130,8 +131,10 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     public async Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default)
     {
+        LastConnectionFailure = null;
         // 配置已保存真实 SSID；netsh 的 ssid 文本参数在系统代码页下可能误转换中文。
         var result = await RunNetshAsync(["wlan", "connect", $"name={profileName}"], cancellationToken);
+        if (result.ExitCode != 0) LastConnectionFailure = $"netsh 退出码 {result.ExitCode}：{result.Output}";
         return result.ExitCode == 0;
     }
 

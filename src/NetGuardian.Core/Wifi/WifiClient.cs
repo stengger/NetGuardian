@@ -6,6 +6,7 @@ public sealed class WifiClient : IWifiClient
 {
     private readonly NativeWifiScanner _nativeScanner = new();
     private readonly NetshWifiClient _netsh = new();
+    public string? LastConnectionFailure => _netsh.LastConnectionFailure;
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
     {

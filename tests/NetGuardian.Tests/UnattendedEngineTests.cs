@@ -9,6 +9,79 @@ namespace NetGuardian.Tests;
 public sealed class UnattendedEngineTests
 {
     [Fact]
+    public async Task 地址就绪后的完整探测保留独立时限()
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ConnectSucceedsFor.UnionWith(["A", "B"]);
+        using var engine = Engine(wifi, new(async (ssid, token) =>
+        {
+            if (ssid == "A") await Task.Delay(100, token);
+            return Report(ssid, ssid is "A" or "B" ? NetworkState.Healthy : NetworkState.InternetIssue);
+        }), Policy());
+        engine.WifiValidationTimeout = TimeSpan.FromMilliseconds(30);
+        engine.FullProbeTimeout = TimeSpan.FromSeconds(1);
+        engine.Start();
+        await engine.CheckNowAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(new[] { "A" }, wifi.ConnectAttempts);
+        Assert.Equal(0, engine.FailureStreak);
+    }
+
+    [Fact]
+    public async Task 停止监控会立即取消等待地址配置而不继续换网()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ConnectSucceedsFor.UnionWith(["A", "B"]);
+        using var engine = Engine(wifi, new((ssid, _) =>
+        {
+            if (ssid == "A") entered.TrySetResult();
+            return Task.FromResult(Report(ssid, ssid == "A" ? NetworkState.Disconnected : NetworkState.InternetIssue));
+        }), Policy());
+        engine.SsidPollInterval = TimeSpan.FromSeconds(10);
+        engine.Start();
+        var check = engine.CheckNowAsync();
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        engine.Stop();
+        await check.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.False(engine.IsChecking);
+        Assert.Equal(new[] { "A" }, wifi.ConnectAttempts);
+    }
+
+    [Fact]
+    public async Task SSID已关联但IP尚未就绪时等待同一网络而不立即切走()
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ConnectSucceedsFor.UnionWith(["A", "B"]);
+        var attempts = 0;
+        var tester = new ScriptedTester((ssid, _) => Task.FromResult(Report(ssid, ssid switch
+        {
+            "A" => ++attempts == 1 ? NetworkState.Disconnected : NetworkState.Healthy,
+            "B" => NetworkState.Healthy,
+            _ => NetworkState.InternetIssue
+        })));
+        using var engine = Engine(wifi, tester, Policy());
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal(new[] { "A" }, wifi.ConnectAttempts);
+        Assert.Equal(2, attempts);
+        Assert.Equal(0, engine.FailureStreak);
+    }
+
+    [Fact]
+    public async Task 地址持续未就绪时单个候选超时后继续备用网络()
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ConnectSucceedsFor.UnionWith(["A", "B"]);
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid,
+            ssid == "A" ? NetworkState.Disconnected : ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
+        engine.WifiValidationTimeout = TimeSpan.FromMilliseconds(40);
+        engine.Start();
+        await engine.CheckNowAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(new[] { "A", "B" }, wifi.ConnectAttempts);
+        Assert.Equal("B", wifi.CurrentSsid);
+    }
+
+    [Fact]
     public async Task 长期连接后的备用网络需要刷新扫描才能连接()
     {
         var wifi = new FakeWifiClient { CurrentSsid = "Home" };

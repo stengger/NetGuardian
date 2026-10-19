@@ -438,11 +438,40 @@ public sealed class MonitoringEngine : IDisposable
     private async Task<bool> ConnectAndValidateAsync(MonitorPolicy policy, string ssid, TimeSpan timeout, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (!await _wifi.ConnectAsync(ssid, token).WaitAsync(token) || !await WaitForSsidAsync(ssid, timeout, token)) return false;
-        var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(token).WaitAsync(token);
-        var report = await ProbeAsync(policy, ssid, diagnostics, token);
-        token.ThrowIfCancellationRequested();
-        return report.Ok;
+        if (!await _wifi.ConnectAsync(ssid, token).WaitAsync(token))
+        {
+            Raise(EngineEventKind.CheckError, $"连接网络“{ssid}”的请求失败：{_wifi.LastConnectionFailure ?? "系统未提供原因。"}");
+            return false;
+        }
+        using var deadline = new CancellationTokenSource(timeout);
+        using var validation = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
+        var validationToken = validation.Token;
+        try
+        {
+            if (!await WaitForSsidAsync(ssid, timeout, validationToken)) return false;
+            while (true)
+            {
+                var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(validationToken).WaitAsync(validationToken);
+                // 公网探测保留独立预算，不能被已结束的地址等待预算截断。
+                var report = await ProbeAsync(policy, ssid, diagnostics, token);
+                token.ThrowIfCancellationRequested();
+                if (report.Ok) return true;
+                // 关联先于 DHCP 完成；仅地址未就绪允许等待，已确认的上游故障继续换网。
+                if (report.State != NetworkState.Disconnected)
+                {
+                    Raise(EngineEventKind.CheckError, $"网络“{ssid}”连接后校验失败：{report.State}，{report.Summary}");
+                    return false;
+                }
+                await DelayAsync(SsidPollInterval > TimeSpan.Zero ? SsidPollInterval : TimeSpan.FromMilliseconds(1), validationToken);
+                var actualSsid = await _wifi.GetCurrentSsidAsync(validationToken).WaitAsync(validationToken);
+                if (!RecoveryPlanner.SsidEquals(actualSsid, ssid)) return false;
+            }
+        }
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !token.IsCancellationRequested)
+        {
+            Raise(EngineEventKind.CheckError, $"网络“{ssid}”在 {timeout.TotalSeconds:g} 秒内未完成关联或地址配置。");
+            return false;
+        }
     }
 
     private async Task<ConnectivityReport> ProbeAsync(MonitorPolicy policy, string? ssid,
