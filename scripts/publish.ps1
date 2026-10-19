@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $out = if ($OutputDirectory) { [IO.Path]::GetFullPath($OutputDirectory) } else { Join-Path $root 'dist\NetGuardian' }
 & $dotnet restore (Join-Path $root 'NetGuardian.sln') --configfile (Join-Path $root 'NuGet.Config')
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-& $dotnet test (Join-Path $root 'tests\NetGuardian.Tests\NetGuardian.Tests.csproj') --no-restore --configuration Release --verbosity minimal
+& $dotnet test (Join-Path $root 'NetGuardian.sln') --no-restore --configuration Release --verbosity minimal
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $projects = @(
     @{ Path = 'src\NetGuardian.App\NetGuardian.App.csproj'; Output = $out },
