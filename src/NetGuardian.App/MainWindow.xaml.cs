@@ -16,6 +16,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
+using NetGuardian.App.Presentation;
 using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Logging;
@@ -48,6 +49,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly IConnectivityTester _connectivityTester;
     private readonly ISystemCommandRunner _commandRunner;
     private MonitoringLease? _monitorLease;
+    private PolicyEditFeedback? _policyFeedback;
     private readonly ILogSink _fileLog;
     private readonly EventJournal _journal;
     private readonly Wpf.Ui.ISnackbarService _snackbar;
@@ -109,6 +111,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _speedTester = speedTester;
 
         InitializeComponent();
+        WifiListsGrid.SizeChanged += (_, _) => ResponsiveLayout.ApplyWifi(this);
         _isFirstRun = !File.Exists(_store.Path);
         _settings = _store.Load();
         _localizer.SetLanguage(_settings.Language);
@@ -160,6 +163,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _notifyIcon = CreateNotifyIcon();
         ApplySettingsToUi();
         ApplyLanguage();
+        _policyFeedback = new PolicyEditFeedback(PolicyPanel, PolicyStatusText, _localizer, CapturePolicyInputs);
         InitializeDnsControls();
         ResetQualityUi();
         InitializeSpeedTest();
@@ -384,15 +388,17 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void SavePolicy_Click(object sender, RoutedEventArgs e)
     {
-        SavePolicyFromUi();
-        SaveSettings();
+        var candidate = ReadPolicyFromUi();
+        _settings.Profiles = _profiles.ToList();
+        PolicySaveTransaction.Commit(_settings, candidate, snapshot => _store.Save(snapshot));
+        ApplySettingsToUi();
         _engine.UpdateSchedule();
         var status = string.Format(
             _localizer.T("PolicySavedDetails"),
             FormatDuration(TimeSpan.FromSeconds(_settings.Policy.CheckIntervalSeconds)),
             _settings.Policy.ConsecutiveFailuresBeforeRecovery,
             FormatDuration(TimeSpan.FromSeconds(_settings.Policy.RecoveryCooldownSeconds)));
-        PolicyStatusText.Text = status;
+        _policyFeedback?.MarkSaved(status);
         Log(status);
         ShowFeedback(_localizer.T("PolicySavedTitle"), status, FeedbackSeverity.Success);
         UpdateMonitorStatus();
@@ -647,12 +653,16 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task StartMonitoringAsync()
     {
-        SavePolicyFromUi();
+        // 开始监控始终使用已保存策略，不隐式应用表单中的未保存编辑。
         _monitorLease ??= MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
         if (_monitorLease is null)
         {
-            Log("后台守护已接管，或无法取得机器级控制锁；界面不会同时切换网络。");
-            ShowFeedback("后台守护", "后台独立监控网络。此处保存的配置将在五秒内加载。", FeedbackSeverity.Warning);
+            var background = GuardianStatusStore.Read(GuardianPaths.MachineDirectory);
+            var presentation = MonitorStatusPresentation.Create(false, false, background, DateTimeOffset.UtcNow, _localizer);
+            var message = _localizer.T(presentation.HasBackground ? "BackgroundAlreadyActiveHint" : "MonitorLeaseUnavailableHint");
+            Log(message);
+            ShowFeedback(_localizer.T(presentation.HasBackground ? "BackgroundMonitoring" : "MonitorLeaseUnavailable"), message, FeedbackSeverity.Warning);
+            UpdateMonitorStatus();
             return;
         }
         _engine.Start();
@@ -1706,6 +1716,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ApplySettingsToUi()
     {
+        using var policyLoading = _policyFeedback?.SuppressChanges();
         SetTimeFields(_settings.Policy.CheckIntervalSeconds, IntervalTextBox, IntervalUnitComboBox);
         SetTimeFields(_settings.Policy.RecoveryCooldownSeconds, CooldownTextBox, CooldownUnitComboBox);
         FailuresTextBox.Value = _settings.Policy.ConsecutiveFailuresBeforeRecovery;
@@ -1732,26 +1743,44 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SelectComboByTag(comboBox, unit.ToString());
     }
 
-    private void SavePolicyFromUi()
+    private MonitorPolicy ReadPolicyFromUi()
     {
-        _settings.Policy.CheckIntervalSeconds = ReadTimeSeconds(IntervalTextBox, IntervalUnitComboBox, _settings.Policy.CheckIntervalSeconds);
-        _settings.Policy.RecoveryCooldownSeconds = ReadTimeSeconds(CooldownTextBox, CooldownUnitComboBox, _settings.Policy.RecoveryCooldownSeconds);
+        // 在独立候选上编辑，磁盘写入成功前不改变引擎正在读取的策略对象。
+        var policy = System.Text.Json.JsonSerializer.Deserialize<MonitorPolicy>(System.Text.Json.JsonSerializer.Serialize(_settings.Policy))!;
+        policy.CheckIntervalSeconds = ReadTimeSeconds(IntervalTextBox, IntervalUnitComboBox, policy.CheckIntervalSeconds);
+        policy.RecoveryCooldownSeconds = ReadTimeSeconds(CooldownTextBox, CooldownUnitComboBox, policy.RecoveryCooldownSeconds);
 
         if (FailuresTextBox.Value is double failures)
         {
-            _settings.Policy.ConsecutiveFailuresBeforeRecovery = (int)Math.Round(failures);
+            policy.ConsecutiveFailuresBeforeRecovery = (int)Math.Round(failures);
         }
 
-        _settings.Policy.EnableAutoSwitch = AutoSwitchCheckBox.IsChecked == true;
-        _settings.Policy.EnableCurrentWifiReconnect = SoftReconnectCheckBox.IsChecked == true;
-        _settings.Policy.EnableWifiAdapterAutoEnable = WifiAutoEnableCheckBox.IsChecked == true;
-        _settings.Policy.EnableDnsFlush = DnsFlushCheckBox.IsChecked == true;
-        _settings.Policy.EnableHighRiskRecovery = HighRiskCheckBox.IsChecked == true;
-        _settings.Policy.DnsProbeHosts = ParseProbeHosts(DnsProbeHostsTextBox.Text);
-        _settings.Policy.HttpsProbeHosts = ParseProbeHosts(HttpsProbeHostsTextBox.Text);
-        _settings.Policy.Normalize();
-        ApplySettingsToUi();
+        policy.EnableAutoSwitch = AutoSwitchCheckBox.IsChecked == true;
+        policy.EnableCurrentWifiReconnect = SoftReconnectCheckBox.IsChecked == true;
+        policy.EnableWifiAdapterAutoEnable = WifiAutoEnableCheckBox.IsChecked == true;
+        policy.EnableDnsFlush = DnsFlushCheckBox.IsChecked == true;
+        policy.EnableHighRiskRecovery = HighRiskCheckBox.IsChecked == true;
+        policy.DnsProbeHosts = ParseProbeHosts(DnsProbeHostsTextBox.Text);
+        policy.HttpsProbeHosts = ParseProbeHosts(HttpsProbeHostsTextBox.Text);
+        policy.Normalize();
+        return policy;
     }
+
+    private string CapturePolicyInputs() => System.Text.Json.JsonSerializer.Serialize(new
+    {
+        IntervalTextBox.Value,
+        IntervalUnit = (IntervalUnitComboBox.SelectedItem as ComboBoxItem)?.Tag,
+        Failures = FailuresTextBox.Value,
+        Cooldown = CooldownTextBox.Value,
+        CooldownUnit = (CooldownUnitComboBox.SelectedItem as ComboBoxItem)?.Tag,
+        AutoSwitchCheckBox.IsChecked,
+        Reconnect = SoftReconnectCheckBox.IsChecked,
+        AutoEnable = WifiAutoEnableCheckBox.IsChecked,
+        FlushDns = DnsFlushCheckBox.IsChecked,
+        HighRisk = HighRiskCheckBox.IsChecked,
+        Dns = DnsProbeHostsTextBox.Text,
+        Https = HttpsProbeHostsTextBox.Text
+    });
 
     private static int ReadTimeSeconds(Wpf.Ui.Controls.NumberBox numberBox, ComboBox comboBox, int fallback)
     {
@@ -1838,6 +1867,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         DnsEmptyText.Text = _localizer.T("NoDnsRows");
         AdapterEmptyText.Text = _localizer.T("NoAdapterRows");
         QualityEmptyText.Text = _localizer.T("NoQualityRows");
+        ((CredentialStatusConverter)Resources["CredentialStatusConverter"]).Localizer = _localizer;
+        ProfileGrid.Items.Refresh();
         NearbySsidColumn.Header = _localizer.T("Ssid");
         NearbySignalColumn.Header = _localizer.T("Signal");
         NearbySecurityColumn.Header = _localizer.T("Security");
@@ -1863,6 +1894,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProbeTargetsTipText.Text = _localizer.T("ProbeTargetsTip");
         FirstRunGuideText.Text = _localizer.T("FirstRunGuide");
         SavePolicyButton.Content = _localizer.T("Save");
+        _policyFeedback?.RefreshLanguage();
         ToolsTitle.Text = _localizer.T("SystemNetworkTools");
         ToolsCheckButton.Content = _localizer.T("CheckNow");
         ToolsScanButton.Content = _localizer.T("Scan");
@@ -2048,27 +2080,28 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void UpdateMonitorStatus()
     {
         var background = GuardianStatusStore.Read(GuardianPaths.MachineDirectory);
-        if (!_engine.IsMonitoring && background is { State: not "Stopped" } && DateTimeOffset.UtcNow - background.HeartbeatAt < TimeSpan.FromSeconds(30))
+        var presentation = MonitorStatusPresentation.Create(_engine.IsMonitoring, _engine.IsChecking, background, DateTimeOffset.UtcNow, _localizer);
+        MonitorStateText.Text = presentation.OwnerText;
+        HeaderStateText.Text = presentation.ActivityText;
+        System.Windows.Automation.AutomationProperties.SetName(StatusDot, presentation.ActivityText);
+        StatusDot.Fill = ThemeBrush(presentation.BrushKey);
+        HeaderStateText.ToolTip = presentation.Hint;
+        StartMonitorButton.ToolTip = presentation.Hint;
+        StopButton.ToolTip = presentation.Hint;
+        System.Windows.Controls.ToolTipService.SetShowOnDisabled(StartMonitorButton, true);
+        System.Windows.Controls.ToolTipService.SetShowOnDisabled(StopButton, true);
+        StartMonitorButton.Content = _localizer.T(_engine.IsMonitoring ? "Monitoring" : "StartMonitor");
+        StartMonitorButton.IsEnabled = presentation.CanStart;
+        StopButton.IsEnabled = presentation.CanStop;
+        if (presentation.HasBackground && background is not null)
         {
-            MonitorStateText.Text = "后台守护运行中";
-            HeaderStateText.Text = background.IsChecking ? _localizer.T("Checking") : _localizer.T("Ready");
             if (background.Report is { } report) ApplyReport(report);
             FailureStreakText.Text = background.FailureStreak.ToString();
-            StopButton.IsEnabled = false;
-            StartMonitorButton.IsEnabled = false;
+            NextCheckText.Text = background.NextCheckAt.HasValue
+                ? FormatDuration(background.NextCheckAt.Value > DateTimeOffset.Now ? background.NextCheckAt.Value - DateTimeOffset.Now : TimeSpan.Zero)
+                : "—";
             return;
         }
-        var monitorState = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("Stopped");
-        var activityState = _engine.IsChecking ? _localizer.T("Checking") : _localizer.T("Ready");
-        MonitorStateText.Text = monitorState;
-        HeaderStateText.Text = activityState;
-        System.Windows.Automation.AutomationProperties.SetName(StatusDot, activityState);
-        StatusDot.Fill = _engine.IsChecking
-            ? ThemeBrush("StatusWarningBrush")
-            : ThemeBrush("TextFillColorTertiaryBrush");
-        StartMonitorButton.Content = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
-        StartMonitorButton.IsEnabled = !_engine.IsMonitoring || !_engine.IsChecking;
-        StopButton.IsEnabled = _engine.IsMonitoring;
         FailureStreakText.Text = _engine.FailureStreak.ToString();
 
         if (_engine.IsMonitoring && _engine.NextCheckAt.HasValue)

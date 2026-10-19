@@ -17,6 +17,20 @@ public class WebsiteUrlTests
 
 public class LocalizationTests
 {
+    [Theory]
+    [InlineData("zh-CN")]
+    [InlineData("en-US")]
+    public void 空状态错误和确认文案不能显示内部资源键(string language)
+    {
+        var localizer = new Localizer();
+        localizer.SetLanguage(language);
+        foreach (var key in new[] { "ActionFailedTitle", "NoAdapterRows", "NoDnsRows", "NoIpInfoRows", "NoQualityRows", "NoReportRows", "NoWebsiteRows", "ScheduledStartupDisableConfirmMessage", "ScheduledStartupDisableConfirmTitle", "Undo", "UnhandledErrorMessage", "UnhandledErrorTitle", "WifiProfileDeletedMessage", "WifiProfileDeletedTitle" })
+        {
+            Assert.Contains(key, localizer.KeysForLanguage(language));
+            Assert.False(string.IsNullOrWhiteSpace(localizer.T(key)));
+        }
+    }
+
     [Fact]
     public void SupportedLanguages_AreChineseAndEnglish()
     {

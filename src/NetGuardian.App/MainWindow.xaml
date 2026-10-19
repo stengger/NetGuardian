@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:views="clr-namespace:NetGuardian.App.Views"
+        xmlns:presentation="clr-namespace:NetGuardian.App.Presentation"
         Title="NetGuardian"
         Icon="Assets/app.ico"
         Width="1180"
@@ -16,6 +17,7 @@
         StateChanged="Window_StateChanged">
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <presentation:CredentialStatusConverter x:Key="CredentialStatusConverter" />
         <Style x:Key="SectionBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
@@ -46,6 +48,8 @@
             <Setter Property="HorizontalContentAlignment" Value="Center" />
         </Style>
         <Style x:Key="GridTextStyle" TargetType="TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
             <Setter Property="VerticalAlignment" Value="Center" />
             <Setter Property="Margin" Value="10,0" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -133,6 +137,10 @@
                             <Trigger Property="IsPressed" Value="True">
                                 <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                                <Setter TargetName="Chrome" Property="BorderThickness" Value="2" />
                             </Trigger>
                             <Trigger Property="IsEnabled" Value="False">
                                 <Setter TargetName="Chrome" Property="Opacity" Value="0.52" />
@@ -252,7 +260,7 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
                     <Border x:Name="HeaderStatusPill" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,14,0">
                         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="Red" Margin="0,0,8,0" />
+                            <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,8,0" />
                             <TextBlock x:Name="HeaderStateText" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
                         </StackPanel>
                     </Border>
@@ -354,18 +362,22 @@
                         <TextBlock x:Name="CurrentWifiSelectionText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </Border>
                     <TextBlock x:Name="DragHintText" Grid.Row="2" Margin="0,0,0,12" Opacity="0.72" TextWrapping="Wrap" />
-                    <Grid Grid.Row="3">
+                    <Grid x:Name="WifiListsGrid" Grid.Row="3">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="1.05*" />
                             <ColumnDefinition Width="1.25*" />
                         </Grid.ColumnDefinitions>
-                        <Border Margin="0,0,10,0" Style="{StaticResource SectionBorderStyle}">
+                        <Border x:Name="NearbyNetworksCard" Grid.ColumnSpan="2" Margin="0,0,0,12" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="NearbyNetworksTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
                                 <TextBlock x:Name="NearbyEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
                                 <DataGrid x:Name="NearbyGrid" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTextColumn x:Name="NearbySecurityColumn" Binding="{Binding Authentication}" Width="140" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTemplateColumn x:Name="NearbyPriorityColumn" Width="108" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
@@ -393,19 +405,25 @@
                                 </DataGrid>
                             </DockPanel>
                         </Border>
-                        <Border Grid.Column="1" Margin="10,0,0,0" Style="{StaticResource SectionBorderStyle}">
+                        <Border x:Name="PriorityNetworksCard" Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="PriorityListTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
                                 <TextBlock x:Name="ProfileEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
                                 <DataGrid x:Name="ProfileGrid" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" IsReadOnly="True" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
-                                        <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="74" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTemplateColumn x:Name="ProfileCredentialColumn" IsReadOnly="True" Width="88" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <ui:ToggleSwitch IsChecked="{Binding CredentialSaved}" IsEnabled="False" HorizontalAlignment="Center" />
+                                                    <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="{Binding CredentialSaved, Converter={StaticResource CredentialStatusConverter}, ConverterParameter=hint}">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource GridCenteredTextStyle}">
+                                                                <Setter Property="Text" Value="{Binding CredentialSaved, Converter={StaticResource CredentialStatusConverter}}" />
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -425,7 +443,13 @@
                 </Grid>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="PolicyPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
-                    <StackPanel MaxWidth="720" HorizontalAlignment="Left">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,8">
+                        <StackPanel MaxWidth="720" HorizontalAlignment="Left">
                         <TextBlock x:Name="PolicyTitle" />
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
@@ -474,9 +498,15 @@
                         <TextBlock x:Name="HttpsProbeHostsLabel" Margin="0,10,0,4" />
                         <TextBox x:Name="HttpsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=HttpsProbeHostsLabel}" />
                         <TextBlock x:Name="ProbeTargetsTipText" Foreground="{DynamicResource TextFillColorTertiaryBrush}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0" />
-                        <Button x:Name="SavePolicyButton" HorizontalAlignment="Left" Margin="0,18,0,0" Click="SavePolicy_Click" />
-                        <TextBlock x:Name="PolicyStatusText" Margin="0,12,0,0" TextWrapping="Wrap" Opacity="0.78" />
-                    </StackPanel>
+                        </StackPanel>
+                        </ScrollViewer>
+                        <Border Grid.Row="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
+                            <DockPanel LastChildFill="True">
+                                <Button x:Name="SavePolicyButton" DockPanel.Dock="Right" MinWidth="96" Margin="16,0,0,0" Click="SavePolicy_Click" />
+                                <TextBlock x:Name="PolicyStatusText" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" AutomationProperties.LiveSetting="Polite" />
+                            </DockPanel>
+                        </Border>
+                    </Grid>
                 </Border>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ToolsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">

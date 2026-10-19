@@ -116,10 +116,14 @@ public partial class SpeedTestView : UserControl
 
     private void ContentPanel_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var stacked = e.NewSize.Width < 680;
+        var stacked = e.NewSize.Width < 480;
+        var compact = e.NewSize.Width < 680;
         var cards = new[] { DownloadCard, UploadCard, ResponseCard };
+        foreach (var value in new[] { DownloadValue, UploadValue, ResponseValue }) value.FontSize = compact ? 24 : 32;
+        foreach (var hint in new[] { DownloadHint, UploadHint, ResponseHint }) hint.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         for (var index = 0; index < cards.Length; index++)
         {
+            cards[index].Padding = new Thickness(compact ? 12 : 20);
             Grid.SetColumn(cards[index], stacked ? 0 : index);
             Grid.SetRow(cards[index], stacked ? index : 0);
             Grid.SetColumnSpan(cards[index], stacked ? 3 : 1);

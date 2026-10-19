@@ -72,6 +72,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
         <Grid Margin="0,0,0,18">
@@ -89,55 +90,57 @@
             </StackPanel>
         </Grid>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False"
-                      Padding="0,0,8,8" Focusable="False">
-            <StackPanel x:Name="ContentPanel" SizeChanged="ContentPanel_SizeChanged" Margin="0,2,0,0">
+        <Grid x:Name="MetricsGrid" Grid.Row="1" Margin="0,0,8,16" SizeChanged="ContentPanel_SizeChanged">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+            <Border x:Name="DownloadCard" Style="{StaticResource Card}" Margin="0,0,10,0">
+                <StackPanel>
+                    <TextBlock x:Name="DownloadLabel" Foreground="{DynamicResource SpeedDownloadBrush}" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
+                        <TextBlock x:Name="DownloadValue" Style="{StaticResource MetricValue}" />
+                        <TextBlock Text="Mbps" Style="{StaticResource MetricUnit}" />
+                    </StackPanel>
+                    <TextBlock x:Name="DownloadState" Style="{StaticResource Secondary}" />
+                    <TextBlock x:Name="DownloadHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
+                </StackPanel>
+            </Border>
+            <Border x:Name="UploadCard" Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,10,0">
+                <StackPanel>
+                    <TextBlock x:Name="UploadLabel" Foreground="{DynamicResource SpeedUploadBrush}" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
+                        <TextBlock x:Name="UploadValue" Style="{StaticResource MetricValue}" />
+                        <TextBlock Text="Mbps" Style="{StaticResource MetricUnit}" />
+                    </StackPanel>
+                    <TextBlock x:Name="UploadState" Style="{StaticResource Secondary}" />
+                    <TextBlock x:Name="UploadHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
+                </StackPanel>
+            </Border>
+            <Border x:Name="ResponseCard" Grid.Column="2" Style="{StaticResource Card}">
+                <StackPanel>
+                    <TextBlock x:Name="ResponseLabel" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
+                        <TextBlock x:Name="ResponseValue" Style="{StaticResource MetricValue}" />
+                        <TextBlock Text="ms" Style="{StaticResource MetricUnit}" />
+                    </StackPanel>
+                    <TextBlock x:Name="ResponseState" Style="{StaticResource Secondary}" />
+                    <TextBlock x:Name="ResponseHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
+                </StackPanel>
+            </Border>
+        </Grid>
 
-                <Grid x:Name="MetricsGrid" Margin="0,0,0,16">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <Border x:Name="DownloadCard" Style="{StaticResource Card}" Margin="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock x:Name="DownloadLabel" Foreground="{DynamicResource SpeedDownloadBrush}" FontWeight="SemiBold" />
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
-                                <TextBlock x:Name="DownloadValue" Style="{StaticResource MetricValue}" />
-                                <TextBlock Text="Mbps" Style="{StaticResource MetricUnit}" />
-                            </StackPanel>
-                            <TextBlock x:Name="DownloadState" Style="{StaticResource Secondary}" />
-                            <TextBlock x:Name="DownloadHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="UploadCard" Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,10,0">
-                        <StackPanel>
-                            <TextBlock x:Name="UploadLabel" Foreground="{DynamicResource SpeedUploadBrush}" FontWeight="SemiBold" />
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
-                                <TextBlock x:Name="UploadValue" Style="{StaticResource MetricValue}" />
-                                <TextBlock Text="Mbps" Style="{StaticResource MetricUnit}" />
-                            </StackPanel>
-                            <TextBlock x:Name="UploadState" Style="{StaticResource Secondary}" />
-                            <TextBlock x:Name="UploadHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
-                        </StackPanel>
-                    </Border>
-                    <Border x:Name="ResponseCard" Grid.Column="2" Style="{StaticResource Card}">
-                        <StackPanel>
-                            <TextBlock x:Name="ResponseLabel" FontWeight="SemiBold" />
-                            <StackPanel Orientation="Horizontal" Margin="0,10,0,2">
-                                <TextBlock x:Name="ResponseValue" Style="{StaticResource MetricValue}" />
-                                <TextBlock Text="ms" Style="{StaticResource MetricUnit}" />
-                            </StackPanel>
-                            <TextBlock x:Name="ResponseState" Style="{StaticResource Secondary}" />
-                            <TextBlock x:Name="ResponseHint" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
-                        </StackPanel>
-                    </Border>
-                </Grid>
+
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False"
+                      Padding="0,0,8,8" Focusable="False">
+            <StackPanel x:Name="ContentPanel" Margin="0,2,0,0">
+
 
                 <Border x:Name="ProcessCard" Style="{StaticResource Card}" Margin="0,0,0,16">
                     <StackPanel>
