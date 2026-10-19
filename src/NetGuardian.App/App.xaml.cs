@@ -45,6 +45,8 @@ public partial class App : Application
         var mainWindow = _services.GetRequiredService<MainWindow>();
         MainWindow = mainWindow;
         mainWindow.Show();
+        // 主窗口拥有 HWND 后，自动主题才能绑定系统消息监听。
+        ApplyConfiguredTheme(_services.GetRequiredService<SettingsStore>().Load().Theme);
     }
 
     /// <summary>Applies the configured theme mode: "auto" follows the OS, otherwise explicit light/dark.</summary>

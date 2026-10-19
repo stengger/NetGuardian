@@ -17,6 +17,60 @@ namespace NetGuardian.App.Tests;
 public sealed class DesktopLayoutTests
 {
     [Theory]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Light, "zh-CN")]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Light, "en-US")]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Dark, "zh-CN")]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Dark, "en-US")]
+    public void 明暗主题下设置长状态可以滚动至末尾且保留语言主题选择(Wpf.Ui.Appearance.ApplicationTheme theme, string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "SettingsPanel");
+            var localizer = new Localizer();
+            localizer.SetLanguage(language);
+            foreach (var (name, key) in new[] { ("LanguageLabel", "Language"), ("ThemeLabel", "ThemeMode"), ("TrayTitle", "Tray"), ("CloseBehaviorLabel", "CloseBehavior") })
+                ((TextBlock)window.FindName(name)).Text = localizer.T(key);
+            foreach (var (name, key) in new[] { ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
+                ((ContentControl)window.FindName(name)).Content = localizer.T(key);
+            var status = (TextBlock)window.FindName("ScheduledStartupStatusText");
+            status.Text = string.Join("\n", Enumerable.Repeat(localizer.T("DiagnosticFailed") + " 计划任务权限错误原文。", 40));
+            DesktopFixture.Layout(window, 1040, 660);
+            var scroll = (ScrollViewer)window.FindName("SettingsScrollViewer");
+            var surface = ((SolidColorBrush)window.FindResource("SurfaceCardBrush")).Color;
+            foreach (var name in new[] { "ScheduledStartupStatusText", "HighRiskTipText", "ProbeTargetsTipText", "NearbyEmptyText", "SidebarUploadUnitText" })
+            {
+                var brush = Assert.IsType<SolidColorBrush>(((TextBlock)window.FindName(name)).Foreground);
+                Assert.True(TextContrast(brush, surface) >= 4.5, $"{theme} {name} 对比度不足：{TextContrast(brush, surface):F2}:1");
+            }
+            Assert.True(scroll.ScrollableHeight > 0);
+            foreach (var name in new[] { "LanguageComboBox", "ThemeComboBox" })
+            {
+                var control = (FrameworkElement)window.FindName(name);
+                Assert.True(control.TransformToAncestor(window).TransformBounds(new Rect(control.RenderSize)).Bottom < 635);
+            }
+            scroll.ScrollToEnd();
+            window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ContextIdle);
+            window.UpdateLayout();
+            Assert.True(scroll.VerticalOffset >= scroll.ScrollableHeight - 1);
+            var bounds = status.TransformToAncestor(window).TransformBounds(new Rect(status.RenderSize));
+            Assert.True(bounds.Bottom < 635, $"状态末尾不可达：{bounds}");
+            DesktopFixture.Save(window, $"settings-long-{theme}-{language}.png");
+        }, theme);
+    }
+
+    private static double TextContrast(SolidColorBrush foreground, Color background)
+    {
+        static double Linear(double channel) => channel <= 0.04045 ? channel / 12.92 : Math.Pow((channel + 0.055) / 1.055, 2.4);
+        static double Luminance(double r, double g, double b) => 0.2126 * Linear(r) + 0.7152 * Linear(g) + 0.0722 * Linear(b);
+        var alpha = foreground.Color.A / 255d * foreground.Opacity;
+        var front = Luminance((foreground.Color.R * alpha + background.R * (1 - alpha)) / 255,
+            (foreground.Color.G * alpha + background.G * (1 - alpha)) / 255,
+            (foreground.Color.B * alpha + background.B * (1 - alpha)) / 255);
+        var back = Luminance(background.R / 255d, background.G / 255d, background.B / 255d);
+        return (Math.Max(front, back) + 0.05) / (Math.Min(front, back) + 0.05);
+    }
+
+    [Theory]
     [InlineData("Website", "zh-CN")]
     [InlineData("Website", "en-US")]
     [InlineData("IpInfo", "zh-CN")]
@@ -337,7 +391,7 @@ public sealed class DesktopLayoutTests
 // 加载产品真实主窗口 XAML，仅移除事件接线；不执行主窗口构造中的监控、网络或配置操作。
 internal static class DesktopFixture
 {
-    public static void Run(Action<Window> action)
+    public static void Run(Action<Window> action, Wpf.Ui.Appearance.ApplicationTheme theme = Wpf.Ui.Appearance.ApplicationTheme.Dark)
     {
         Exception? failure = null;
         var thread = new Thread(() =>
@@ -363,10 +417,10 @@ internal static class DesktopFixture
                 {
                     BaseUri = new Uri("pack://application:,,,/NetGuardian;component/MainWindow.xaml")
                 });
-                window.Resources.MergedDictionaries.Add(new Wpf.Ui.Markup.ThemesDictionary { Theme = Wpf.Ui.Appearance.ApplicationTheme.Dark });
+                window.Resources.MergedDictionaries.Add(new Wpf.Ui.Markup.ThemesDictionary { Theme = theme });
                 window.Resources.MergedDictionaries.Add(new Wpf.Ui.Markup.ControlsDictionary());
                 window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/NetGuardian;component/Themes/Tokens.Common.xaml") });
-                window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/NetGuardian;component/Themes/Palette.Dark.xaml") });
+                window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri($"pack://application:,,,/NetGuardian;component/Themes/Palette.{(theme == Wpf.Ui.Appearance.ApplicationTheme.Light ? "Light" : "Dark")}.xaml") });
                 // 原窗口使用原生 Mica；离屏位图需以同主题实色衬底合成半透明控件。
                 ((Panel)window.Content).Background = (Brush)window.FindResource("ApplicationBackgroundBrush");
                 SetLabels(window);
