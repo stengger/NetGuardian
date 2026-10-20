@@ -1,6 +1,8 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Automation.Peers;
+using System.Windows.Media;
+using NetGuardian.Core.Localization;
 using NetGuardian.Core.Models;
 using Xunit;
 
@@ -9,6 +11,44 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class SmallWorkAreaTests
 {
+    [Theory]
+    [InlineData(1180, 760, "zh-CN", false)]
+    [InlineData(1180, 760, "en-US", true)]
+    [InlineData(960, 500, "zh-CN", true)]
+    [InlineData(960, 500, "en-US", false)]
+    public void 无线操作反馈和列表归属于一致的页面内容表面(double width, double height, string language, bool light)
+    {
+        DesktopFixture.Run(window =>
+        {
+            window.MinWidth = 960; window.MinHeight = 500;
+            DesktopFixture.ShowPage(window, "WifiPanel");
+            ApplyWifiLabels(window, language);
+            DesktopFixture.Layout(window, width, height);
+            var page = (FrameworkElement)window.FindName("WifiPanel");
+            var action = (FrameworkElement)window.FindName("ScanButton");
+            var surfaces = new List<Border>();
+            for (DependencyObject? current = VisualTreeHelper.GetParent(action); current is not null; current = VisualTreeHelper.GetParent(current))
+            {
+                if (current is Border border && border.Background is SolidColorBrush brush && brush.Color.A > 0 && border.Padding.Left >= 16)
+                    surfaces.Add(border);
+                if (ReferenceEquals(current, page)) break;
+            }
+            var surface = Assert.Single(surfaces);
+            var reference = (Border)window.FindName("ToolsPanel");
+            Assert.Equal(((SolidColorBrush)reference.Background).Color, ((SolidColorBrush)surface.Background).Color);
+            Assert.Equal(reference.Padding, surface.Padding);
+            foreach (var name in new[] { "ScanButton", "ConnectButton", "WifiSelectionBar", "NearbyNetworksCard", "PriorityNetworksCard" })
+            {
+                var child = (FrameworkElement)window.FindName(name);
+                var bounds = child.TransformToAncestor(surface).TransformBounds(new Rect(child.RenderSize));
+                Assert.True(bounds.Left >= surface.Padding.Left && bounds.Right <= surface.ActualWidth - surface.Padding.Right + 1
+                    && bounds.Top >= surface.Padding.Top && bounds.Bottom <= surface.ActualHeight - surface.Padding.Bottom + 1,
+                    $"{name} 没有完整归属内容表面：{bounds}；表面={surface.RenderSize}");
+            }
+            DesktopFixture.Save(window, $"wifi-page-surface-{width}-{language}-{light}.png");
+        }, light ? Wpf.Ui.Appearance.ApplicationTheme.Light : Wpf.Ui.Appearance.ApplicationTheme.Dark);
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -50,13 +90,16 @@ public sealed class SmallWorkAreaTests
         });
     }
 
-    [Fact]
-    public void 短窗口无线列表至少可以显示一个完整结果行()
+    [Theory]
+    [InlineData("zh-CN")]
+    [InlineData("en-US")]
+    public void 短窗口无线列表至少可以显示一个完整结果行(string language)
     {
         DesktopFixture.Run(window =>
         {
             window.MinWidth = 960; window.MinHeight = 500;
             DesktopFixture.ShowPage(window, "WifiPanel");
+            ApplyWifiLabels(window, language);
             ((DataGrid)window.FindName("NearbyGrid")).ItemsSource = new[] { new WifiNetwork("完整的长网络名称-5GHz", 85, "WPA2-PSK", "AES", true, true) };
             ((DataGrid)window.FindName("ProfileGrid")).ItemsSource = new[] { new WifiProfile { Ssid = "完整的长网络名称-5GHz", Priority = 1, Enabled = true } };
             DesktopFixture.Layout(window, 960, 500);
@@ -76,9 +119,31 @@ public sealed class SmallWorkAreaTests
                 var cellBounds = lastCell.TransformToAncestor(grid).TransformBounds(new Rect(lastCell.RenderSize));
                 Assert.True(scroll.HorizontalOffset > 0 && cellBounds.Left >= 0 && cellBounds.Right <= grid.ActualWidth,
                     $"{name} 最后一列无法通过横向滚动读取：{cellBounds}；表宽={grid.ActualWidth}，偏移={scroll.HorizontalOffset}，可滚宽={scroll.ScrollableWidth}，视口={scroll.ViewportWidth}");
+                scroll.ScrollToLeftEnd(); window.UpdateLayout();
             }
-            DesktopFixture.Save(window, "small-workarea-wifi-with-data.png");
+            DesktopFixture.Save(window, $"small-workarea-wifi-with-data-{language}.png");
         });
+    }
+
+    private static void ApplyWifiLabels(Window window, string language)
+    {
+        var localizer = new Localizer(); localizer.SetLanguage(language);
+        foreach (var name in new[] { "ScanButton", "AddSelectedButton", "SetPasswordButton", "ImportPasswordButton", "AddManualButton", "MoveUpButton", "MoveDownButton", "RemoveButton", "ConnectButton" })
+            ((Button)window.FindName(name)).Content = localizer.T(name switch
+            {
+                "ScanButton" => "Scan", "AddSelectedButton" => "AddSelected", "SetPasswordButton" => "SetPassword",
+                "ImportPasswordButton" => "ImportPassword", "AddManualButton" => "AddManual", "MoveUpButton" => "MoveUp",
+                "MoveDownButton" => "MoveDown", "RemoveButton" => "Remove", _ => "Connect"
+            });
+        foreach (var (name, key) in new[] { ("PageTitleText", "Wifi"), ("NearbyNetworksTitle", "NearbyNetworks"),
+            ("PriorityListTitle", "PriorityList"), ("CurrentWifiSelectionText", "SelectWifiFirst"),
+            ("DragHintText", "DoubleClickWifiHint"), ("WifiScanStatusText", "NoNearbyWifiRows") })
+            ((TextBlock)window.FindName(name)).Text = localizer.T(key);
+        foreach (var (name, key) in new[] { ("NearbySsidColumn", "Ssid"), ("NearbySignalColumn", "Signal"),
+            ("NearbySecurityColumn", "Security"), ("NearbyPriorityColumn", "PriorityState"), ("ProfileSsidColumn", "Ssid"),
+            ("ProfilePriorityColumn", "Priority"), ("ProfileCredentialColumn", "CredentialSaved"),
+            ("ProfileEnabledColumn", "Enabled"), ("ProfileFailuresColumn", "Failures") })
+            ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
     }
 
     [Fact]

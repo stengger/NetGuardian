@@ -71,3 +71,7 @@ ScriptStackTrace: install-ui-update-5089dee.ps1 第 23 行；run-elevated-ui-upd
 清理后保留 `dist/NetGuardian`（标准完整包）、`dist/NetGuardian-UI-Update-5089dee`（当前界面更新包）、`.dotnet-home/validation/product-ui/installed-ui-backup-5089dee`（唯一旧界面回退，内容为40dcb64）。以上各保留目录和实际安装目录的 11 文件再次全部匹配各自清单，退出 0。已安装 EXE 的 DPI 清单独立检查通过，退出 0；输出 `installed-5089dee-manifest.xml`。
 
 本轮只执行已验证包的安装、同步及清理，未改业务源码，未重复无关测试。真实字体观感仍需重新打开安装版后核对，不能将之前用户对旧版本的视觉确认套用于新字体。整体产品目标继续有效。
+
+## 实际字体观感确认
+
+在后续 `0dfe4c8` 安装完成（包含 `5089dee` 字体修复）后，用户对“请重新打开 NetGuardian，确认中文字体现在是否自然”的验收问题明确回复“字体正常了”。因此中文字体实际观感这一项已得到用户确认；该反馈不替代高缩放全页、实际主题切换或讲述人验收。
