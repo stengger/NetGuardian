@@ -59,3 +59,15 @@ ScriptStackTrace: install-ui-update-5089dee.ps1 第 23 行；run-elevated-ui-upd
 ```
 
 此为预检后状态变化，不能绕过互斥或误报更新成功。独立复核安装仍为 `40dcb64`，11 文件与旧清单一致，无本轮备份目录；输出 `font-install-deferred-check.json`，退出 0。已请求用户从托盘退出后回复，待回复后继续安装，不重复发起 UAC。
+
+## 用户退出后安装成功及旧包清理
+
+用户确认“已退出”，并授权清理无必要的旧版本应用。复核互斥可用、无界面进程后重试管理员更新，进程退出 0，成功安装 `5089dee19c7393d548b556f078146097dcc6a91b`。独立检查安装 11 文件哈希一致，上一版本 `40dcb64` 回退备份 11 文件亦与其清单一致；结果 `font-installed-check.json`。本轮成功日志覆盖了同名 `install-ui-update-5089dee-elevated.log`，首次失败完整输出仍见本聊天工具记录，前节保留原因及堆栈摘要。
+
+`dist/NetGuardian` 仍被 `scripts/start-netguardian.ps1`、`publish.ps1` 和 `register-netguardian-task.ps1` 使用，不能作为无用旧包删除；已将其界面根文件同步为当前 `5089dee` 并按哈希复核，避免启动脚本运行旧界面。其 guardian 子目录和实际安装的后台两文件哈希保持不变。
+
+按用户清理授权，逐一验证绝对路径位于工作区、不是重解析点且不包含受 Git 跟踪文件后，使用 PowerShell Remove-Item -LiteralPath 递归清除 7 个旧 UI 发布目录与 3 个旧界面备份，共 10 目录、125 文件、87,858,983 字节（83.79 MiB）。明细及执行结果分别为 `.dotnet-home/validation/product-ui/obsolete-ui-cleanup-targets.json` 和 `obsolete-ui-cleanup-result.json`，退出 0。没有清理源码、后台目录、配置、测试或构建工具缓存。
+
+清理后保留 `dist/NetGuardian`（标准完整包）、`dist/NetGuardian-UI-Update-5089dee`（当前界面更新包）、`.dotnet-home/validation/product-ui/installed-ui-backup-5089dee`（唯一旧界面回退，内容为40dcb64）。以上各保留目录和实际安装目录的 11 文件再次全部匹配各自清单，退出 0。已安装 EXE 的 DPI 清单独立检查通过，退出 0；输出 `installed-5089dee-manifest.xml`。
+
+本轮只执行已验证包的安装、同步及清理，未改业务源码，未重复无关测试。真实字体观感仍需重新打开安装版后核对，不能将之前用户对旧版本的视觉确认套用于新字体。整体产品目标继续有效。
