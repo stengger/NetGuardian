@@ -34,3 +34,11 @@
 生产窗口原始 MinWidth / MinHeight 仍为 1040 / 660；仅在工作区不足时动态降低。不能把本次注入工作区、物理边界测试描述成真实多显示器或 200% 缩放验收。前轮部分页面的 960×500 内容测试不等于所有页面都已在任意小工作区可达。
 
 实际跨屏 DPI、贴靠、最大化及断接屏幕、讲述人、系统主题消息链和各页高缩放内容仍待验收；同 DPI 的非交互跨屏移动也应在后续实机验收中覆盖。整体产品目标未完成。本轮源代码提交和已安装版本应分别记录，不把构建结果当成已部署。
+
+## 发布、安装与过期包清理
+
+源码提交 `0dfe4c8885cda392fad12eb7331c7dac6d21433f`（修复小工作区窗口越界并补足生命周期验证）后，运行 `dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output dist/NetGuardian-UI-Update-0dfe4c8` 加其余公共参数，退出 0，2 条既有 WFAC010；完整日志 `window-workarea-publish.log`。发布根文件名与此前 11 文件白名单完全一致，生成逐文件 SHA-256 安装清单及带 BOM 的管理员更新脚本，语法检查通过。
+
+预检 Global\NetGuardian.UI 互斥可用、界面进程数 0、目标备份不存在。按用户既有替换授权执行一次管理员更新，退出 0；日志 `install-ui-update-0dfe4c8-elevated.log`。`C:\Program Files\NetGuardian` 安装 11 文件和清单与包一致，回退备份 11 文件确认为上一安装版 `5089dee`。标准启动包 `dist/NetGuardian` 界面文件同步为当前版本，guardian 子目录及实际安装的后台两文件哈希保持不变。独立安装复核 `window-workarea-installed-check.json`，退出 0；已安装 EXE 嵌入的 PerMonitorV2 清单复核退出 0，输出 `installed-0dfe4c8-manifest.xml`。本流程没有启动或操控真实业务窗口，不宣称已验收实际界面。
+
+继续执行用户清理无必要旧版本的授权：每个解析后绝对目录均位于当前工作区、无重解析点且无 Git 跟踪文件，才使用 PowerShell Remove-Item -LiteralPath 递归删除。清除 `dist/NetGuardian-UI-Update-5089dee` 和内容为 `40dcb64` 的 `installed-ui-backup-5089dee`，共 2 目录、24 文件、17,548,198 字节（16.74 MiB）。清理前明细及结果分别为 `window-workarea-cleanup-targets.json`、`window-workarea-cleanup-result.json`，退出 0。保留当前更新包、标准完整包和唯一的 `installed-ui-backup-0dfe4c8`（内容为 `5089dee`）回退备份；清理后保留的三个目录及实际安装目录全部按各自清单复核 11 文件通过。未改用户原有验收文档、配置和后台。
