@@ -45,6 +45,8 @@ SDK `E:\Environment\dotnet-sdk-8.0\dotnet.exe`，初始化脚本与工作区 TEM
 
 独立只读审查未发现阻塞问题；审查提出的真实页面/标题同步及 provider 验证缺口已补充。
 
+源码提交 `223c890`。`dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false` 加公共参数及独立 output 成功，退出 0（`panel-navigation-publish.log`）；新包 `dist/NetGuardian-UI-Update-223c890` 含本轮导航及此前弹窗、托盘修复，11 文件 SHA-256 清单独立复核通过。`install-ui-update-223c890.ps1` 使用独立备份路径，保留 UTF-8 BOM，语法检查通过。安装标识仍为 `2772296`，11 个现有安装文件与旧清单一致；本轮未启动更新。上述独立校验退出 0。
+
 ## 验收边界与风险
 
 当前自动化树针对固定九项平面导航，未来动态、嵌套项或库模板升级须重新评估。保留菜单滚动条 peer，没有为整个导航额外承诺完整 Scroll pattern。键盘路由事件和反射调用 OnClick 只证明控件入口，未验证硬件输入、真实指针、讲述人端到端、系统高对比或跨屏 DPI。
