@@ -46,3 +46,16 @@ SDK `E:\Environment\dotnet-sdk-8.0\dotnet.exe`；执行 `scripts/initialize-buil
 一次预览 dotnet run 在全量测试会话完成确认前启动，两者都成功退出，未发现文件冲突；后续构建按顺序执行。后续不得以这次无冲突结果为并行构建提供依据。
 
 独立只读审查无阻塞。当前测试固定字符及 Normal 字重，依赖本机已经验证存在的微软雅黑；没有覆盖全部 Unicode、所有字重或缺少中文字体的系统。真实安装界面字体效果仍需用户复核，整体产品目标尚未完成。
+
+## 发布及安装受阻
+
+源码提交 `5089dee` 已发布至 `dist/NetGuardian-UI-Update-5089dee`。命令 `dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output dist/NetGuardian-UI-Update-5089dee` 加公共参数，退出 0，保留 2 条 WFAC010；完整日志 `chinese-typography-publish.log`。
+
+新清单 11 文件哈希、UTF-8 BOM 更新脚本语法检查均通过。生成 `install-ui-update-5089dee.ps1` 与 `run-elevated-ui-update-5089dee.ps1`，沿用原有互斥、写权限、独立备份和回滚流程。普通预检当时互斥可用、无界面进程；随后实际管理员更新退出 1，完整错误输出 `install-ui-update-5089dee-elevated.log`：
+
+```text
+System.Management.Automation.RuntimeException: 界面仍在运行或另一更新正在执行；没有替换文件。请从托盘退出后重试。
+ScriptStackTrace: install-ui-update-5089dee.ps1 第 23 行；run-elevated-ui-update-5089dee.ps1 第 4 行
+```
+
+此为预检后状态变化，不能绕过互斥或误报更新成功。独立复核安装仍为 `40dcb64`，11 文件与旧清单一致，无本轮备份目录；输出 `font-install-deferred-check.json`，退出 0。已请求用户从托盘退出后回复，待回复后继续安装，不重复发起 UAC。
