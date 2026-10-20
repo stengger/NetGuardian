@@ -36,3 +36,13 @@ SDK 8.0.422，先执行 `scripts/initialize-build.ps1`，TEMP/TMP 指向既有 w
 ## 未完成
 
 以上验证是目标尺寸的真实 WPF 离屏窗口和路由事件，不能替代硬件滚轮、触控板、键盘、读屏及真实多屏 DPI 验收。截图含模拟大数值与样本探针，只用于压力布局，不证明网络质量结果本身。更极端的长摘要、实际高对比消息、其他页面的小工作区仍待核查。整体产品目标继续有效，不因质量页阶段通过而标完成。
+
+## 发布与安装
+
+源码提交 `8034277afb2b9c4e83618edc2982bbe7a4cf8b6d`（修复质量页小窗口结果遮挡与滚轮衔接）。`dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output dist/NetGuardian-UI-Update-8034277` 加其余公共参数，退出 0，2 条既有 WFAC010；日志 `quality-small-workarea-publish.log`。11 文件白名单、逐文件 SHA-256 清单和带 BOM 的管理员更新脚本语法检查通过。
+
+预检互斥可用、界面进程数 0、备份目录不存在；按用户既有授权执行一次管理员更新，退出 0，日志 `install-ui-update-8034277-elevated.log`。安装版 `C:\Program Files\NetGuardian` 的 11 文件及安装清单与包一致，唯一回退目录 `installed-ui-backup-8034277` 的 11 文件确认为上一版 `a076668`。标准启动包 `dist/NetGuardian` 同步界面根文件，标准及实际安装后台文件哈希保持不变。EXE 内嵌 PerMonitorV2 清单独立检查通过，输出 `installed-8034277-manifest.xml`，退出 0。
+
+按用户清理冗余旧版本的既有授权，确认绝对路径在工作区、无重解析点及 Git 跟踪文件后，清除 `dist/NetGuardian-UI-Update-a076668` 和内容为 `0dfe4c8` 的 `installed-ui-backup-a076668`，共 2 目录、24 文件、17,557,742 字节。清理后当前包、标准完整包、实际安装和唯一回退的 11 文件再次按各自清单全部通过；结果 `quality-small-workarea-installed-check.json`，退出 0，明细 `quality-small-workarea-cleanup-targets.json`。配置、后台和用户原有验收文档未修改。
+
+以上是安装文件校验，工具没有打开或操作正式业务窗口，不宣称实际新布局及硬件输入已验收；滚轮一次未定位失败的风险记录仍保留。
