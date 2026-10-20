@@ -28,3 +28,11 @@ SDK、初始化脚本和工作区 TEMP 沿用项目设置。公共参数为 `--n
 ## 验收边界
 
 尚未验证真实系统托盘右键入口、原生前台焦点是否成功、硬件键盘输入、外部点击关闭以及多显示器跨 DPI 定位。呈现源非空没有额外断言其 HWND 句柄，不能声称完成原生窗口句柄验收。新增菜单与前一单元弹窗圆角仍需发布、替换安装版并核对实际显示。完整产品目标尚未完成。
+
+## 发布与安装交接
+
+源码提交 `bb89db912252a34c7fd2ab7a6324979c7b2ff713`，包含此前 `f274a93` 的弹窗圆角修复。`dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore` 加公共参数及独立 output 目录成功，退出 0。发布包位于忽略目录 `dist/NetGuardian-UI-Update-bb89db9`；11 个文件生成 SHA-256 清单后独立复核一致，退出 0。
+
+更新脚本另存 `install-ui-update-bb89db9.ps1`，为新版本保留独立备份路径，不覆盖旧备份。开始前界面互斥未占用。UAC 启动返回 `Start-Process: An error occurred trying to start process 'C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe' with working directory 'C:\Users\Qiu\Documents\Net'. 操作已被用户取消。`；后续等待语句因空进程对象返回 `InvalidOperation: 不能对值为 Null 的表达式调用方法。`。外层 PowerShell 未设置终止错误，因此进程退出码为 0，此退出码不代表安装成功。
+
+更新器未启动，没有新备份或更新日志；安装标识仍是 `2772296`。已向用户说明并等待 UAC 处理结果，没有重复请求管理员授权。正式业务界面和本次安装验收尚未完成。
