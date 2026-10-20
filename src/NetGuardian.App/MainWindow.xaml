@@ -174,21 +174,21 @@
             </Grid.ColumnDefinitions>
 
             <Grid Grid.Column="0">
-                <ui:NavigationView x:Name="RootNavigation" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" BorderBrush="Transparent" BorderThickness="0" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
-                    <ui:NavigationView.MenuItems>
-                        <ui:NavigationViewItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi124}" Tag="WifiPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="QualityNavButton" Content="Quality" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="QualityPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Apps24}" Tag="ToolsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon Globe24}" Tag="DnsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="AdapterNavButton" Content="Adapter" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="NetworkPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Shield24}" Tag="PolicyPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                        <ui:NavigationViewItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon DocumentBulletList24}" Tag="LogPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    </ui:NavigationView.MenuItems>
-                    <ui:NavigationView.FooterMenuItems>
-                        <ui:NavigationViewItem x:Name="SettingsNavButton" Content="Settings" Icon="{ui:SymbolIcon Settings24}" Tag="SettingsPanel" PreviewMouseLeftButtonUp="NavigationItem_PreviewMouseLeftButtonUp" />
-                    </ui:NavigationView.FooterMenuItems>
-                </ui:NavigationView>
+                <presentation:PanelNavigationView x:Name="RootNavigation" AutomationProperties.Name="NetGuardian" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" BorderBrush="Transparent" BorderThickness="0" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
+                    <presentation:PanelNavigationView.MenuItems>
+                        <presentation:PanelNavigationItem x:Name="StatusNavButton" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" />
+                        <presentation:PanelNavigationItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi124}" Tag="WifiPanel" />
+                        <presentation:PanelNavigationItem x:Name="QualityNavButton" Content="Quality" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="QualityPanel" />
+                        <presentation:PanelNavigationItem x:Name="ToolsNavButton" Content="Tools" Icon="{ui:SymbolIcon Apps24}" Tag="ToolsPanel" />
+                        <presentation:PanelNavigationItem x:Name="DnsNavButton" Content="DNS" Icon="{ui:SymbolIcon Globe24}" Tag="DnsPanel" />
+                        <presentation:PanelNavigationItem x:Name="AdapterNavButton" Content="Adapter" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="NetworkPanel" />
+                        <presentation:PanelNavigationItem x:Name="PolicyNavButton" Content="Policy" Icon="{ui:SymbolIcon Shield24}" Tag="PolicyPanel" />
+                        <presentation:PanelNavigationItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon DocumentBulletList24}" Tag="LogPanel" />
+                    </presentation:PanelNavigationView.MenuItems>
+                    <presentation:PanelNavigationView.FooterMenuItems>
+                        <presentation:PanelNavigationItem x:Name="SettingsNavButton" Content="Settings" Icon="{ui:SymbolIcon Settings24}" Tag="SettingsPanel" />
+                    </presentation:PanelNavigationView.FooterMenuItems>
+                </presentation:PanelNavigationView>
 
                 <Border x:Name="SidebarSpeedCard" Width="184" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,64" Background="Transparent" BorderThickness="0" Padding="10,0,10,10" Panel.ZIndex="2" Visibility="{Binding IsPaneOpen, ElementName=RootNavigation, Converter={StaticResource BoolToVisibilityConverter}}">
                     <StackPanel>

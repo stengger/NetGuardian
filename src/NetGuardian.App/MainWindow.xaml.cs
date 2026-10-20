@@ -178,7 +178,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ResetReportUi();
         RefreshDnsInfo();
         RefreshAdapterInfo();
-        ShowPanel(StatusPanel);
+        RootNavigation.SelectPanel("StatusPanel");
         UpdateMonitorStatus();
         UpdateSidebarSpeed();
         UpdateWeeklySummary();
@@ -679,28 +679,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private void NavigationItem_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is Wpf.Ui.Controls.NavigationViewItem item)
-        {
-            ShowPanelByTag(item.Tag?.ToString());
-        }
-    }
-
     private void ShowPanelByTag(string? tag)
     {
-        ShowPanel(tag switch
-        {
-            "WifiPanel" => WifiPanel,
-            "PolicyPanel" => PolicyPanel,
-            "ToolsPanel" => ToolsPanel,
-            "DnsPanel" => DnsPanel,
-            "QualityPanel" => QualityPanel,
-            "NetworkPanel" => NetworkPanel,
-            "LogPanel" => LogPanel,
-            "SettingsPanel" => SettingsPanel,
-            _ => StatusPanel
-        });
+        PanelNavigationPresenter.Show(this, tag, _localizer);
     }
 
     private async Task StartMonitoringAsync()
@@ -2071,6 +2052,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateEmptyStates();
         UpdateMonitorStatus();
         UpdateTrayText();
+        ShowPanelByTag((RootNavigation.SelectedItem as Wpf.Ui.Controls.NavigationViewItem)?.Tag?.ToString());
     }
 
     private void UpdateEmptyStates()
@@ -2129,25 +2111,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         element.ToolTip = _localizer.T(key);
         ToolTipService.SetShowOnDisabled(element, true);
-    }
-
-    private void ShowPanel(UIElement panel)
-    {
-        foreach (var item in new UIElement[] { StatusPanel, WifiPanel, PolicyPanel, ToolsPanel, DnsPanel, QualityPanel, NetworkPanel, LogPanel, SettingsPanel })
-        {
-            item.Visibility = item == panel ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        PageTitleText.Text = panel == StatusPanel ? _localizer.T("Status")
-            : panel == WifiPanel ? _localizer.T("Wifi")
-            : panel == PolicyPanel ? _localizer.T("Policy")
-            : panel == ToolsPanel ? _localizer.T("Tools")
-            : panel == DnsPanel ? _localizer.T("DnsTools")
-            : panel == QualityPanel ? _localizer.T("QualityTools")
-            : panel == NetworkPanel ? _localizer.T("AdapterTools")
-            : panel == LogPanel ? _localizer.T("Log")
-            : _localizer.T("Settings");
-        PageSubtitleText.Text = panel == StatusPanel ? _localizer.T("Summary") : "";
     }
 
     private void UpdateMonitorStatus()
