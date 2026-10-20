@@ -36,3 +36,11 @@ SDK `E:\Environment\dotnet-sdk-8.0\dotnet.exe`，执行 `scripts/initialize-buil
 没有更改用户 Windows 主题，没有启动业务主窗口，也没有模拟真实系统高对比消息进入/退出。主题策略测试是共用分派入口的回调序列，资源测试是真实控件和库资源配合模拟系统色；不能替代正式业务进程、Windows 消息链、全部悬停/禁用/焦点状态、读屏和跨 DPI 验收。库升级时必须复核覆盖资源键。
 
 安装仍待前次 UAC 授权处理，本次未重复请求管理员权限或替换安装文件。用户原有验证文档改动不属于此提交。完整产品目标继续有效。
+
+## 发布包续接
+
+源码提交 `01d9363b4dbf5265408d3418d2ca981bdbc21809` 已发布到 `dist/NetGuardian-UI-Update-01d9363`。命令：`dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output dist/NetGuardian-UI-Update-01d9363 --verbosity minimal -m:1 -nodeReuse:false -p:UseSharedCompilation=false -p:BuildInParallel=false`；退出 0，完整输出 `high-contrast-publish.log`。
+
+生成安装标识并独立复核 11 个文件 SHA-256，通过，退出 0；结果 `high-contrast-package-check.json`。既有安装仍为 `2772296710cf170e20093f0fadd2196ec7235006`，11 文件与旧清单一致。本次没有发起更新、没有建立新安装备份，不可称为已安装。
+
+沿用已审查更新流程生成独立备份路径脚本 `install-ui-update-01d9363.ps1` 及启动包装 `run-elevated-ui-update-01d9363.ps1`，位于 `.dotnet-home/validation/product-ui/`，UTF-8 BOM；PowerShell 语法检查通过，退出 0。保留包哈希、单实例、界面进程、写权限、备份及回滚校验。安装前仍须处理前次管理员授权结果；不要反复弹 UAC。
