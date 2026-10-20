@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\..\src\NetGuardian.App\MainWindow.xaml" LogicalName="MainWindow.xaml" />
+    <EmbeddedResource Include="..\..\src\NetGuardian.App\app.manifest" LogicalName="app.manifest" />
     <ProjectReference Include="..\..\src\NetGuardian.App\NetGuardian.App.csproj" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />

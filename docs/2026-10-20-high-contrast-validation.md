@@ -39,6 +39,8 @@ SDK `E:\Environment\dotnet-sdk-8.0\dotnet.exe`，执行 `scripts/initialize-buil
 
 ## 发布包续接
 
+2026-10-20 额度恢复后已成功执行新一轮管理员更新，进程退出 0；独立复核安装的 11 文件及清单哈希全部匹配 `01d9363`。旧界面备份位于 `.dotnet-home/validation/product-ui/installed-ui-backup-01d9363`；成功日志 `install-ui-update-01d9363-elevated.log`，独立结果 `installed-01d9363-independent-check.json`。后台两文件与既有 `bb89db9-background-before.json` 基线一致。此前“待授权”的记录为历史状态，当前不再等待 UAC。未启动正式业务界面，实际使用验收仍待完成。
+
 源码提交 `01d9363b4dbf5265408d3418d2ca981bdbc21809` 已发布到 `dist/NetGuardian-UI-Update-01d9363`。命令：`dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output dist/NetGuardian-UI-Update-01d9363 --verbosity minimal -m:1 -nodeReuse:false -p:UseSharedCompilation=false -p:BuildInParallel=false`；退出 0，完整输出 `high-contrast-publish.log`。
 
 生成安装标识并独立复核 11 个文件 SHA-256，通过，退出 0；结果 `high-contrast-package-check.json`。既有安装仍为 `2772296710cf170e20093f0fadd2196ec7235006`，11 文件与旧清单一致。本次没有发起更新、没有建立新安装备份，不可称为已安装。
