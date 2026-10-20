@@ -11,16 +11,34 @@
 
 ## 替换现状与步骤
 
-更新脚本为 `C:\Users\Qiu\Documents\Net\.dotnet-home\validation\product-ui\install-ui-update.ps1`。脚本及构建产物均在忽略目录，不提交到 Git。语法检查和 `-WhatIf` 退出 0；独立审查发现的回滚中断问题已修复并复核。脚本校验发布包，取得全局界面互斥，探测写权限与锁，备份已有文件，再复制并逐文件校验；回滚逐项执行并汇总恢复错误。
+**2026-10-20 更新结果：已完成界面替换。** 用户确认从托盘退出后，更新程序通过系统 UAC 提升权限，退出 0。安装目录 `C:\Program Files\NetGuardian` 中 11 个界面文件及安装标识均通过 SHA-256 校验；安装标识提交为 `2772296710cf170e20093f0fadd2196ec7235006`。随后独立比对再次通过，后台 Guardian EXE 和其 Core DLL 与更新前哈希一致。
 
-自动替换尝试退出 1，发生在任何备份或写入之前：
+旧界面文件备份：`C:\Users\Qiu\Documents\Net\.dotnet-home\validation\product-ui\installed-ui-backup-2772296`。本次未主动启动业务界面，未执行真实扫描、测速、网络变更或后台操作。
+
+更新脚本为 `C:\Users\Qiu\Documents\Net\.dotnet-home\validation\product-ui\install-ui-update.ps1`。脚本及构建产物均在忽略目录，不提交到 Git。PowerShell 7 的语法检查和 `-WhatIf` 退出 0；Windows PowerShell 5.1 的兼容修正与执行情况另列如下。独立审查发现的回滚中断问题已修复并复核。脚本校验发布包，取得全局界面互斥，探测写权限与锁，备份已有文件，再复制并逐文件校验；回滚逐项执行并汇总恢复错误。
+
+首次自动替换尝试退出 1，发生在任何备份或写入之前：
 
 ```text
 Exception: install-ui-update.ps1:23
 界面仍在运行或另一更新正在执行；没有替换文件。请从托盘退出后重试。
 ```
 
-当前终端未列出对应进程，CIM 查询返回“无法从客户端中访问 CIM 资源”；不能据此绕过全局单实例检查。备份目录尚未建立，尚未替换安装文件。
+首次尝试时终端未列出对应进程，CIM 查询返回“无法从客户端中访问 CIM 资源”；没有绕过全局单实例检查。当时备份目录尚未建立，也没有替换安装文件。用户随后确认退出，互斥检查通过。
+
+后续执行记录：
+
+| 操作 | 结果 | 退出码 |
+|---|---|---|
+| 普通令牌执行更新脚本 | 写权限预检失败：`调用“Open”并传入“4”个参数时发生异常：“Access to the path 'C:\Program Files\NetGuardian\Microsoft.Extensions.DependencyInjection.Abstractions.dll' is denied.”`；未写入 | 1 |
+| 首次 UAC Windows PowerShell 5.1 执行 | 无 BOM UTF-8 中文脚本产生 `System.Management.Automation.ParseException` / `UnexpectedToken`，位置 16:85、34:60、55:5、68:66、77:1；未执行替换 | 1 |
+| 补 BOM 后 Windows PowerShell 5.1 `-WhatIf` | 解析通过，但 `Get-FileHash` 的 ProviderPath 取值被 WhatIf 模式拦截，导致预检报告文件校验失败；未写入。此结果不代表实际发布文件不匹配 | 1 |
+| 补 BOM 后 UAC 实际执行 | 备份成功，11 个文件及安装标识校验通过 | 0 |
+| 独立读取安装清单并逐文件比对 | 11/11 匹配，后台两文件未变 | 0 |
+
+普通令牌失败完整输出保留 `install-ui-update-retry.log`；PowerShell 5.1 解析失败完整输出在本聊天执行记录；最终成功日志为 `install-ui-update-elevated.log`，独立比对为 `install-independent-check.json`，均在工作区忽略目录 `.dotnet-home/validation/product-ui/`。脚本已补 UTF-8 BOM 以兼容 Windows PowerShell 5.1。
+
+以下为以后需要再次更新时的步骤；本次已经完成，无需重复执行。现有脚本会在备份已存在时停止，避免覆盖回退文件。
 
 1. 从 NetGuardian 系统托盘菜单选择“退出”；关闭窗口可能只隐藏到托盘。
 2. 在管理员 PowerShell 中执行：
@@ -34,7 +52,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\Users\Qiu\Documents\
 
 若仍报告互斥被占用，请先退出其他 Windows 登录会话中的界面或另一更新进程。不要强制绕过校验。若失败消息包含恢复失败文件，先按其备份路径修复再启动。
 
-脚本不修改机器配置、后台目录、任务或启动设置。机器配置读取实际返回 Access denied，因此不能声称对配置做过前后哈希验证。后台 EXE/Core 文件已记录更新前哈希用于后续比对。
+脚本不修改机器配置、后台目录、任务或启动设置。机器配置读取实际返回 Access denied，因此不能声称对配置做过前后哈希验证。后台 EXE/Core 文件已完成前后比对，哈希一致。
 
 ## 尚须实际验收
 
