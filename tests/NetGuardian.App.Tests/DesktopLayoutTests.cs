@@ -2,6 +2,7 @@ using System.IO;
 using System.Runtime.ExceptionServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -231,15 +232,18 @@ public sealed class DesktopLayoutTests
     }
 
     [Theory]
-    [InlineData(1180, "zh-CN")]
-    [InlineData(1040, "zh-CN")]
-    [InlineData(1040, "en-US")]
-    public void 质量检查分组指标与取消操作在长文案下仍可读取(double width, string language)
+    [InlineData(1180, 660, "zh-CN")]
+    [InlineData(1040, 660, "zh-CN")]
+    [InlineData(1040, 660, "en-US")]
+    [InlineData(960, 500, "zh-CN")]
+    [InlineData(960, 500, "en-US")]
+    public void 质量检查分组指标与取消操作在长文案下仍可读取(double width, double height, string language)
     {
         DesktopFixture.Run(window =>
         {
             var localizer = new Localizer();
             localizer.SetLanguage(language);
+            window.MinWidth = 960; window.MinHeight = 500;
             DesktopFixture.ShowPage(window, "QualityPanel");
             foreach (var (name, key) in new[] { ("QualityToolsTitle", "QualityCheckTitle"), ("QualityScopeText", "QualityCheckScope"), ("QualityStateText", "Checking"), ("QualityPassedText", "QualityNoCurrentResult"), ("QualityGatewayLabel", "QualityGatewayTiming"), ("QualityDnsLabel", "QualityDnsTiming"), ("QualityHttpsLabel", "QualityHttpsTiming"), ("QualityStatusText", "QualityCheckRunning") })
                 ((TextBlock)window.FindName(name)).Text = localizer.T(key);
@@ -253,12 +257,13 @@ public sealed class DesktopLayoutTests
                 ((Button)window.FindName(name)).Content = localizer.T(key);
             ((Button)window.FindName("QualityCancelButton")).Visibility = Visibility.Visible;
             ((ProgressBar)window.FindName("QualityActivityBar")).Visibility = Visibility.Visible;
-            DesktopFixture.Layout(window, width, 660);
+            DesktopFixture.Layout(window, width, height);
             foreach (var name in new[] { "QualityGatewayValue", "QualityDnsValue", "QualityHttpsValue", "QualityCancelButton", "QualityProbeGrid" })
             {
                 var element = (FrameworkElement)window.FindName(name);
+                element.BringIntoView(); window.UpdateLayout();
                 var bounds = element.TransformToAncestor(window).TransformBounds(new Rect(element.RenderSize));
-                Assert.True(bounds.Top >= 0 && bounds.Bottom <= 640 && bounds.Height >= (name == "QualityProbeGrid" ? 100 : 25), $"{name} 不可达：{bounds}");
+                Assert.True(bounds.Top >= 0 && bounds.Bottom <= height - 20 && bounds.Height >= (name == "QualityProbeGrid" ? 100 : 25), $"{name} 不可达：{bounds}");
             }
             Assert.Null(window.FindName("QualityScoreText"));
             Assert.Null(window.FindName("QualityLatencyText"));
@@ -273,11 +278,63 @@ public sealed class DesktopLayoutTests
             foreach (var name in new[] { "QualityGatewaySamples", "QualityDnsSamples", "QualityHttpsSamples" })
                 ((TextBlock)window.FindName(name)).Text = string.Format(localizer.T("QualityTimingSamples"), 2, 3, 2);
             ((DataGrid)window.FindName("QualityProbeGrid")).ItemsSource = Enumerable.Range(1, 12).Select(i => new { Name = $"HTTPS test-{i}.example", ResultText = localizer.T("Pass"), LatencyText = "12345.6 ms", Detail = "HTTP 200" }).ToList();
-            DesktopFixture.Layout(window, width, 660);
+            DesktopFixture.Layout(window, width, height);
             var completedGrid = (DataGrid)window.FindName("QualityProbeGrid");
             Assert.True(completedGrid.ActualHeight >= 100);
+            var body = (ScrollViewer)window.FindName("QualityBodyScrollViewer");
+            body.ScrollToTop(); window.UpdateLayout();
+            DesktopFixture.Save(window, $"quality-complete-initial-{width}-{height}-{language}.png");
+            if (height == 500)
+            {
+                var inner = DesktopFixture.Descendants(completedGrid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
+                inner.ScrollToEnd(); body.ScrollToTop(); window.UpdateLayout();
+                var lastOffset = inner.VerticalOffset;
+                var modifiersBefore = Keyboard.Modifiers;
+                Wheel(inner, -120); window.UpdateLayout();
+                Assert.True(body.VerticalOffset > 0,
+                    $"表格到底后，向下滚轮未衔接正文。修饰键={modifiersBefore}/{Keyboard.Modifiers}；内层={lastOffset:R}→{inner.VerticalOffset:R}/{inner.ScrollableHeight:R}；正文={body.VerticalOffset:R}/{body.ScrollableHeight:R}；启用={NetGuardian.App.Presentation.ScrollWheelChaining.GetIsEnabled(body)}");
+                Assert.Equal(lastOffset, inner.VerticalOffset);
+                inner.ScrollToTop(); body.ScrollToEnd(); window.UpdateLayout();
+                var bodyEnd = body.VerticalOffset;
+                Wheel(inner, 120); window.UpdateLayout();
+                Assert.True(body.VerticalOffset < bodyEnd, "表格到顶后，向上滚轮未衔接正文。");
+                body.ScrollToTop(); inner.ScrollToTop(); window.UpdateLayout();
+                Wheel(inner, -120); window.UpdateLayout();
+                Assert.True(inner.VerticalOffset > 0, "表格尚可滚动时应保留内部阅读行为。");
+                Assert.Equal(0, body.VerticalOffset);
+                NetGuardian.App.Presentation.ScrollWheelChaining.SetIsEnabled(body, false);
+                inner.ScrollToEnd(); body.ScrollToTop(); window.UpdateLayout();
+                Wheel(inner, -120); window.UpdateLayout();
+                Assert.Equal(0, body.VerticalOffset);
+                NetGuardian.App.Presentation.ScrollWheelChaining.SetIsEnabled(body, true);
+                Wheel(inner, -120); window.UpdateLayout();
+                Assert.True(body.VerticalOffset > 0, "重新启用后应恢复边界衔接。");
+            }
+            foreach (var index in new[] { 0, completedGrid.Items.Count - 1 })
+            {
+                completedGrid.ScrollIntoView(completedGrid.Items[index]); window.UpdateLayout();
+                var row = (DataGridRow)completedGrid.ItemContainerGenerator.ContainerFromIndex(index);
+                row.BringIntoView(); window.UpdateLayout();
+                var bounds = row.TransformToAncestor(body).TransformBounds(new Rect(row.RenderSize));
+                Assert.True(bounds.Top >= 0 && bounds.Bottom <= body.ActualHeight,
+                    $"第 {index + 1} 条探针结果无法滚入正文视口：{bounds}；正文高度={body.ActualHeight}");
+            }
+            ((Button)window.FindName("QualityCancelButton")).Visibility = Visibility.Visible;
+            window.UpdateLayout();
+            var cancel = (FrameworkElement)window.FindName("QualityCancelButton");
+            var cancelBounds = cancel.TransformToAncestor(window).TransformBounds(new Rect(cancel.RenderSize));
+            Assert.True(cancelBounds.Top >= 0 && cancelBounds.Bottom <= height - 20,
+                $"阅读结果后取消操作不可达：{cancelBounds}");
             DesktopFixture.Save(window, $"quality-complete-{width}-{language}.png");
         });
+    }
+
+    private static void Wheel(UIElement target, int delta)
+    {
+        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta) { RoutedEvent = Mouse.PreviewMouseWheelEvent };
+        target.RaiseEvent(preview);
+        if (!preview.Handled)
+            target.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta) { RoutedEvent = Mouse.MouseWheelEvent });
     }
 
     [Theory]
@@ -415,6 +472,14 @@ internal static class DesktopFixture
                     element.Name = XName.Get(element.Name.LocalName, "clr-namespace:NetGuardian.App.Views;assembly=NetGuardian");
                 foreach (var element in document.Descendants().Where(e => e.Name.NamespaceName == "clr-namespace:NetGuardian.App.Presentation"))
                     element.Name = XName.Get(element.Name.LocalName, "clr-namespace:NetGuardian.App.Presentation;assembly=NetGuardian");
+                // 附加属性同样保留展开后的命名空间，须与元素一起指向真实程序集。
+                foreach (var attribute in document.Descendants().Attributes()
+                    .Where(a => a.Name.NamespaceName == "clr-namespace:NetGuardian.App.Presentation").ToList())
+                {
+                    attribute.Parent!.SetAttributeValue(XName.Get(attribute.Name.LocalName,
+                        "clr-namespace:NetGuardian.App.Presentation;assembly=NetGuardian"), attribute.Value);
+                    attribute.Remove();
+                }
                 var events = new HashSet<string> { "Closing", "StateChanged", "Click", "TextChanged", "SelectionChanged", "Checked", "Unchecked", "PreviewMouseLeftButtonUp", "PreviewMouseLeftButtonDown", "PreviewMouseWheel", "PreviewKeyDown", "MouseMove", "MouseDoubleClick", "Drop" };
                 foreach (var attribute in document.Descendants().Attributes().Where(a => events.Contains(a.Name.LocalName)).ToList()) attribute.Remove();
                 window = (Window)XamlReader.Parse(document.ToString(), new ParserContext
