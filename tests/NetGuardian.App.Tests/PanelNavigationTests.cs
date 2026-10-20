@@ -44,6 +44,8 @@ public sealed class PanelNavigationTests
         {
             var navigation = (NavigationView)window.FindName("RootNavigation");
             var item = (NavigationViewItem)window.FindName("SettingsNavButton");
+            Assert.True(ReferenceEquals(navigation, ((PanelNavigationItem)item).PanelOwner),
+                $"导航尚未完成归属接线：窗口Loaded={window.IsLoaded}，导航Loaded={navigation.IsLoaded}，项目Loaded={item.IsLoaded}");
             item.Focus();
             Assert.True(item.IsFocused, "激活前须取得导航项的逻辑焦点。");
             var source = PresentationSource.FromVisual(item)!;

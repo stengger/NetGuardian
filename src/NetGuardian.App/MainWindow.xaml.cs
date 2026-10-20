@@ -70,6 +70,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly Views.TrayContextMenu _trayMenu = new();
     private TrayMenuHost? _trayMenuHost;
+    private readonly WindowWorkArea _windowWorkArea;
     private bool _forceExit;
     private bool _isSyncingDnsControls;
     private bool _isApplyingDns;
@@ -116,6 +117,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _speedTester = speedTester;
 
         InitializeComponent();
+        _windowWorkArea = new WindowWorkArea(this);
         WifiListsGrid.SizeChanged += (_, _) => ResponsiveLayout.ApplyWifi(this);
         _isFirstRun = !File.Exists(_store.Path);
         _settings = _store.Load();
@@ -2992,6 +2994,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         _resourcesCleaned = true;
+        _windowWorkArea.Dispose();
         _engine.Stop();
         _engine.Dispose();
         _ = ReleaseMonitorLeaseWhenIdleAsync();
