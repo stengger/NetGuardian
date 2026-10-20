@@ -40,3 +40,15 @@
 SDK `E:\Environment\dotnet-sdk-8.0\dotnet.exe`；初始化脚本、工作区 TEMP/TMP 与既有方式一致。公共参数 `--no-restore --verbosity minimal -m:1 -nodeReuse:false -p:UseSharedCompilation=false -p:BuildInParallel=false`。构建 `dotnet build NetGuardian.sln --configuration Release --no-incremental` 加公共参数。已从 Release EXE 提取并断言两项 DPI 声明，退出 0，输出清单 `dpi-built-manifest.xml`；原安装清单为 `installed-01d9363-manifest.xml`。
 
 独立只读审查无阻塞。尚未运行修复后正式 EXE、验证系统 DPI 上下文、跨屏移动或托盘跨缩放；清单声明仅补齐必要前提，不能当作全场景已通过。完整产品目标未完成。
+
+## DPI 发布与安装续接
+
+源码提交 `40dcb64b9d8f5c58c3e27ba244f3288dd24ad4c0` 已发布到 `dist/NetGuardian-UI-Update-40dcb64`。命令为前述 SDK 的 `publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output dist/NetGuardian-UI-Update-40dcb64 --verbosity minimal -m:1 -nodeReuse:false -p:UseSharedCompilation=false -p:BuildInParallel=false`，退出 0，保留 2 条 WFAC010，完整日志 `dpi-publish.log`。
+
+11 文件独立清单哈希、两个脚本的 PowerShell 语法检查通过；使用 UTF-8 BOM、独立备份路径和既有单实例/写权限/备份/回滚校验。更新前无界面进程、互斥可用、无同名备份；管理员更新退出 0，完整日志 `install-ui-update-40dcb64-elevated.log`。
+
+实际安装已为 `40dcb64`。独立复核 11 文件与安装标识清单哈希一致，后台两文件与既有基线一致，结果 `installed-40dcb64-independent-check.json`。首次复核批次末尾读取不存在的 `TrayMenuTests.cs` 导致整个批次退出 1，但前面的哈希核验已完成并写入结果；随后用 `rg --files` 找到真实文件 `TrayContextMenuTests.cs`，不存在的搜索目标不是构建或运行时故障。
+
+只读提取已安装 EXE 内嵌资源再次确认 PerMonitorV2/PerMonitor 与 true/pm 均存在，退出 0。可重复命令：`E:/Environment/Python/Python312/python.exe .dotnet-home/validation/product-ui/read-exe-dpi-manifest.py "C:/Program Files/NetGuardian/NetGuardian.exe" .dotnet-home/validation/product-ui/installed-40dcb64-manifest.xml`。这一步仅映射文件资源，不运行正式进程。
+
+旧界面完整备份：`.dotnet-home/validation/product-ui/installed-ui-backup-40dcb64`。本轮没有修改业务源码，未重复运行此前通过且源码未变的 319 项测试。已向用户请求实际托盘新样式/外部点击/Esc、添加 Wi-Fi 圆角和操作可达、跨屏缩放检查；尚未收到结果。上述实际交互、系统消息、讲述人及全业务状态仍未验收，完整目标保持未完成。
