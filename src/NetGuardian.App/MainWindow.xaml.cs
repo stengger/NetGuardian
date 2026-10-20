@@ -1529,21 +1529,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void SetWifiSelectionVisual(bool hasSelection)
     {
-        WifiSelectionBar.Background = hasSelection
-            ? ThemeBrush("RowSelectedBrush")
-            : ThemeBrush("ControlFillColorDefaultBrush");
-        WifiSelectionBar.BorderBrush = hasSelection
-            ? ThemeBrush("StatusHealthyBrush")
-            : ThemeBrush("CardStrokeColorDefaultBrush");
-    }
-
-    // Resolves a brush from the merged theme dictionaries at call time so that
-    // colors re-resolve against the active palette after a light/dark switch.
-    private Brush ThemeBrush(string resourceKey)
-    {
-        return TryFindResource(resourceKey) as Brush
-            ?? Application.Current.TryFindResource(resourceKey) as Brush
-            ?? Brushes.Gray;
+        AppThemePolicy.BindBrush(WifiSelectionBar, Border.BackgroundProperty,
+            hasSelection ? "RowSelectedBrush" : "ControlFillColorDefaultBrush");
+        AppThemePolicy.BindBrush(WifiSelectionBar, Border.BorderBrushProperty,
+            hasSelection ? "StatusHealthyBrush" : "CardStrokeColorDefaultBrush");
     }
 
     private enum FeedbackSeverity
@@ -1640,13 +1629,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var unchanged = _reportSelection.Report?.CheckedAt == report.CheckedAt && _reportSelection.Origin == origin;
         if (!_reportSelection.TryAccept(report, origin) || unchanged && !forceRefresh) return;
         HealthStateText.Text = StateText(report.State);
-        HealthStateText.Foreground = report.State switch
+        AppThemePolicy.BindBrush(HealthStateText, TextBlock.ForegroundProperty, report.State switch
         {
-            NetworkState.Healthy => ThemeBrush("StatusHealthyBrush"),
-            NetworkState.Recovering => ThemeBrush("StatusHealthyBrush"),
-            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => ThemeBrush("StatusWarningBrush"),
-            _ => ThemeBrush("StatusDangerBrush")
-        };
+            NetworkState.Healthy or NetworkState.Recovering => "StatusHealthyBrush",
+            NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => "StatusWarningBrush",
+            _ => "StatusDangerBrush"
+        });
         SummaryText.Text = LocalizeSummary(report.Summary);
         ReportContextText.Text = string.Format(_localizer.T("ConnectivityReportContext"), _localizer.T(origin switch
         {
@@ -2120,7 +2108,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         MonitorStateText.Text = presentation.OwnerText;
         HeaderStateText.Text = presentation.ActivityText;
         System.Windows.Automation.AutomationProperties.SetName(StatusDot, presentation.ActivityText);
-        StatusDot.Fill = ThemeBrush(presentation.BrushKey);
+        AppThemePolicy.BindBrush(StatusDot, System.Windows.Shapes.Shape.FillProperty, presentation.BrushKey);
         HeaderStateText.ToolTip = presentation.Hint;
         StartMonitorButton.ToolTip = presentation.Hint;
         StopButton.ToolTip = presentation.Hint;

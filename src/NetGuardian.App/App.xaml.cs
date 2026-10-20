@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -13,6 +14,7 @@ using NetGuardian.Core.Network;
 using NetGuardian.Core.Settings;
 using NetGuardian.Core.SystemCommands;
 using NetGuardian.Core.Wifi;
+using NetGuardian.App.Presentation;
 
 namespace NetGuardian.App;
 
@@ -21,6 +23,7 @@ public partial class App : Application
     private Mutex? _singleInstanceMutex;
     private bool _ownsSingleInstanceMutex;
     private ServiceProvider? _services;
+    private static string _configuredTheme = "auto";
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -41,6 +44,7 @@ public partial class App : Application
 
         _services = BuildServices();
         ApplicationThemeManager.Changed += OnApplicationThemeChanged;
+        SystemParameters.StaticPropertyChanged += OnSystemParametersChanged;
         ApplyConfiguredTheme(_services.GetRequiredService<NetGuardian.Core.Settings.SettingsStore>().Load().Theme);
         var mainWindow = _services.GetRequiredService<MainWindow>();
         MainWindow = mainWindow;
@@ -49,50 +53,50 @@ public partial class App : Application
         ApplyConfiguredTheme(_services.GetRequiredService<SettingsStore>().Load().Theme);
     }
 
-    /// <summary>Applies the configured theme mode: "auto" follows the OS, otherwise explicit light/dark.</summary>
+    /// <summary>优先遵循系统高对比，其余情况保留用户选择。</summary>
     public static void ApplyConfiguredTheme(string themeMode)
     {
-        if (Current?.MainWindow is not null)
+        _configuredTheme = themeMode;
+        if (Current?.MainWindow is { IsLoaded: true })
         {
             SystemThemeWatcher.UnWatch(Current.MainWindow);
         }
 
-        switch (themeMode)
-        {
-            case "light":
-                ApplicationThemeManager.Apply(ApplicationTheme.Light);
-                break;
-            case "dark":
-                ApplicationThemeManager.Apply(ApplicationTheme.Dark);
-                break;
-            default:
-                ApplicationThemeManager.ApplySystemTheme();
-                if (Current?.MainWindow is not null)
-                {
-                    SystemThemeWatcher.Watch(Current.MainWindow);
-                }
-
-                break;
-        }
+        // 高对比明确传给库，避免依赖自定义系统主题文件名识别。
+        AppThemePolicy.Apply(themeMode, SystemParameters.HighContrast,
+            theme => ApplicationThemeManager.Apply(theme), () => ApplicationThemeManager.ApplySystemTheme());
+        if (!SystemParameters.HighContrast && themeMode is not ("light" or "dark") && Current?.MainWindow is { IsLoaded: true })
+            SystemThemeWatcher.Watch(Current.MainWindow);
     }
 
-    /// <summary>Keeps the custom semantic palette in sync when the WPF-UI theme flips.</summary>
+    private static void OnSystemParametersChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is not (null or "" or nameof(SystemParameters.HighContrast))) return;
+        var application = Current;
+        if (application is null || application.Dispatcher.HasShutdownStarted) return;
+        // 系统消息处理完成后再读取状态；显式浅色/深色也必须响应高对比切换。
+        application.Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() =>
+        {
+            if (!application.Dispatcher.HasShutdownStarted) ApplyConfiguredTheme(_configuredTheme);
+        }));
+    }
+
+    /// <summary>主题切换时同步自定义语义资源。</summary>
     private static void OnApplicationThemeChanged(ApplicationTheme currentTheme, System.Windows.Media.Color systemAccent)
     {
-        var palette = currentTheme == ApplicationTheme.Light ? "Palette.Light.xaml" : "Palette.Dark.xaml";
-        var uri = new Uri($"Themes/{palette}", UriKind.Relative);
+        var palette = AppThemePolicy.CreatePalette(currentTheme);
         var dictionaries = Current.Resources.MergedDictionaries;
         for (var index = 0; index < dictionaries.Count; index++)
         {
             var source = dictionaries[index].Source?.OriginalString;
             if (source is not null && source.Contains("Palette.", StringComparison.OrdinalIgnoreCase))
             {
-                dictionaries[index] = new ResourceDictionary { Source = uri };
+                dictionaries[index] = palette;
                 return;
             }
         }
 
-        dictionaries.Add(new ResourceDictionary { Source = uri });
+        dictionaries.Add(palette);
     }
 
     private static ServiceProvider BuildServices()
@@ -119,6 +123,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SystemParameters.StaticPropertyChanged -= OnSystemParametersChanged;
+        ApplicationThemeManager.Changed -= OnApplicationThemeChanged;
         _services?.Dispose();
         DispatcherUnhandledException -= OnDispatcherUnhandledException;
         TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;

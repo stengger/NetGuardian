@@ -74,7 +74,8 @@ public partial class MainWindow
             QualityCheckPhase.Cancelled => "QualityCheckCancelled", QualityCheckPhase.Failed => "QualityCheckFailed", _ => "NotChecked"
         };
         QualityStateText.Text = report is null ? T(stateKey) : StateText(report.State);
-        QualityStateText.Foreground = ThemeBrush(report is null ? "TextFillColorPrimaryBrush" : report.Ok ? "StatusHealthyBrush" : "StatusWarningBrush");
+        AppThemePolicy.BindBrush(QualityStateText, System.Windows.Controls.TextBlock.ForegroundProperty,
+            report is null ? "TextFillColorPrimaryBrush" : report.Ok ? "StatusHealthyBrush" : "StatusWarningBrush");
         QualityPassedText.Text = T("QualityNoCurrentResult");
         QualityStatusText.Text = phase switch
         {

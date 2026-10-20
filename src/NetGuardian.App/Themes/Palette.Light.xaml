@@ -11,5 +11,6 @@
     <SolidColorBrush x:Key="SpeedDownloadBrush" Color="#2563EB" />
     <SolidColorBrush x:Key="SpeedUploadBrush" Color="#087F73" />
     <SolidColorBrush x:Key="RowSelectedBrush" Color="#262563EB" />
+    <SolidColorBrush x:Key="RowSelectionStrokeBrush" Color="Transparent" />
     <SolidColorBrush x:Key="ChartTrackBrush" Color="#D5DAE1" />
 </ResourceDictionary>

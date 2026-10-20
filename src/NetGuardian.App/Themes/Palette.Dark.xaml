@@ -12,6 +12,7 @@
     <SolidColorBrush x:Key="SpeedUploadBrush" Color="#55E6D5" />
     <!-- Row selection: accent at 15% alpha. -->
     <SolidColorBrush x:Key="RowSelectedBrush" Color="#266EA8FF" />
+    <SolidColorBrush x:Key="RowSelectionStrokeBrush" Color="Transparent" />
     <!-- Chart secondary strokes (gauge track / hairline). -->
     <SolidColorBrush x:Key="ChartTrackBrush" Color="#3A424D" />
 </ResourceDictionary>
