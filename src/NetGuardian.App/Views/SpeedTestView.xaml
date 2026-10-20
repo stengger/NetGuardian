@@ -1,7 +1,7 @@
 <UserControl x:Class="NetGuardian.App.Views.SpeedTestView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             Focusable="False" UseLayoutRounding="True" FontFamily="Segoe UI" FontSize="14">
+             Focusable="False" UseLayoutRounding="True" FontFamily="{DynamicResource AppFontFamily}" FontSize="14">
     <UserControl.Resources>
         <Style x:Key="Card" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />

@@ -30,7 +30,8 @@ public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
         WindowCornerPreference = Wpf.Ui.Controls.WindowCornerPreference.Round;
         WindowBackdropType = Wpf.Ui.Controls.WindowBackdropType.None;
         ResizeMode = ResizeMode.NoResize;
-        FontFamily = new FontFamily("Segoe UI");
+        SetResourceReference(FontFamilyProperty, "AppFontFamily");
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(localizer.Language);
         SetResourceReference(FontSizeProperty, "FontBody");
         UseLayoutRounding = true;
         SetResourceReference(BackgroundProperty, "SurfaceCardBrush");

@@ -1837,6 +1837,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ApplyLanguage()
     {
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(_localizer.Language);
         Title = _localizer.T("AppTitle");
         TitleBar.Title = _localizer.T("AppTitle");
         StatusNavButton.Content = _localizer.T("Status");

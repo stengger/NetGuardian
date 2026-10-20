@@ -10,7 +10,7 @@
         Height="760"
         MinWidth="1040"
         MinHeight="660"
-        FontFamily="Segoe UI"
+        FontFamily="{DynamicResource AppFontFamily}"
         FontSize="{DynamicResource FontBody}"
         UseLayoutRounding="True"
         WindowStartupLocation="CenterScreen"

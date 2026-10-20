@@ -9,6 +9,7 @@ internal static class TrayMonitorPresenter
 {
     public static void Apply(Forms.NotifyIcon tray, TrayContextMenu menu, MonitorStatusPresentation state, Localizer localizer)
     {
+        menu.Language = System.Windows.Markup.XmlLanguage.GetLanguage(localizer.Language);
         var text = $"NetGuardian - {state.ActivityText}";
         if (tray.Text != text) tray.Text = text;
         menu.StatusText = state.ActivityText;

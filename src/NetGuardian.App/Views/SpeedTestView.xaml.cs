@@ -21,6 +21,7 @@ public partial class SpeedTestView : UserControl
 
     public void Update(SpeedTestSession session, Localizer localizer, TimeSpan elapsed, bool cancelling = false)
     {
+        Language = System.Windows.Markup.XmlLanguage.GetLanguage(localizer.Language);
         string T(string key) => localizer.T(key);
         TitleText.Text = T("SpeedPageTitle");
         IntroText.Text = T("SpeedPageIntro");

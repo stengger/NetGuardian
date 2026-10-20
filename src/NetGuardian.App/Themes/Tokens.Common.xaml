@@ -2,6 +2,8 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
     <!-- Theme-independent design tokens (U2 §3.5). -->
+    <!-- 中文明确采用简体 UI 字体，英文及数字保留 Segoe UI。 -->
+    <FontFamily x:Key="AppFontFamily">Segoe UI, Microsoft YaHei UI, Microsoft YaHei</FontFamily>
 
     <!-- Type scale: 6 steps. -->
     <sys:Double x:Key="FontCaption">12</sys:Double>
