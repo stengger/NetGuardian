@@ -30,3 +30,13 @@
 当前验证能证明页面容器归属一致，以及上述尺寸与文案下的按钮边界、首行和末列可达。不代表实际安装界面、真实 Wi-Fi 扫描、硬件键盘、读屏、任意高缩放或所有页面都已验收。紧凑窗口仍通过横向滚动承载完整辅助列，不以压缩到不可读宽度来消除滚动条。
 
 质量页紧凑内容检查顺延，原有完整产品目标继续有效；本次单元通过不能宣称整体完成。
+
+## 发布与安装
+
+源码提交 `a076668710b00136ec9ab4b4f9d023596a67fb4e`（统一无线管理页操作与结果的内容容器）。`dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output dist/NetGuardian-UI-Update-a076668` 加其余公共参数，退出 0，2 条既有 WFAC010，日志 `wifi-page-surface-publish.log`。发布文件与既有 11 文件白名单一致，生成 SHA-256 安装清单、带 BOM 的管理员更新脚本，语法检查通过。
+
+`wifi-page-surface-preflight.json` 确认互斥可用、界面进程数 0、备份目录不存在；按用户既有自动替换授权执行一次管理员更新，退出 0，日志 `install-ui-update-a076668-elevated.log`。实际安装 `C:\Program Files\NetGuardian` 的 11 文件及清单匹配当前包；唯一回退目录 `installed-ui-backup-a076668` 的 11 文件匹配上一版 `0dfe4c8`。标准启动包 `dist/NetGuardian` 同步当前界面根文件，guardian 子目录和实际安装的后台两文件哈希保持不变。已安装 EXE 清单独立检查 PerMonitorV2, PerMonitor / true/pm 通过，输出 `installed-a076668-manifest.xml`，退出 0。
+
+按用户清理冗余旧版本的既有授权，先确认两个绝对目标均在工作区、无重解析点且无 Git 跟踪文件，再用 PowerShell Remove-Item -LiteralPath 删除 `dist/NetGuardian-UI-Update-0dfe4c8` 与内容为 `5089dee` 的 `installed-ui-backup-0dfe4c8`，共 2 目录、24 文件、17,552,982 字节。明细 `wifi-page-surface-cleanup-targets.json`。清理后当前更新包、标准完整包、实际安装与唯一上一版回退的 11 文件全部再次通过各自清单校验，结果 `wifi-page-surface-installed-check.json`，退出 0。未改配置、后台或用户原有验收文档。
+
+安装文件已验证，但本工具没有打开或操作正式业务窗口；本次容器调整的实际运行观感仍待用户确认，不能用离屏夹具替代。
