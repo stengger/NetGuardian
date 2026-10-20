@@ -156,13 +156,16 @@ public sealed class DesktopLayoutTests
     }
 
     [Theory]
-    [InlineData("zh-CN")]
-    [InlineData("en-US")]
-    public void 日志筛选和多行详情展开后仍保留可用记录列表(string language)
+    [InlineData("zh-CN", 1040, 660)]
+    [InlineData("en-US", 1040, 660)]
+    [InlineData("zh-CN", 960, 500)]
+    [InlineData("en-US", 960, 500)]
+    public void 日志筛选和多行详情展开后仍保留可用记录列表(string language, double width, double height)
     {
         DesktopFixture.Run(window =>
         {
             DesktopFixture.ShowPage(window, "LogPanel");
+            window.MinWidth = 960; window.MinHeight = 500;
             var localizer = new Localizer();
             localizer.SetLanguage(language);
             foreach (var (name, key) in new[] { ("LogSearchLabel", "LogSearch"), ("LogLevelLabel", "LogLevel"), ("LogSourceLabel", "LogSource"), ("LogEmptyText", "LogNoMatches") })
@@ -187,7 +190,7 @@ public sealed class DesktopLayoutTests
             var details = (Expander)window.FindName("LogDetailsExpander");
             details.Header = localizer.T("LogSelectedDetails");
             details.IsExpanded = true;
-            DesktopFixture.Layout(window, 1040, 660);
+            DesktopFixture.Layout(window, width, height);
             var frame = new System.Windows.Threading.DispatcherFrame();
             var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
             timer.Tick += (_, _) => { timer.Stop(); frame.Continue = false; };
@@ -201,10 +204,11 @@ public sealed class DesktopLayoutTests
             foreach (var name in new[] { "LogSearchTextBox", "ExportLogsButton", "LogFollowCheckBox" })
             {
                 var control = (FrameworkElement)window.FindName(name);
+                control.BringIntoView(); window.UpdateLayout();
                 var bounds = control.TransformToAncestor(window).TransformBounds(new Rect(control.RenderSize));
-                Assert.True(bounds.Top >= 0 && bounds.Bottom < 645, $"{name} 不可达：{bounds}");
+                Assert.True(bounds.Top >= 0 && bounds.Bottom < height - 15, $"{name} 不可达：{bounds}");
             }
-            DesktopFixture.Save(window, $"logs-expanded-1040-{language}.png");
+            DesktopFixture.Save(window, $"logs-expanded-{width}-{height}-{language}.png");
         });
     }
 

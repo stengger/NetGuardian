@@ -1,6 +1,7 @@
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
+using System.Windows.Input;
 using NetGuardian.App.Presentation;
 using Xunit;
 
@@ -9,6 +10,30 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class LogReadingBehaviorTests
 {
+    [Theory]
+    [InlineData(120, false)]
+    [InlineData(-120, true)]
+    public void 父级已处理滚轮时仍按阅读方向维护跟随(int delta, bool expectedFollow)
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "LogPanel");
+            var grid = (DataGrid)window.FindName("LogGrid");
+            var follow = (CheckBox)window.FindName("LogFollowCheckBox");
+            LogReadingBehavior.Attach(grid, follow);
+            follow.IsChecked = true;
+            // 外层正文的滚轮交接先处理预览事件，日志仍须观察用户向上阅读。
+            window.PreviewMouseWheel += (_, args) => args.Handled = true;
+            var wheel = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta)
+            {
+                RoutedEvent = Mouse.PreviewMouseWheelEvent
+            };
+            grid.RaiseEvent(wheel);
+            Assert.True(wheel.Handled);
+            Assert.Equal(expectedFollow, follow.IsChecked);
+        });
+    }
+
     [Fact]
     public void 用户操作垂直滚动条暂停跟随而程序滚动不暂停()
     {

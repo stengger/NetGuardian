@@ -59,11 +59,6 @@ public partial class MainWindow
         if (last is not null) LogGrid.ScrollIntoView(last);
     }
 
-    private void LogReading_MouseWheel(object sender, MouseWheelEventArgs e)
-    {
-        if (e.Delta > 0) LogFollowCheckBox.IsChecked = false;
-    }
-
     private void LogReading_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key is Key.Up or Key.PageUp or Key.Home) LogFollowCheckBox.IsChecked = false;

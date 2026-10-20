@@ -789,7 +789,7 @@
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="LogPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <Grid>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                         <StackPanel Margin="0,0,0,12">
                             <Grid>
                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="145" /><ColumnDefinition Width="170" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -813,8 +813,11 @@
                             </Grid>
                             <TextBlock x:Name="LogScopeText" TextWrapping="Wrap" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,8,0,0" />
                         </StackPanel>
-                        <Grid Grid.Row="1">
-                            <DataGrid x:Name="LogGrid" AutomationProperties.Name="{Binding Content, ElementName=LogNavButton}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" PreviewMouseWheel="LogReading_MouseWheel" PreviewKeyDown="LogReading_KeyDown" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
+                        <ScrollViewer x:Name="LogBodyScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0" presentation:ScrollWheelChaining.IsEnabled="True">
+                        <Grid MinHeight="400" Height="{Binding ViewportHeight, ElementName=LogBodyScrollViewer}">
+                        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid>
+                            <DataGrid x:Name="LogGrid" AutomationProperties.Name="{Binding Content, ElementName=LogNavButton}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" PreviewKeyDown="LogReading_KeyDown" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn x:Name="LogTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="155" ElementStyle="{StaticResource GridTextStyle}" />
                                     <DataGridTextColumn x:Name="LogLevelColumn" Binding="{Binding LevelText}" Width="80" MinWidth="75" ElementStyle="{StaticResource GridTextStyle}" />
@@ -826,13 +829,15 @@
                             </DataGrid>
                             <TextBlock x:Name="LogEmptyText" Margin="12,54,12,0" VerticalAlignment="Top" TextWrapping="Wrap" IsHitTestVisible="False" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </Grid>
-                        <Expander x:Name="LogDetailsExpander" Grid.Row="2" Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                        <Expander x:Name="LogDetailsExpander" Grid.Row="1" Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                             <TextBox x:Name="LogDetailsTextBox" AutomationProperties.Name="{Binding Header, ElementName=LogDetailsExpander}" Text="{Binding SelectedItem.Message, ElementName=LogGrid, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="120" VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" />
                         </Expander>
-                        <DockPanel Grid.Row="3" Margin="0,8,0,0">
+                        <DockPanel Grid.Row="2" Margin="0,8,0,0">
                             <CheckBox x:Name="LogFollowCheckBox" DockPanel.Dock="Right" IsChecked="True" Checked="LogFollow_Changed" Unchecked="LogFollow_Changed" />
                             <TextBlock x:Name="LogCountText" VerticalAlignment="Center" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         </DockPanel>
+                        </Grid>
+                        </ScrollViewer>
                     </Grid>
                 </Border>
 
