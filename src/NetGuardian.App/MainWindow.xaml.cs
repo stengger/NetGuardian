@@ -68,6 +68,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly Queue<double> _downloadSpeedSamples = new();
     private readonly Queue<double> _uploadSpeedSamples = new();
     private readonly Forms.NotifyIcon _notifyIcon;
+    private readonly Views.TrayContextMenu _trayMenu = new();
+    private TrayMenuHost? _trayMenuHost;
     private bool _forceExit;
     private bool _isSyncingDnsControls;
     private bool _isApplyingDns;
@@ -2878,16 +2880,36 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             Visible = true,
             Text = "NetGuardian"
         };
-        var menu = new Forms.ContextMenuStrip();
-        menu.Items.Add(_localizer.T("ShowWindow"), null, (_, _) => Dispatcher.Invoke(ShowFromTray)).Name = "ShowWindow";
-        menu.Items.Add(_localizer.T("CheckNow"), null, (_, _) => Dispatcher.Invoke(async () => await RunCheckAsync())).Name = "CheckNow";
-        menu.Items.Add(_localizer.T("StartMonitor"), null, (_, _) => Dispatcher.Invoke(async () => await StartMonitoringAsync())).Name = "StartMonitor";
-        menu.Items.Add(_localizer.T("Stop"), null, (_, _) => Dispatcher.Invoke(StopMonitoring)).Name = "Stop";
-        menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add(_localizer.T("Exit"), null, (_, _) => Dispatcher.Invoke(ExitApplication)).Name = "Exit";
-        notifyIcon.ContextMenuStrip = menu;
-        notifyIcon.DoubleClick += (_, _) => Dispatcher.Invoke(ShowFromTray);
+        _trayMenuHost = new TrayMenuHost(this, _trayMenu);
+        _trayMenu.CommandRequested += command => _ = RunUiActionAsync(() => RunTrayCommandAsync(command));
+        notifyIcon.MouseUp += (_, e) =>
+        {
+            if (e.Button != Forms.MouseButtons.Right) return;
+            Dispatcher.Invoke(() =>
+            {
+                if (_resourcesCleaned || _isNotifyIconDisposed) return;
+                UpdateTrayText();
+                _trayMenuHost.ShowAtCursor();
+            });
+        };
+        notifyIcon.MouseDoubleClick += (_, e) =>
+        {
+            if (e.Button == Forms.MouseButtons.Left) Dispatcher.Invoke(ShowFromTray);
+        };
         return notifyIcon;
+    }
+
+    private async Task RunTrayCommandAsync(string command)
+    {
+        if (_resourcesCleaned) return;
+        switch (command)
+        {
+            case "ShowWindow": ShowFromTray(); break;
+            case "CheckNow": await RunCheckAsync(); break;
+            case "StartMonitor": await StartMonitoringAsync(); break;
+            case "Stop": StopMonitoring(); break;
+            case "Exit": ExitApplication(); break;
+        }
     }
 
     private void UpdateTrayText(MonitorStatusPresentation? presentation = null)
@@ -2899,7 +2921,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         presentation ??= MonitorStatusPresentation.Create(_engine.IsMonitoring, _engine.IsChecking || _isImmediateCheckRunning,
             GuardianStatusStore.Read(GuardianPaths.MachineDirectory), DateTimeOffset.UtcNow, _localizer);
-        TrayMonitorPresenter.Apply(_notifyIcon, presentation, _localizer);
+        TrayMonitorPresenter.Apply(_notifyIcon, _trayMenu, presentation, _localizer);
     }
 
     private void ShowFromTray()
@@ -3044,7 +3066,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         try
         {
             _notifyIcon.Visible = false;
-            _notifyIcon.ContextMenuStrip?.Dispose();
+            _trayMenuHost?.Dispose();
             _notifyIcon.Icon?.Dispose();
             _notifyIcon.Dispose();
         }

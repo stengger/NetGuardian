@@ -1,4 +1,5 @@
 using NetGuardian.App.Presentation;
+using NetGuardian.App.Views;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Runtime;
 using Xunit;
@@ -15,23 +16,21 @@ public sealed class TrayMonitorPresenterTests
         DesktopFixture.Run(_ =>
         {
             using var tray = new Forms.NotifyIcon();
-            using var menu = new Forms.ContextMenuStrip();
-            tray.ContextMenuStrip = menu;
-            foreach (var name in new[] { "ShowWindow", "CheckNow", "StartMonitor", "Stop", "Exit" }) menu.Items.Add(new Forms.ToolStripMenuItem { Name = name });
+            var menu = new TrayContextMenu();
             var now = DateTimeOffset.Now;
             var background = new GuardianStatus(1, now.AddHours(-1), now, "Running", false);
             var localizer = new Localizer();
             var state = MonitorStatusPresentation.Create(false, false, background, now, localizer);
-            TrayMonitorPresenter.Apply(tray, state, localizer);
+            TrayMonitorPresenter.Apply(tray, menu, state, localizer);
             Assert.Contains("后台监控中", tray.Text);
-            Assert.False(menu.Items["StartMonitor"]!.Enabled);
-            Assert.False(menu.Items["Stop"]!.Enabled);
-            Assert.True(menu.Items["CheckNow"]!.Enabled);
-            Assert.Contains("后台", menu.Items["Stop"]!.ToolTipText);
+            Assert.False(menu.GetCommand("StartMonitor").IsEnabled);
+            Assert.False(menu.GetCommand("Stop").IsEnabled);
+            Assert.True(menu.GetCommand("CheckNow").IsEnabled);
+            Assert.Contains("后台", menu.GetCommand("Stop").ToolTip!.ToString());
             localizer.SetLanguage("en-US");
             state = MonitorStatusPresentation.Create(false, false, background, now, localizer);
-            TrayMonitorPresenter.Apply(tray, state, localizer);
-            Assert.Equal(localizer.T("Stop"), menu.Items["Stop"]!.Text);
+            TrayMonitorPresenter.Apply(tray, menu, state, localizer);
+            Assert.Equal(localizer.T("Stop"), menu.GetCommand("Stop").Header);
             Assert.Contains(localizer.T("BackgroundMonitoring"), tray.Text);
         });
     }

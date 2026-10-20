@@ -64,3 +64,4 @@ SDK `E:\Environment\dotnet-sdk-8.0\dotnet.exe`；初始化脚本与 TEMP/TMP 使
 - 2026-10-20：桌面一致性与设置可达性修复；自动主题在窗口显示后绑定，明暗主题下长状态可滚至末尾，代表性辅助文字对比度通过。Core 206/206、WPF 76/76，构建 0 警告 0 错误，对比度 14/14。见 `docs/2026-10-20-desktop-consistency-validation.md`。实际系统主题消息及跨 DPI/键盘/读屏仍待验收。
 - 2026-10-20：用户确认退出后，经过权限预检、UAC 与脚本编码兼容修正，已将 `2772296` 的 Release 界面文件替换到 `C:\Program Files\NetGuardian`。11 文件及安装标识独立 SHA-256 比对通过，后台两文件哈希未变；旧界面备份保留。详见 `docs/2026-10-20-ui-release-handoff.md`。尚未启动或验收实际业务界面，完整目标未完成。
 - 2026-10-20：用户反馈添加 Wi-Fi 弹窗直角，已接入 Fluent 窗口外壳与原生 Round 偏好；实际 HWND 属性、窗口模板及表单基本布局回归通过。Release Core 206/206、WPF 80/80，构建 0 警告 0 错误；见 `docs/2026-10-20-dialog-corner-validation.md`。真实边角像素与安装更新待验；用户新增反馈托盘菜单风格陈旧，继续整改。
+- 2026-10-20：托盘菜单接入 WPF 主题、图标分组与状态摘要，保留原业务命令与禁用原因；隐藏测试窗口时真实 Popup 的关闭、重开、Escape 路由和释放通过。Release Core 206/206、WPF 85/85，构建 0 警告 0 错误；见 `docs/2026-10-20-tray-menu-validation.md`。系统托盘实际入口、焦点、外部点击及跨 DPI 待验，继续准备安装更新。
