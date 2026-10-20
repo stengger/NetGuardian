@@ -8,7 +8,7 @@ using NetGuardian.Core.Models;
 
 namespace NetGuardian.App;
 
-public sealed class AddWifiDialog : Window
+public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
 {
     private readonly TextBox _ssidBox = new();
     private readonly TextBox _authBox = new();
@@ -24,7 +24,9 @@ public sealed class AddWifiDialog : Window
         MinWidth = 480;
         MinHeight = 430;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        WindowStyle = WindowStyle.None;
+        ExtendsContentIntoTitleBar = true;
+        WindowCornerPreference = Wpf.Ui.Controls.WindowCornerPreference.Round;
+        WindowBackdropType = Wpf.Ui.Controls.WindowBackdropType.None;
         ResizeMode = ResizeMode.NoResize;
         Background = ThemeBrush("SurfaceCardBrush");
         Foreground = ThemeBrush("TextFillColorPrimaryBrush");
