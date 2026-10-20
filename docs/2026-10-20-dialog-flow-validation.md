@@ -55,6 +55,8 @@ SDK 为 `E:\Environment\dotnet-sdk-8.0\dotnet.exe`。初始化 `scripts/initiali
 
 前一轮全量 `add-wifi-flow-release-final-tests.log` 曾有 Core 1 项失败（205 通过）、WPF 91 项通过，退出 1：`SettingsReliabilityTests.结构损坏的配置回退最近有效备份` 在 `profiles:null` 样本的 `SettingsStore.SaveCore` 第 82 行 `File.Move` 返回 `System.UnauthorizedAccessException: Access to the path is denied.`。该测试使用工作区 TEMP 下的 GUID 目录；本轮未修改 Core 或该测试。单独复查此类 4/4 通过，退出 0（`add-wifi-settings-reliability-recheck.log`），随后完整复查通过。一次访问错误的外部原因仍未确定，不能据重跑通过声称已修复，也不能将其误判为运行时或框架不可用。
 
+源码提交为 `8819e5da903f58e29446e8855b0ee37ccd54b372`。`dotnet publish src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false` 加公共参数及独立 output 成功，退出 0（`add-wifi-flow-publish.log`）。新包在忽略目录 `dist/NetGuardian-UI-Update-dialog-flow`，11 个文件生成清单后独立 SHA-256 复核通过。新更新脚本 `install-ui-update-8819e5d.ps1` 使用新备份目录、保留 UTF-8 BOM，语法解析通过。没有启动管理员更新。安装版仍为 `2772296`，当前 11 个文件与旧安装标识一致，退出 0。
+
 ## 未完成验收
 
 真实安装进程、Wi-Fi 凭据写入、硬件键盘 Enter/Escape/Tab、关闭及拖动、讲述人实际通知、系统主题消息和跨屏 DPI 尚未完成。peer 存在和代码请求事件，不等于读屏已播报；资源字典切换不等于系统设置切换。管理员安装仍停留在上次 UAC 被取消，未重复弹出请求。全目标保持未完成。
