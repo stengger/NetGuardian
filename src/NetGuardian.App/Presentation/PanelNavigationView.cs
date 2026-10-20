@@ -67,8 +67,9 @@ public sealed class PanelNavigationView : NavigationView
                 else if (child is ScrollViewerAutomationPeer)
                     children.AddRange((child.GetChildren() ?? []).Where(peer => peer is ScrollBarAutomationPeer));
             }
-            foreach (var item in navigation.MenuItems.Cast<object>().Concat(navigation.FooterMenuItems.Cast<object>()).OfType<PanelNavigationItem>())
-                if (CreatePeerForElement(item) is { } peer) children.Add(peer);
+            foreach (var item in navigation.MenuItems.Cast<object>().Concat(navigation.FooterMenuItems.Cast<object>()))
+                if (item is PanelNavigationItem or System.Windows.Controls.GroupBox
+                    && CreatePeerForElement((UIElement)item) is { } peer) children.Add(peer);
             return children;
         }
         public override object? GetPattern(PatternInterface patternInterface) => patternInterface == PatternInterface.Selection ? this : base.GetPattern(patternInterface);

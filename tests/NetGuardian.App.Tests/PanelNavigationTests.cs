@@ -104,7 +104,8 @@ public sealed class PanelNavigationTests
             navigation.IsPaneOpen = expanded;
             var localizer = new Localizer();
             localizer.SetLanguage(language);
-            var items = navigation.MenuItems.Cast<object>().Concat(navigation.FooterMenuItems.Cast<object>()).Cast<PanelNavigationItem>().ToArray();
+            var items = navigation.MenuItems.Cast<object>().Concat(navigation.FooterMenuItems.Cast<object>()).OfType<PanelNavigationItem>().ToArray();
+            Assert.Equal(9, items.Length);
             var changes = 0;
             navigation.SelectionChanged += (_, _) => changes++;
             navigation.SelectionChanged += (_, _) => PanelNavigationPresenter.Show(window, (navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString(), localizer);

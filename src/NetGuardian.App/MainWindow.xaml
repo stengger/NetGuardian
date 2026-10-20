@@ -188,68 +188,72 @@
                         <presentation:PanelNavigationItem x:Name="LogNavButton" Content="Log" Icon="{ui:SymbolIcon DocumentBulletList24}" Tag="LogPanel" />
                     </presentation:PanelNavigationView.MenuItems>
                     <presentation:PanelNavigationView.FooterMenuItems>
+                        <GroupBox x:Name="SidebarTrafficHost" BorderThickness="0" Padding="0" AutomationProperties.Name="{Binding Text, ElementName=SidebarSpeedTitle}">
+                            <GroupBox.Template><ControlTemplate TargetType="GroupBox"><ContentPresenter /></ControlTemplate></GroupBox.Template>
+                            <Grid>
+                                <Border x:Name="SidebarSpeedCard" Width="184" HorizontalAlignment="Center" Margin="0,8,0,12" Background="Transparent" BorderThickness="0" Padding="10,0,10,10" Visibility="{Binding IsPaneOpen, RelativeSource={RelativeSource AncestorType=presentation:PanelNavigationView}, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <StackPanel>
+                                        <TextBlock x:Name="SidebarSpeedTitle" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        <TextBlock x:Name="SidebarSpeedScopeText" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                                        <Canvas Width="158" Height="38" Margin="0,10,0,10">
+                                            <Polyline x:Name="SidebarDownloadLine" Stroke="{DynamicResource SpeedDownloadBrush}" StrokeThickness="1.8" StrokeLineJoin="Round" />
+                                            <Polyline x:Name="SidebarUploadLine" Stroke="{DynamicResource SpeedUploadBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" />
+                                        </Canvas>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="24" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="42" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="24" />
+                                                <RowDefinition Height="24" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="↑" Foreground="{DynamicResource SpeedUploadBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="SidebarUploadSpeedText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="SidebarUploadUnitText" Grid.Column="2" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
+                                            <TextBlock Grid.Row="1" Text="↓" Foreground="{DynamicResource SpeedDownloadBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="SidebarDownloadSpeedText" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="SidebarDownloadUnitText" Grid.Row="1" Grid.Column="2" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border x:Name="SidebarSpeedCompact" Width="56" HorizontalAlignment="Left" Margin="0,8,0,12" Background="Transparent" BorderThickness="0" Padding="2,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPaneOpen, RelativeSource={RelativeSource AncestorType=presentation:PanelNavigationView}}" Value="True">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                    <StackPanel>
+                                        <Grid Height="21">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="↑" Foreground="{DynamicResource SpeedUploadBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="SidebarCompactUploadText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                        <Grid Height="21">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="10" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="↓" Foreground="{DynamicResource SpeedDownloadBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="SidebarCompactDownloadText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </GroupBox>
                         <presentation:PanelNavigationItem x:Name="SettingsNavButton" Content="Settings" Icon="{ui:SymbolIcon Settings24}" Tag="SettingsPanel" />
                     </presentation:PanelNavigationView.FooterMenuItems>
                 </presentation:PanelNavigationView>
-
-                <Border x:Name="SidebarSpeedCard" Width="184" VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,64" Background="Transparent" BorderThickness="0" Padding="10,0,10,10" Panel.ZIndex="2" Visibility="{Binding IsPaneOpen, ElementName=RootNavigation, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <StackPanel>
-                        <TextBlock x:Name="SidebarSpeedTitle" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                        <TextBlock x:Name="SidebarSpeedScopeText" FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
-                        <Canvas Width="158" Height="38" Margin="0,10,0,10">
-                            <Polyline x:Name="SidebarDownloadLine" Stroke="{DynamicResource SpeedDownloadBrush}" StrokeThickness="1.8" StrokeLineJoin="Round" />
-                            <Polyline x:Name="SidebarUploadLine" Stroke="{DynamicResource SpeedUploadBrush}" StrokeThickness="1.6" StrokeLineJoin="Round" />
-                        </Canvas>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="24" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="42" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="24" />
-                                <RowDefinition Height="24" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="↑" Foreground="{DynamicResource SpeedUploadBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarUploadSpeedText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarUploadUnitText" Grid.Column="2" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
-                            <TextBlock Grid.Row="1" Text="↓" Foreground="{DynamicResource SpeedDownloadBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarDownloadSpeedText" Grid.Row="1" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarDownloadUnitText" Grid.Row="1" Grid.Column="2" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="11" VerticalAlignment="Center" TextAlignment="Right" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
-
-                <Border x:Name="SidebarSpeedCompact" Width="56" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,72" Background="Transparent" BorderThickness="0" Padding="2,0" Panel.ZIndex="2">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="Visibility" Value="Visible" />
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsPaneOpen, ElementName=RootNavigation}" Value="True">
-                                    <Setter Property="Visibility" Value="Collapsed" />
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
-                    <StackPanel>
-                        <Grid Height="21">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="↑" Foreground="{DynamicResource SpeedUploadBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarCompactUploadText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                        </Grid>
-                        <Grid Height="21">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="10" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Text="↓" Foreground="{DynamicResource SpeedDownloadBrush}" FontSize="11" FontWeight="Bold" VerticalAlignment="Center" />
-                            <TextBlock x:Name="SidebarCompactDownloadText" Grid.Column="1" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                        </Grid>
-                    </StackPanel>
-                </Border>
             </Grid>
 
             <Grid Grid.Column="1" Margin="20,10,24,24">
@@ -392,9 +396,9 @@
                                 <DataGrid x:Name="NearbyGrid" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
-                                        <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
-                                        <DataGridTextColumn x:Name="NearbySecurityColumn" Binding="{Binding Authentication}" Width="140" ElementStyle="{StaticResource GridTextStyle}" />
-                                        <DataGridTemplateColumn x:Name="NearbyPriorityColumn" Width="108" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                        <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" MinWidth="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="NearbySecurityColumn" Binding="{Binding Authentication}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTemplateColumn x:Name="NearbyPriorityColumn" Width="108" MinWidth="108" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <Border Padding="8,3" CornerRadius="10" HorizontalAlignment="Center" BorderThickness="1">
@@ -425,10 +429,10 @@
                                 <TextBlock x:Name="ProfileEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
                                 <DataGrid x:Name="ProfileGrid" AutomationProperties.Name="{Binding Text, ElementName=PriorityListTitle}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" IsReadOnly="True" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" MinWidth="42" IsReadOnly="True" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
-                                        <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="74" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
-                                        <DataGridTemplateColumn x:Name="ProfileCredentialColumn" IsReadOnly="True" Width="88" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                        <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="74" MinWidth="74" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTemplateColumn x:Name="ProfileCredentialColumn" IsReadOnly="True" Width="88" MinWidth="88" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="{Binding CredentialSaved, Converter={StaticResource CredentialStatusConverter}, ConverterParameter=hint}">
@@ -441,14 +445,14 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn x:Name="ProfileEnabledColumn" Width="78" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                        <DataGridTemplateColumn x:Name="ProfileEnabledColumn" Width="78" MinWidth="78" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <ui:ToggleSwitch IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Ssid}" AutomationProperties.HelpText="{Binding Column.Header, RelativeSource={RelativeSource AncestorType=DataGridCell}}" HorizontalAlignment="Center" Checked="ProfileEnabledToggle_Changed" Unchecked="ProfileEnabledToggle_Changed" />
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn x:Name="ProfileFailuresColumn" Binding="{Binding FailureCount}" IsReadOnly="True" Width="88" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="ProfileFailuresColumn" Binding="{Binding FailureCount}" IsReadOnly="True" Width="88" MinWidth="88" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </DockPanel>

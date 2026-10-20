@@ -10,7 +10,8 @@ internal static class ResponsiveLayout
         var grid = (Grid)root.FindName("WifiListsGrid");
         var nearby = (Border)root.FindName("NearbyNetworksCard");
         var priority = (Border)root.FindName("PriorityNetworksCard");
-        var wide = grid.ActualWidth >= 1120;
+        // 短窗口优先保留可见数据行；名称列仍有最小宽度及完整文本提示。
+        var wide = grid.ActualWidth >= 1120 || (grid.ActualWidth >= 600 && grid.ActualHeight < 280);
         Place(nearby, 0, 0, wide ? 2 : 1, wide ? 1 : 2, wide ? new Thickness(0, 0, 12, 0) : new Thickness(0, 0, 0, 12));
         Place(priority, wide ? 0 : 1, wide ? 1 : 0, wide ? 2 : 1, wide ? 1 : 2, new Thickness(0));
     }

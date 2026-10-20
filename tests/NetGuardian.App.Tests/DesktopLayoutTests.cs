@@ -397,8 +397,12 @@ internal static class DesktopFixture
         var thread = new Thread(() =>
         {
             Window? window = null;
+            var previousContext = SynchronizationContext.Current;
             try
             {
+                // 独立 STA 窗口也需要真实 UI 同步上下文，库的异步滚动状态才能回到所属线程。
+                SynchronizationContext.SetSynchronizationContext(new System.Windows.Threading.DispatcherSynchronizationContext(
+                    System.Windows.Threading.Dispatcher.CurrentDispatcher));
                 _ = new Grid();
                 using var stream = typeof(DesktopFixture).Assembly.GetManifestResourceStream("MainWindow.xaml")!;
                 var document = XDocument.Load(stream);
@@ -436,6 +440,7 @@ internal static class DesktopFixture
             {
                 window?.Close();
                 System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown();
+                SynchronizationContext.SetSynchronizationContext(previousContext);
             }
         }) { IsBackground = true };
         thread.SetApartmentState(ApartmentState.STA);
