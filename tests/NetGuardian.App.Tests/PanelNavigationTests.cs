@@ -115,6 +115,14 @@ public sealed class PanelNavigationTests
                 ((System.Windows.Controls.TextBlock)window.FindName(name)).Text = localizer.T(key);
             foreach (var (name, key) in new[] { ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
                 ((System.Windows.Controls.ContentControl)window.FindName(name)).Content = localizer.T(key);
+            var actionMap = new[]
+            {
+                ("StatusPanel", (string?)null), ("WifiPanel", "WifiPageActions"),
+                ("QualityPanel", "QualityPageActions"), ("ToolsPanel", "ToolsPageActions"),
+                ("DnsPanel", "DnsPageActions"), ("NetworkPanel", "NetworkPageActions"),
+                ("PolicyPanel", "PolicyPageActions"), ("LogPanel", "LogPageActions"),
+                ("SettingsPanel", (string?)null)
+            };
             foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"), ("QualityNavButton", "QualityTools"), ("ToolsNavButton", "Tools"), ("DnsNavButton", "DnsTools"), ("AdapterNavButton", "AdapterTools"), ("PolicyNavButton", "Policy"), ("LogNavButton", "Log"), ("SettingsNavButton", "Settings") })
             {
                 var item = (PanelNavigationItem)window.FindName(name);
@@ -129,6 +137,10 @@ public sealed class PanelNavigationTests
                 Assert.Equal(Visibility.Visible, panel.Visibility);
                 Assert.Equal(1, new[] { "StatusPanel", "WifiPanel", "QualityPanel", "ToolsPanel", "DnsPanel", "NetworkPanel", "PolicyPanel", "LogPanel", "SettingsPanel" }
                     .Count(tag => ((FrameworkElement)window.FindName(tag)).Visibility == Visibility.Visible));
+                var expectedAction = actionMap.Single(item => item.Item1 == (string)item.Tag);
+                Assert.Equal(expectedAction.Item2 is not null, ((FrameworkElement)window.FindName("PageActionBar")).Visibility == Visibility.Visible);
+                foreach (var action in actionMap.Where(item => item.Item2 is not null))
+                    Assert.Equal(action.Item2 == expectedAction.Item2, ((FrameworkElement)window.FindName(action.Item2!)).Visibility == Visibility.Visible);
                 Assert.Equal(localizer.T(key), ((System.Windows.Controls.TextBlock)window.FindName("PageTitleText")).Text);
                 Assert.True(navigation.SelectPanel((string)item.Tag));
             }
