@@ -26,6 +26,14 @@ internal static class PanelNavigationPresenter
         ["LogPanel"] = "LogPageActions"
     };
 
+    private static readonly IReadOnlyDictionary<string, string> ToolActions = new Dictionary<string, string>
+    {
+        ["QuickToolsTab"] = "ToolsPageActions",
+        ["WebsiteToolsTab"] = "WebsitePageActions",
+        ["IpInfoToolsTab"] = "IpInfoPageActions",
+        ["ReportToolsTab"] = "ReportPageActions"
+    };
+
     public static void Show(Window window, string? tag, Localizer localizer)
     {
         var target = Panels.FirstOrDefault(panel => panel.Name == tag);
@@ -35,9 +43,10 @@ internal static class PanelNavigationPresenter
         foreach (var actionName in PageActions.Values)
             ((UIElement)window.FindName(actionName)).Visibility = Visibility.Collapsed;
         var actionBar = (FrameworkElement)window.FindName("PageActionBar");
-        actionBar.Visibility = PageActions.TryGetValue(target.Name, out var actionNameForPage)
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        PageActions.TryGetValue(target.Name, out var actionNameForPage);
+        if (target.Name == "ToolsPanel" && window.FindName("ToolsTabControl") is TabControl tools)
+            actionNameForPage = ToolActions.TryGetValue((tools.SelectedItem as TabItem)?.Name ?? "", out var toolAction) ? toolAction : null;
+        actionBar.Visibility = actionNameForPage is not null ? Visibility.Visible : Visibility.Collapsed;
         if (actionNameForPage is not null)
             ((UIElement)window.FindName(actionNameForPage)).Visibility = Visibility.Visible;
         ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.TitleKey);

@@ -681,6 +681,32 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
+    private void ToolsTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.OriginalSource != ToolsTabControl || ToolsPanel.Visibility != Visibility.Visible)
+        {
+            return;
+        }
+
+        foreach (var action in new UIElement[] { ToolsPageActions, WebsitePageActions, IpInfoPageActions, ReportPageActions })
+        {
+            action.Visibility = Visibility.Collapsed;
+        }
+
+        if (ToolsTabControl.SelectedItem is TabItem tab && tab.Name switch
+            {
+                nameof(QuickToolsTab) => ToolsPageActions,
+                nameof(WebsiteToolsTab) => WebsitePageActions,
+                nameof(IpInfoToolsTab) => IpInfoPageActions,
+                nameof(ReportToolsTab) => ReportPageActions,
+                _ => null
+            } is UIElement selectedAction)
+        {
+            PageActionBar.Visibility = Visibility.Visible;
+            selectedAction.Visibility = Visibility.Visible;
+        }
+    }
+
     private void ShowPanelByTag(string? tag)
     {
         PanelNavigationPresenter.Show(this, tag, _localizer);

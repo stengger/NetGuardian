@@ -198,6 +198,27 @@ public sealed class PanelNavigationTests
         });
     }
 
+    [Fact]
+    public void 诊断标签切换同步标题下操作组()
+    {
+        DesktopFixture.Run(window =>
+        {
+            var localizer = new Localizer();
+            DesktopFixture.ShowPage(window, "ToolsPanel");
+            var tabs = (System.Windows.Controls.TabControl)window.FindName("ToolsTabControl");
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ToolsPageActions")).Visibility);
+            tabs.SelectedItem = window.FindName("WebsiteToolsTab");
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("WebsitePageActions")).Visibility);
+            Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("ToolsPageActions")).Visibility);
+            tabs.SelectedItem = window.FindName("IpInfoToolsTab");
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("IpInfoPageActions")).Visibility);
+            tabs.SelectedItem = window.FindName("ReportToolsTab");
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ReportPageActions")).Visibility);
+            PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ReportPageActions")).Visibility);
+        });
+    }
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 }
