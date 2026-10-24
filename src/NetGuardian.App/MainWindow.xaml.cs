@@ -683,7 +683,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ToolsTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (e.OriginalSource != ToolsTabControl || ToolsPanel.Visibility != Visibility.Visible)
+        if (ToolsPanel.Visibility != Visibility.Visible)
         {
             return;
         }
@@ -693,12 +693,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             action.Visibility = Visibility.Collapsed;
         }
 
-        if (ToolsTabControl.SelectedItem is TabItem tab && tab.Name switch
+        if ((ToolsTabControl.SelectedIndex < 0 ? 0 : ToolsTabControl.SelectedIndex) switch
             {
-                nameof(QuickToolsTab) => ToolsPageActions,
-                nameof(WebsiteToolsTab) => WebsitePageActions,
-                nameof(IpInfoToolsTab) => IpInfoPageActions,
-                nameof(ReportToolsTab) => ReportPageActions,
+                0 => ToolsPageActions,
+                2 => WebsitePageActions,
+                3 => IpInfoPageActions,
+                4 => ReportPageActions,
                 _ => null
             } is UIElement selectedAction)
         {

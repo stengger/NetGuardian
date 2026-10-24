@@ -26,18 +26,14 @@ public sealed class SmallWorkAreaTests
             DesktopFixture.Layout(window, width, height);
             var page = (FrameworkElement)window.FindName("WifiPanel");
             var action = (FrameworkElement)window.FindName("ScanButton");
-            var surfaces = new List<Border>();
-            for (DependencyObject? current = VisualTreeHelper.GetParent(action); current is not null; current = VisualTreeHelper.GetParent(current))
-            {
-                if (current is Border border && border.Background is SolidColorBrush brush && brush.Color.A > 0 && border.Padding.Left >= 16)
-                    surfaces.Add(border);
-                if (ReferenceEquals(current, page)) break;
-            }
-            var surface = Assert.Single(surfaces);
+            var actionBar = (FrameworkElement)window.FindName("PageActionBar");
+            Assert.Equal(Visibility.Visible, actionBar.Visibility);
+            Assert.Same(actionBar, FindAncestor(action, actionBar));
+            var surface = Assert.IsType<Border>(page);
             var reference = (Border)window.FindName("ToolsPanel");
             Assert.Equal(((SolidColorBrush)reference.Background).Color, ((SolidColorBrush)surface.Background).Color);
             Assert.Equal(reference.Padding, surface.Padding);
-            foreach (var name in new[] { "ScanButton", "ConnectButton", "WifiSelectionBar", "NearbyNetworksCard", "PriorityNetworksCard" })
+            foreach (var name in new[] { "WifiSelectionBar", "NearbyNetworksCard", "PriorityNetworksCard" })
             {
                 var child = (FrameworkElement)window.FindName(name);
                 var bounds = child.TransformToAncestor(surface).TransformBounds(new Rect(child.RenderSize));
@@ -47,6 +43,13 @@ public sealed class SmallWorkAreaTests
             }
             DesktopFixture.Save(window, $"wifi-page-surface-{width}-{language}-{light}.png");
         }, light ? Wpf.Ui.Appearance.ApplicationTheme.Light : Wpf.Ui.Appearance.ApplicationTheme.Dark);
+    }
+
+    private static DependencyObject? FindAncestor(DependencyObject child, DependencyObject ancestor)
+    {
+        for (var current = VisualTreeHelper.GetParent(child); current is not null; current = VisualTreeHelper.GetParent(current))
+            if (ReferenceEquals(current, ancestor)) return current;
+        return null;
     }
 
     [Theory]

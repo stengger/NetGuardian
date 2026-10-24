@@ -520,8 +520,7 @@ internal static class DesktopFixture
 
     public static void ShowPage(Window window, string name)
     {
-        foreach (var page in new[] { "StatusPanel", "WifiPanel", "PolicyPanel", "ToolsPanel", "DnsPanel", "QualityPanel", "NetworkPanel", "LogPanel", "SettingsPanel" })
-            ((UIElement)window.FindName(page)).Visibility = page == name ? Visibility.Visible : Visibility.Collapsed;
+        NetGuardian.App.Presentation.PanelNavigationPresenter.Show(window, name, new Localizer());
     }
 
     public static void Layout(Window window, double width, double height)

@@ -45,7 +45,17 @@ internal static class PanelNavigationPresenter
         var actionBar = (FrameworkElement)window.FindName("PageActionBar");
         PageActions.TryGetValue(target.Name, out var actionNameForPage);
         if (target.Name == "ToolsPanel" && window.FindName("ToolsTabControl") is TabControl tools)
-            actionNameForPage = ToolActions.TryGetValue((tools.SelectedItem as TabItem)?.Name ?? "", out var toolAction) ? toolAction : null;
+        {
+            var toolTabName = (tools.SelectedIndex < 0 ? 0 : tools.SelectedIndex) switch
+            {
+                0 => "QuickToolsTab",
+                2 => "WebsiteToolsTab",
+                3 => "IpInfoToolsTab",
+                4 => "ReportToolsTab",
+                _ => ""
+            };
+            actionNameForPage = ToolActions.TryGetValue(toolTabName, out var toolAction) ? toolAction : null;
+        }
         actionBar.Visibility = actionNameForPage is not null ? Visibility.Visible : Visibility.Collapsed;
         if (actionNameForPage is not null)
             ((UIElement)window.FindName(actionNameForPage)).Visibility = Visibility.Visible;

@@ -137,9 +137,9 @@ public sealed class PanelNavigationTests
                 Assert.Equal(Visibility.Visible, panel.Visibility);
                 Assert.Equal(1, new[] { "StatusPanel", "WifiPanel", "QualityPanel", "ToolsPanel", "DnsPanel", "NetworkPanel", "PolicyPanel", "LogPanel", "SettingsPanel" }
                     .Count(tag => ((FrameworkElement)window.FindName(tag)).Visibility == Visibility.Visible));
-                var expectedAction = actionMap.Single(item => item.Item1 == (string)item.Tag);
+                var expectedAction = actionMap.Single(action => action.Item1 == (string)item.Tag);
                 Assert.Equal(expectedAction.Item2 is not null, ((FrameworkElement)window.FindName("PageActionBar")).Visibility == Visibility.Visible);
-                foreach (var action in actionMap.Where(item => item.Item2 is not null))
+                foreach (var action in actionMap.Where(action => action.Item2 is not null))
                     Assert.Equal(action.Item2 == expectedAction.Item2, ((FrameworkElement)window.FindName(action.Item2!)).Visibility == Visibility.Visible);
                 Assert.Equal(localizer.T(key), ((System.Windows.Controls.TextBlock)window.FindName("PageTitleText")).Text);
                 Assert.True(navigation.SelectPanel((string)item.Tag));
@@ -208,11 +208,14 @@ public sealed class PanelNavigationTests
             var tabs = (System.Windows.Controls.TabControl)window.FindName("ToolsTabControl");
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ToolsPageActions")).Visibility);
             tabs.SelectedItem = window.FindName("WebsiteToolsTab");
+            PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("WebsitePageActions")).Visibility);
             Assert.Equal(Visibility.Collapsed, ((FrameworkElement)window.FindName("ToolsPageActions")).Visibility);
             tabs.SelectedItem = window.FindName("IpInfoToolsTab");
+            PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("IpInfoPageActions")).Visibility);
             tabs.SelectedItem = window.FindName("ReportToolsTab");
+            PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ReportPageActions")).Visibility);
             PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ReportPageActions")).Visibility);
