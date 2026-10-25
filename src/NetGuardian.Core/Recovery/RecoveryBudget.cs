@@ -56,6 +56,17 @@ public sealed class BudgetedRecoveryService(IHighRiskRecoveryService inner, Reco
 
 public static class ComputerRestartPlanner
 {
+    public static bool ShouldRestart(NetGuardian.Core.Settings.AppSettings settings, NetGuardian.Core.Models.NetworkState state,
+        DateTimeOffset? failedSince, DateTimeOffset now, bool recoveryAttemptsCompleted)
+    {
+        var policy = settings.Policy;
+        // 旧配置两项均为 false 时，引擎兼容执行两种动作；单项开启则严格遵循细分授权。
+        var bothActionsEnabled = policy.EnableWlanServiceRestart == policy.EnableAdapterRestart;
+        return policy.EnableHighRiskRecovery && bothActionsEnabled
+            && ShouldRestart(settings.EnableComputerRestart, state, failedSince, now,
+                settings.DeviceFailureMinutesBeforeRestart, recoveryAttemptsCompleted);
+    }
+
     public static bool ShouldRestart(bool enabled, NetGuardian.Core.Models.NetworkState state,
         DateTimeOffset? failedSince, DateTimeOffset now, int minimumMinutes, bool recoveryAttemptsCompleted = false) =>
         enabled && recoveryAttemptsCompleted && state == NetGuardian.Core.Models.NetworkState.AdapterFault && failedSince is { } since

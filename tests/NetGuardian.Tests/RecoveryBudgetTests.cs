@@ -1,5 +1,6 @@
 using NetGuardian.Core.Models;
 using NetGuardian.Core.Recovery;
+using NetGuardian.Core.Settings;
 using Xunit;
 
 namespace NetGuardian.Tests;
@@ -7,6 +8,40 @@ namespace NetGuardian.Tests;
 public sealed class RecoveryBudgetTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), "NetGuardian-budget-" + Guid.NewGuid().ToString("N"));
+
+    [Theory]
+    [InlineData(false, true, true, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(true, true, true, true)]
+    [InlineData(true, false, false, true)]
+    public void 已完成恢复后仍须遵守当前高风险策略(bool master, bool wlan, bool adapter, bool expected)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var settings = new AppSettings
+        {
+            EnableComputerRestart = true,
+            Policy = new MonitorPolicy
+            {
+                EnableHighRiskRecovery = true,
+                EnableWlanServiceRestart = true,
+                EnableAdapterRestart = true
+            }
+        };
+        var tracker = new DeviceFailureTracker();
+        tracker.Record(NetworkState.AdapterFault, now.AddMinutes(-60));
+        tracker.RecordRecoveryAttempt("WlanService");
+        tracker.RecordRecoveryAttempt("Adapter");
+        Assert.True(ComputerRestartPlanner.ShouldRestart(settings, NetworkState.AdapterFault, tracker.FailedSince, now,
+            tracker.RecoveryAttemptsCompleted));
+
+        settings.Policy.EnableHighRiskRecovery = master;
+        settings.Policy.EnableWlanServiceRestart = wlan;
+        settings.Policy.EnableAdapterRestart = adapter;
+
+        Assert.Equal(expected, ComputerRestartPlanner.ShouldRestart(settings, NetworkState.AdapterFault, tracker.FailedSince,
+            now, tracker.RecoveryAttemptsCompleted));
+    }
 
     [Fact]
     public void 未确认两种设备恢复均执行过不得整机重启()

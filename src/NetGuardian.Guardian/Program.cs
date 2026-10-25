@@ -162,14 +162,17 @@ try
         GuardianStatusStore.Write(directory, new GuardianStatus(Environment.ProcessId, processStartedAt,
             DateTimeOffset.UtcNow, state, engine.IsChecking, Volatile.Read(ref lastReport), engine.FailureStreak, engine.NextCheckAt));
         if (firstCheck.IsCompleted) await firstCheck;
-        if (!engine.IsChecking && ComputerRestartPlanner.ShouldRestart(settings.EnableComputerRestart,
+        if (!engine.IsChecking && ComputerRestartPlanner.ShouldRestart(settings,
             Volatile.Read(ref lastReport)?.State ?? NetworkState.Healthy,
-            deviceFailures.FailedSince, DateTimeOffset.UtcNow, settings.DeviceFailureMinutesBeforeRestart,
+            deviceFailures.FailedSince, DateTimeOffset.UtcNow,
             deviceFailures.RecoveryAttemptsCompleted))
         {
             // 重启前重新核对设备层，禁止依据恢复前的陈旧报告重启电脑。
             var fresh = await wifi.GetAdapterDiagnosticsAsync(cancellation.Token);
-            if (fresh.ProblemCode is > 0 && !engine.IsChecking && deviceFailures.FailedSince is not null
+            // 设备复核可能耗时，发出重启命令前重新读取磁盘上的最新授权。
+            if (store.TryLoad(out var restartSettings) && fresh.ProblemCode is > 0 && !engine.IsChecking
+                && ComputerRestartPlanner.ShouldRestart(restartSettings, NetworkState.AdapterFault,
+                    deviceFailures.FailedSince, DateTimeOffset.UtcNow, deviceFailures.RecoveryAttemptsCompleted)
                 && budget.TryReserve("ComputerRestart", DateTimeOffset.UtcNow, TimeSpan.FromHours(24)))
             {
                 log.Write("设备故障持续超过门槛，已预留24小时重启预算；将在60秒后重启电脑。");
