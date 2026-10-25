@@ -38,7 +38,7 @@ public partial class MainWindow
     private async Task RefreshPublicIpInfoAsync()
     {
         if (_resourcesCleaned || _ipSession.IsBusy) return;
-        await _ipSession.RunAsync(token => _publicIpInfo.GetAsync(token), RefreshIpToolUi);
+        await _ipSession.RunAsync(token => _publicIpInfo.GetAsync(token, forceRefresh: true), RefreshIpToolUi);
         if (!_resourcesCleaned) DiagnosticLog(IpInfoStatusText.Text, _ipSession.Phase == DiagnosticPhase.Failed ? UiLogLevel.Error : UiLogLevel.Information);
     }
 

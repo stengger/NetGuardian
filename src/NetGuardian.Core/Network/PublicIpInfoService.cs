@@ -25,12 +25,12 @@ public sealed class PublicIpInfoService
         _httpClient = httpClient ?? SharedHttpClient;
     }
 
-    public async Task<PublicIpInfo> GetAsync(CancellationToken cancellationToken = default)
+    public async Task<PublicIpInfo> GetAsync(CancellationToken cancellationToken = default, bool forceRefresh = false)
     {
         await _cacheLock.WaitAsync(cancellationToken);
         try
         {
-            if (_cachedInfo is not null && DateTimeOffset.Now - _cachedAt < CacheDuration)
+            if (!forceRefresh && _cachedInfo is not null && DateTimeOffset.Now - _cachedAt < CacheDuration)
             {
                 return _cachedInfo;
             }
