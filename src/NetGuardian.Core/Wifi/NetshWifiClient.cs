@@ -101,12 +101,12 @@ public sealed partial class NetshWifiClient : IWifiClient
         var profilesResult = await RunNetshAsync(["wlan", "show", "profiles"], cancellationToken);
         foreach (var profileName in ParseProfileNames(profilesResult.Output))
         {
-            if (!profileName.Equals(ssid, StringComparison.OrdinalIgnoreCase))
+            if (!profileName.Equals(ssid, StringComparison.Ordinal))
             {
                 var profileResult = await RunNetshAsync(["wlan", "show", "profile", $"name={profileName}"], cancellationToken);
                 var profileSsid = ParseProfileSsid(profileResult.Output);
                 if (string.IsNullOrWhiteSpace(profileSsid)
-                    || !profileSsid.Equals(ssid, StringComparison.OrdinalIgnoreCase))
+                    || !profileSsid.Equals(ssid, StringComparison.Ordinal))
                 {
                     continue;
                 }

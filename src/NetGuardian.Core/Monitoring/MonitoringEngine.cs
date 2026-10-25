@@ -28,7 +28,7 @@ public sealed class MonitoringEngine : IDisposable
     private bool _lastCheckHealthy;
     private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly object _lifecycle = new();
-    private readonly Dictionary<string, DateTimeOffset> _failedSsids = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, DateTimeOffset> _failedSsids = new(StringComparer.Ordinal);
     private CancellationTokenSource? _activeCheck;
     private ITimer? _timer;
     private int _failureStreak;
@@ -511,12 +511,12 @@ public sealed class MonitoringEngine : IDisposable
     }
 
     private bool IsSsidCoolingDown(string ssid) =>
-        _failedSsids.TryGetValue(ssid.Trim(), out var until) && _time.GetUtcNow() < until;
+        _failedSsids.TryGetValue(ssid, out var until) && _time.GetUtcNow() < until;
 
     private void RecordProfileResult(MonitorPolicy policy, string ssid, bool succeeded)
     {
-        if (succeeded) _failedSsids.Remove(ssid.Trim());
-        else _failedSsids[ssid.Trim()] = _time.GetUtcNow().AddSeconds(Math.Max(0, policy.RecoveryCooldownSeconds));
+        if (succeeded) _failedSsids.Remove(ssid);
+        else _failedSsids[ssid] = _time.GetUtcNow().AddSeconds(Math.Max(0, policy.RecoveryCooldownSeconds));
     }
 
     private async Task<bool> ConnectAndValidateAsync(MonitorPolicy policy, string ssid, TimeSpan timeout, CancellationToken token)

@@ -8,6 +8,33 @@ namespace NetGuardian.Tests;
 
 public sealed class UnattendedEngineTests
 {
+    [Theory]
+    [InlineData("office")]
+    [InlineData(" Office ")]
+    public async Task 一个网络失败不会让不同名称的备用网络进入冷却(string backup)
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        wifi.ConnectHandler = (ssid, _) =>
+        {
+            wifi.CurrentSsid = ssid;
+            return Task.FromResult(true);
+        };
+        var policy = Policy();
+        policy.RecoveryCooldownSeconds = 30;
+        using var engine = new MonitoringEngine(wifi,
+            new ScriptedTester((ssid, _) => Task.FromResult(Report(ssid,
+                ssid == backup ? NetworkState.Healthy : NetworkState.InternetIssue))),
+            new FakeCommandRunner(), () => policy, () =>
+            [
+                new WifiProfile { Ssid = "Office", Priority = 1, CredentialSaved = true },
+                new WifiProfile { Ssid = backup, Priority = 2, CredentialSaved = true }
+            ]);
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal(new[] { "Office", backup }, wifi.ConnectAttempts);
+        Assert.Equal(0, engine.FailureStreak);
+    }
+
     [Fact]
     public async Task 停止期间连接请求未收尾不能释放检查控制权()
     {

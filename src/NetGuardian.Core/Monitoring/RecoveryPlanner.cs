@@ -145,6 +145,6 @@ public static class RecoveryPlanner
     {
         return !string.IsNullOrWhiteSpace(left)
             && !string.IsNullOrWhiteSpace(right)
-            && left.Trim().Equals(right.Trim(), StringComparison.OrdinalIgnoreCase);
+            && left.Equals(right, StringComparison.Ordinal);
     }
 }

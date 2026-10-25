@@ -66,7 +66,7 @@ public class RecoveryPlannerTests
             new WifiProfile { Ssid = "High", Priority = 2, CredentialSaved = true }
         };
 
-        var candidates = RecoveryPlanner.OrderSwitchCandidates(profiles, "current");
+        var candidates = RecoveryPlanner.OrderSwitchCandidates(profiles, "Current");
         Assert.Equal(new[] { "High", "Low" }, candidates.Select(profile => profile.Ssid));
     }
 
@@ -89,13 +89,29 @@ public class RecoveryPlannerTests
     }
 
     [Theory]
-    [InlineData("Office", " office ", true)]
+    [InlineData("Office", "Office", true)]
+    [InlineData("Office", "office", false)]
+    [InlineData("Office", " Office ", false)]
+    [InlineData(" Office ", " Office ", true)]
     [InlineData("Office", "Backup", false)]
     [InlineData(null, "Office", false)]
     [InlineData("Office", "", false)]
-    public void SsidEquals_TrimsAndIgnoresCase(string? left, string? right, bool expected)
+    public void 网络名称按大小写和空格精确比较(string? left, string? right, bool expected)
     {
         Assert.Equal(expected, RecoveryPlanner.SsidEquals(left, right));
+    }
+
+    [Theory]
+    [InlineData("office")]
+    [InlineData(" Office ")]
+    public void 不同大小写或空格的网络仍可作为备用候选(string backup)
+    {
+        var profiles = new[]
+        {
+            new WifiProfile { Ssid = "Office", CredentialSaved = true },
+            new WifiProfile { Ssid = backup, CredentialSaved = true }
+        };
+        Assert.Equal(backup, RecoveryPlanner.OrderSwitchCandidates(profiles, "Office").Single().Ssid);
     }
 }
 

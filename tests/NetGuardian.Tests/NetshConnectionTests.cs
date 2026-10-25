@@ -7,6 +7,26 @@ namespace NetGuardian.Tests;
 public sealed class NetshConnectionTests
 {
     [Fact]
+    public async Task 导入密码不能匹配仅大小写不同的SSID()
+    {
+        var client = new NetshWifiClient(new PasswordCommandRunner());
+        Assert.Null(await client.GetSavedPasswordAsync("office"));
+    }
+
+    private sealed class PasswordCommandRunner : ISystemCommandRunner
+    {
+        public Task<SystemCommandResult> RunAsync(string fileName, IReadOnlyList<string> arguments,
+            CancellationToken cancellationToken = default)
+        {
+            var result = arguments.Contains("name=office") ? new SystemCommandResult(1, "未找到配置")
+                : arguments.Contains("profiles") ? new(0, "All User Profile : Office")
+                : arguments.Contains("key=clear") ? new(0, "Key Content : 仅供测试的密码")
+                : new(0, "SSID name : \"Office\"");
+            return Task.FromResult(result);
+        }
+    }
+
+    [Fact]
     public async Task 连接失败保留系统原因且成功后清除旧错误()
     {
         var commands = new ProfileCommandRunner { Result = new(1, "指定的网络无法用于连接。") };

@@ -1031,7 +1031,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void MarkProfileRecoveryResult(string ssid, bool succeeded)
     {
-        var profile = _profiles.FirstOrDefault(item => item.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
+        var profile = _profiles.FirstOrDefault(item => SsidEquals(item.Ssid, ssid));
         if (profile is null)
         {
             return;
@@ -1056,8 +1056,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var ssid = dialog.Ssid.Trim();
-        var existing = _profiles.FirstOrDefault(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
+        var ssid = dialog.Ssid;
+        var existing = _profiles.FirstOrDefault(profile => SsidEquals(profile.Ssid, ssid));
         if (existing is not null)
         {
             await ConfigureProfileCredentialAsync(existing, initialPassword);
@@ -1089,7 +1089,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateEmptyStates();
         SaveSettings();
         RefreshNearbyPriorityMarkers();
-        ProfileGrid.SelectedItem = _profiles.FirstOrDefault(profile => profile.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase));
+        ProfileGrid.SelectedItem = _profiles.FirstOrDefault(profile => SsidEquals(profile.Ssid, ssid));
         UpdateWifiSelectionUi();
     }
 
@@ -1108,9 +1108,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var ssid = dialog.Ssid.Trim();
-        if (!ssid.Equals(profile.Ssid, StringComparison.OrdinalIgnoreCase)
-            && _profiles.Any(item => item.Ssid.Equals(ssid, StringComparison.OrdinalIgnoreCase)))
+        var ssid = dialog.Ssid;
+        if (!SsidEquals(ssid, profile.Ssid)
+            && _profiles.Any(item => SsidEquals(item.Ssid, ssid)))
         {
             Log(string.Format(_localizer.T("WifiProfileExists"), ssid));
             return;
@@ -1313,9 +1313,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private static bool SsidEquals(string? left, string? right)
     {
-        return !string.IsNullOrWhiteSpace(left)
-            && !string.IsNullOrWhiteSpace(right)
-            && left.Trim().Equals(right.Trim(), StringComparison.OrdinalIgnoreCase);
+        return RecoveryPlanner.SsidEquals(left, right);
     }
 
     private async Task ImportSelectedWifiPasswordAsync()
@@ -1484,7 +1482,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ApplyNearbyPriorityMarker(NearbyWifiRow row)
     {
-        var profile = _profiles.FirstOrDefault(item => item.Ssid.Equals(row.Ssid, StringComparison.OrdinalIgnoreCase));
+        var profile = _profiles.FirstOrDefault(item => SsidEquals(item.Ssid, row.Ssid));
         row.IsInPriorityList = profile is not null;
         row.Priority = profile?.Priority;
         row.PriorityBadge = profile is null
