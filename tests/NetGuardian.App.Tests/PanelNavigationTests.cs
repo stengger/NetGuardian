@@ -222,6 +222,40 @@ public sealed class PanelNavigationTests
         });
     }
 
+    [Theory]
+    [InlineData("WebsiteToolsTab", "WebsitePageActions")]
+    [InlineData("IpInfoToolsTab", "IpInfoPageActions")]
+    [InlineData("ReportToolsTab", "ReportPageActions")]
+    public void 离开诊断子标签后其他页面不残留诊断操作组(string tabName, string actionName)
+    {
+        DesktopFixture.Run(window =>
+        {
+            var localizer = new Localizer();
+            var tabs = (System.Windows.Controls.TabControl)window.FindName("ToolsTabControl");
+            var actionBar = (System.Windows.Controls.Panel)window.FindName("PageActionBar");
+            foreach (var (page, expectedAction) in new[]
+            {
+                ("StatusPanel", (string?)null), ("WifiPanel", "WifiPageActions"),
+                ("QualityPanel", "QualityPageActions"), ("DnsPanel", "DnsPageActions"),
+                ("NetworkPanel", "NetworkPageActions"), ("PolicyPanel", "PolicyPageActions"),
+                ("LogPanel", "LogPageActions"), ("SettingsPanel", (string?)null)
+            })
+            {
+                PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
+                tabs.SelectedItem = window.FindName(tabName);
+                PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
+                Assert.Equal(Visibility.Visible, ((UIElement)window.FindName(actionName)).Visibility);
+
+                PanelNavigationPresenter.Show(window, page, localizer);
+                foreach (FrameworkElement action in actionBar.Children)
+                    Assert.Equal(action.Name == expectedAction ? Visibility.Visible : Visibility.Collapsed, action.Visibility);
+                Assert.Equal(expectedAction is null ? Visibility.Collapsed : Visibility.Visible, actionBar.Visibility);
+            }
+            PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
+            Assert.Equal(Visibility.Visible, ((UIElement)window.FindName(actionName)).Visibility);
+        });
+    }
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
 }

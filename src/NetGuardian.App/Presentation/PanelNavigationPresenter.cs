@@ -40,7 +40,7 @@ internal static class PanelNavigationPresenter
         if (target.Name is null) target = Panels[0];
         foreach (var panel in Panels)
             ((UIElement)window.FindName(panel.Name)).Visibility = panel.Name == target.Name ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var actionName in PageActions.Values)
+        foreach (var actionName in PageActions.Values.Concat(ToolActions.Values).Distinct())
             ((UIElement)window.FindName(actionName)).Visibility = Visibility.Collapsed;
         var actionBar = (FrameworkElement)window.FindName("PageActionBar");
         PageActions.TryGetValue(target.Name, out var actionNameForPage);
