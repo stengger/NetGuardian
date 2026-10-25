@@ -23,6 +23,27 @@ public sealed class ConnectivityTester
         _probes = probes;
     }
 
+    /// <summary>只读接口快照及公网探测，不执行系统命令和独立网关、DNS 诊断。</summary>
+    public async Task<ConnectivityReport> RunLightweightCheckAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var snapshot = _environment.Capture();
+        var probes = new List<ConnectivityProbe>();
+        var state = NetworkState.Disconnected;
+        if (snapshot.AdapterPresent && snapshot.AdapterUp && !string.IsNullOrWhiteSpace(snapshot.Ipv4))
+        {
+            var targets = MonitorPolicy.NormalizeProbeList(_policy.HttpsProbeHosts, MonitorPolicy.DefaultHttpsProbeHosts);
+            probes.AddRange(await Task.WhenAll(targets.Select(host => HttpsHeadAsync(host, cancellationToken))));
+            state = probes.Count(probe => probe.Ok) >= Math.Min(2, targets.Count) ? NetworkState.Healthy : NetworkState.InternetIssue;
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        return new ConnectivityReport
+        {
+            IsLightweight = true, State = state, Ipv4 = snapshot.Ipv4, Gateway = snapshot.Gateway, Probes = probes,
+            Summary = state == NetworkState.Healthy ? "Lightweight internet check succeeded." : "Lightweight internet check failed."
+        };
+    }
+
     public async Task<ConnectivityReport> RunFullCheckAsync(
         string? currentSsid,
         WifiAdapterDiagnostics? wifiDiagnostics = null,

@@ -2,6 +2,7 @@ namespace NetGuardian.Core.Models;
 
 public sealed class ConnectivityReport
 {
+    public bool IsLightweight { get; init; }
     public NetworkState State { get; init; }
     public DateTimeOffset CheckedAt { get; init; } = DateTimeOffset.Now;
     public string? CurrentSsid { get; init; }

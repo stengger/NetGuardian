@@ -11,15 +11,17 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class PolicyEditFeedbackTests
 {
-    [Fact]
-    public void 保存失败不能把未保存策略留给正在运行的监控()
+    [Theory]
+    [InlineData(30)]
+    [InlineData(90)]
+    public void 保存失败不能把未保存策略留给正在运行的监控(int previousSeconds)
     {
-        var settings = new AppSettings();
+        var settings = new AppSettings { Policy = new MonitorPolicy { CheckIntervalSeconds = previousSeconds } };
         var previous = settings.Policy;
         var edited = new MonitorPolicy { CheckIntervalSeconds = 120 };
         Assert.Throws<IOException>(() => PolicySaveTransaction.Commit(settings, edited, _ => throw new IOException("磁盘不可写")));
         Assert.Same(previous, settings.Policy);
-        Assert.Equal(30, settings.Policy.CheckIntervalSeconds);
+        Assert.Equal(previousSeconds, settings.Policy.CheckIntervalSeconds);
     }
 
     [Fact]

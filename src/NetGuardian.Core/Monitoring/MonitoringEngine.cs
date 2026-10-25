@@ -21,6 +21,11 @@ public sealed class MonitoringEngine : IDisposable
     private readonly Func<MonitorPolicy> _policyProvider;
     private readonly Func<IEnumerable<WifiProfile>> _profilesProvider;
     private readonly TimeProvider _time;
+    private readonly INetworkChangeSource? _networkChanges;
+    private IDisposable? _networkSubscription;
+    private long _generation;
+    private DateTimeOffset? _networkChangeDue;
+    private bool _lastCheckHealthy;
     private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly object _lifecycle = new();
     private readonly Dictionary<string, DateTimeOffset> _failedSsids = new(StringComparer.OrdinalIgnoreCase);
@@ -39,7 +44,8 @@ public sealed class MonitoringEngine : IDisposable
         Func<MonitorPolicy> policyProvider,
         Func<IEnumerable<WifiProfile>> profilesProvider,
         TimeProvider? timeProvider = null,
-        IHighRiskRecoveryService? highRiskService = null)
+        IHighRiskRecoveryService? highRiskService = null,
+        INetworkChangeSource? networkChanges = null)
     {
         _wifi = wifi;
         _tester = tester;
@@ -48,6 +54,7 @@ public sealed class MonitoringEngine : IDisposable
         _policyProvider = policyProvider;
         _profilesProvider = profilesProvider;
         _time = timeProvider ?? TimeProvider.System;
+        _networkChanges = networkChanges;
     }
 
     public bool IsMonitoring { get; private set; }
@@ -89,9 +96,13 @@ public sealed class MonitoringEngine : IDisposable
         lock (_lifecycle)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            _timer?.Dispose();
+            if (IsMonitoring) return;
             IsMonitoring = true;
-            _timer = _time.CreateTimer(OnTimerTick, null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            _lastCheckHealthy = false;
+            var generation = ++_generation;
+            _timer = _time.CreateTimer(_ => OnTimerTick(generation), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            try { _networkSubscription = _networkChanges?.Subscribe(() => OnNetworkChanged(generation)); }
+            catch (Exception ex) { Raise(EngineEventKind.CheckError, $"网络事件订阅失败，继续定时检测：{ex.Message}"); }
             UpdateSchedule();
         }
         Raise(EngineEventKind.MonitorStarted);
@@ -102,10 +113,13 @@ public sealed class MonitoringEngine : IDisposable
     {
         lock (_lifecycle)
         {
-            if (_disposed || !IsMonitoring) return;
-            var interval = TimeSpan.FromSeconds(Math.Max(1, _policyProvider().CheckIntervalSeconds));
-            _timer?.Change(interval, Timeout.InfiniteTimeSpan);
+            if (_disposed || !IsMonitoring || IsChecking) return;
+            var seconds = Math.Max(1, _policyProvider().CheckIntervalSeconds);
+            var interval = TimeSpan.FromSeconds(_lastCheckHealthy ? seconds : Math.Min(seconds, 10));
+            if (_networkChangeDue is { } due)
+                interval = due > _time.GetLocalNow() ? due - _time.GetLocalNow() : TimeSpan.FromMilliseconds(1);
             NextCheckAt = _time.GetLocalNow().Add(interval);
+            _timer?.Change(interval, Timeout.InfiniteTimeSpan);
         }
         OnStateChanged();
     }
@@ -124,23 +138,45 @@ public sealed class MonitoringEngine : IDisposable
     private void StopCore()
     {
         IsMonitoring = false;
+        _generation++;
+        _networkSubscription?.Dispose();
+        _networkSubscription = null;
+        _networkChangeDue = null;
         _timer?.Dispose();
         _timer = null;
         NextCheckAt = null;
         _activeCheck?.Cancel();
     }
 
-    private void OnTimerTick(object? state) => _ = RunTimerCheckAsync();
+    private void OnNetworkChanged(long generation)
+    {
+        lock (_lifecycle)
+        {
+            if (_disposed || !IsMonitoring || generation != _generation) return;
+            _networkChangeDue ??= _time.GetLocalNow().AddSeconds(1);
+            UpdateSchedule();
+        }
+    }
 
-    private async Task RunTimerCheckAsync()
+    private void OnTimerTick(long generation) => _ = RunTimerCheckAsync(generation);
+
+    private async Task RunTimerCheckAsync(long generation)
     {
         try
         {
             Task check;
             lock (_lifecycle)
             {
-                if (_disposed || !IsMonitoring) return;
-                check = CheckNowAsync();
+                if (_disposed || !IsMonitoring || generation != _generation || IsChecking || NextCheckAt is null) return;
+                var now = _time.GetLocalNow();
+                if (NextCheckAt > now)
+                {
+                    // 单次定时回调可能提前或遇到时钟回拨，必须保留剩余等待。
+                    var remaining = NextCheckAt.Value - now;
+                    _timer?.Change(remaining < TimeSpan.FromMilliseconds(1) ? TimeSpan.FromMilliseconds(1) : remaining, Timeout.InfiniteTimeSpan);
+                    return;
+                }
+                check = RunCheckAsync(_lastCheckHealthy && _networkChangeDue is null);
             }
             await check;
         }
@@ -152,9 +188,12 @@ public sealed class MonitoringEngine : IDisposable
     }
 
     /// <summary>运行一轮检测与恢复；并发请求直接返回。</summary>
-    public async Task CheckNowAsync(CancellationToken cancellationToken = default)
+    public Task CheckNowAsync(CancellationToken cancellationToken = default) => RunCheckAsync(false, cancellationToken);
+
+    private async Task RunCheckAsync(bool lightweight, CancellationToken cancellationToken = default)
     {
         CancellationTokenSource active;
+        long generation;
         lock (_lifecycle)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -162,35 +201,43 @@ public sealed class MonitoringEngine : IDisposable
             if (!_checkLock.Wait(0)) return;
             active = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             _activeCheck = active;
+            generation = _generation;
             IsChecking = true;
+            _networkChangeDue = null;
+            _timer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            NextCheckAt = null;
         }
         using var deadline = new CancellationTokenSource(CheckTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(active.Token, deadline.Token);
         var token = linked.Token;
+        var reportRecorded = false;
         try
         {
             OnStateChanged();
             var policy = _policyProvider();
-            ConnectivityReport report;
+            ConnectivityReport? report = lightweight ? await TryLightweightCheckAsync(policy, token) : null;
             string? adapterName = null;
             using var probeDeadline = new CancellationTokenSource(FullProbeTimeout);
             using var probeCancellation = CancellationTokenSource.CreateLinkedTokenSource(token, probeDeadline.Token);
             var probeToken = probeCancellation.Token;
             try
             {
-                var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
-                adapterName = wifiDiagnostics.AdapterName;
-                if (RecoveryPlanner.ShouldTryEnableWifi(policy, wifiDiagnostics))
+                if (report?.Ok != true)
                 {
-                    Raise(EngineEventKind.TryingEnableWifiAdapter, adapterName ?? "Wi-Fi");
-                    probeToken.ThrowIfCancellationRequested();
-                    var enabled = await _wifi.TryEnableWifiAdapterAsync(adapterName, probeToken).WaitAsync(probeToken);
-                    Raise(enabled ? EngineEventKind.WifiAdapterEnabled : EngineEventKind.WifiAdapterEnableFailed);
-                    await DelayAsync(AdapterEnableSettleDelay, probeToken);
-                    wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
+                    var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
+                    adapterName = wifiDiagnostics.AdapterName;
+                    if (RecoveryPlanner.ShouldTryEnableWifi(policy, wifiDiagnostics))
+                    {
+                        Raise(EngineEventKind.TryingEnableWifiAdapter, adapterName ?? "Wi-Fi");
+                        probeToken.ThrowIfCancellationRequested();
+                        var enabled = await _wifi.TryEnableWifiAdapterAsync(adapterName, probeToken).WaitAsync(probeToken);
+                        Raise(enabled ? EngineEventKind.WifiAdapterEnabled : EngineEventKind.WifiAdapterEnableFailed);
+                        await DelayAsync(AdapterEnableSettleDelay, probeToken);
+                        wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
+                    }
+                    var currentSsid = await _wifi.GetCurrentSsidAsync(probeToken).WaitAsync(probeToken);
+                    report = await _tester.RunFullCheckAsync(policy, currentSsid, wifiDiagnostics, probeToken).WaitAsync(probeToken);
                 }
-                var currentSsid = await _wifi.GetCurrentSsidAsync(probeToken).WaitAsync(probeToken);
-                report = await _tester.RunFullCheckAsync(policy, currentSsid, wifiDiagnostics, probeToken).WaitAsync(probeToken);
             }
             catch (OperationCanceledException) when (probeDeadline.IsCancellationRequested && !token.IsCancellationRequested)
             {
@@ -204,9 +251,15 @@ public sealed class MonitoringEngine : IDisposable
                 Raise(EngineEventKind.CheckError, ex.Message);
                 report = new ConnectivityReport { State = NetworkState.Failed, Summary = ex.Message };
             }
-            token.ThrowIfCancellationRequested();
-            _failureStreak = report.Ok ? 0 : _failureStreak + 1;
-            if (report.Ok) _failedRecoveryRounds = 0;
+            lock (_lifecycle)
+            {
+                token.ThrowIfCancellationRequested();
+                if (generation != _generation) throw new OperationCanceledException("监控生命周期已改变。", token);
+                _lastCheckHealthy = report.Ok;
+                _failureStreak = report.Ok ? 0 : _failureStreak + 1;
+                if (report.Ok) _failedRecoveryRounds = 0;
+                reportRecorded = true;
+            }
             CheckCompleted?.Invoke(this, new CheckCompletedEventArgs(report, _failureStreak));
             token.ThrowIfCancellationRequested();
             await TryRecoverIfNeededAsync(policy, report, adapterName, token);
@@ -215,14 +268,28 @@ public sealed class MonitoringEngine : IDisposable
         {
             if (deadline.IsCancellationRequested && !active.IsCancellationRequested)
             {
-                _failureStreak++;
+                lock (_lifecycle)
+                {
+                    if (generation == _generation)
+                    {
+                        _lastCheckHealthy = false;
+                        if (!reportRecorded) _failureStreak++;
+                    }
+                }
                 Raise(EngineEventKind.CheckError, "本轮检测与恢复超过总时限");
             }
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
         {
-            _failureStreak++;
+            lock (_lifecycle)
+            {
+                if (generation == _generation && !active.IsCancellationRequested)
+                {
+                    _lastCheckHealthy = false;
+                    if (!reportRecorded) _failureStreak++;
+                }
+            }
             Raise(EngineEventKind.CheckError, ex.Message);
         }
         finally
@@ -236,6 +303,23 @@ public sealed class MonitoringEngine : IDisposable
             }
             UpdateSchedule();
             OnStateChanged();
+        }
+    }
+
+    private async Task<ConnectivityReport?> TryLightweightCheckAsync(MonitorPolicy policy, CancellationToken token)
+    {
+        // 轻量超时后完整诊断仍有独立预算，不依据轻量失败直接执行恢复。
+        using var deadline = new CancellationTokenSource(FullProbeTimeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
+        try
+        {
+            return await _tester.RunLightweightCheckAsync(policy, linked.Token).WaitAsync(linked.Token);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            Raise(EngineEventKind.CheckError, $"轻量检测异常或超时，转为完整诊断：{ex.Message}");
+            return null;
         }
     }
 
@@ -481,11 +565,24 @@ public sealed class MonitoringEngine : IDisposable
     private async Task<ConnectivityReport> ProbeAsync(MonitorPolicy policy, string? ssid,
         WifiAdapterDiagnostics diagnostics, CancellationToken token)
     {
+        long generation;
+        lock (_lifecycle)
+        {
+            token.ThrowIfCancellationRequested();
+            generation = _generation;
+        }
         using var deadline = new CancellationTokenSource(FullProbeTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
         try
         {
-            return await _tester.RunFullCheckAsync(policy, ssid, diagnostics, linked.Token).WaitAsync(linked.Token);
+            var report = await _tester.RunFullCheckAsync(policy, ssid, diagnostics, linked.Token).WaitAsync(linked.Token);
+            lock (_lifecycle)
+            {
+                token.ThrowIfCancellationRequested();
+                if (generation != _generation) throw new OperationCanceledException("监控生命周期已改变。", token);
+                _lastCheckHealthy = report.Ok;
+            }
+            return report;
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested && !token.IsCancellationRequested)
         {

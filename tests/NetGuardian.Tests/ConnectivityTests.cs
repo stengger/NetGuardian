@@ -9,6 +9,50 @@ namespace NetGuardian.Tests;
 
 public sealed class ConnectivityTests
 {
+    [Theory]
+    [InlineData(1, 1, NetworkState.Healthy)]
+    [InlineData(2, 1, NetworkState.InternetIssue)]
+    [InlineData(3, 2, NetworkState.Healthy)]
+    public async Task 轻量检查只执行公网探针且保留成功门槛(int count, int successes, NetworkState expected)
+    {
+        var hosts = new[] { "first.example", "second.example", "third.example" };
+        var probes = new FakeProbes
+        {
+            HttpsStatuses = hosts.Take(count).Select((host, i) => (host, status: i < successes ? HttpStatusCode.OK : HttpStatusCode.ServiceUnavailable))
+                .ToDictionary(item => item.host, item => item.status),
+            RejectDiagnosticProbes = true
+        };
+        var report = await Create(probes, new MonitorPolicy { HttpsProbeHosts = hosts.Take(count).ToList() }).RunLightweightCheckAsync();
+        Assert.Equal(expected, report.State);
+        Assert.True(report.IsLightweight);
+        Assert.Equal(count, report.Probes.Count);
+        Assert.All(report.Probes, probe => Assert.StartsWith("HTTPS ", probe.Name));
+        Assert.Null(report.CurrentSsid);
+    }
+
+    [Fact]
+    public async Task 轻量检查预先取消时不得返回健康()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Create(new FakeProbes()).RunLightweightCheckAsync(cancellation.Token));
+    }
+
+    [Fact]
+    public async Task 轻量检查接口无地址时不得仅凭公网成功报告健康()
+    {
+        var tester = new ConnectivityTester(new MonitorPolicy(), new MissingAddressEnvironment(), new FakeProbes());
+        var report = await tester.RunLightweightCheckAsync();
+        Assert.False(report.Ok);
+        Assert.True(report.IsLightweight);
+        Assert.Empty(report.Probes);
+    }
+
+    private sealed class MissingAddressEnvironment : IConnectivityEnvironment
+    {
+        public NetworkSnapshot Capture() => new("测试无线网卡", true, true, null, null);
+    }
+
     [Fact]
     public async Task 网关不响应但公网正常时应健康()
     {
@@ -99,6 +143,7 @@ public sealed class ConnectivityTests
 
     private sealed class FakeProbes : IConnectivityProbes
     {
+        public bool RejectDiagnosticProbes { get; init; }
         public bool GatewayOk { get; init; } = true;
         public bool DnsFails { get; init; }
         public HttpStatusCode Status { get; init; } = HttpStatusCode.OK;
@@ -115,12 +160,14 @@ public sealed class ConnectivityTests
 
         public Task<bool> PingAsync(string host, TimeSpan timeout, CancellationToken cancellationToken)
         {
+            if (RejectDiagnosticProbes) throw new InvalidOperationException("轻量检测不应主动 Ping 网关");
             Check("网关", cancellationToken);
             return Task.FromResult(GatewayOk);
         }
 
         public Task ResolveAsync(string host, CancellationToken cancellationToken)
         {
+            if (RejectDiagnosticProbes) throw new InvalidOperationException("轻量检测不应执行独立 DNS 探针");
             Check("DNS", cancellationToken);
             if (DnsFails) throw new SocketException((int)SocketError.HostNotFound);
             return Task.CompletedTask;

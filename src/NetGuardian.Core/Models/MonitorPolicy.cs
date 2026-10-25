@@ -5,7 +5,7 @@ public sealed class MonitorPolicy
     public static readonly string[] DefaultDnsProbeHosts = ["www.microsoft.com", "www.baidu.com"];
     public static readonly string[] DefaultHttpsProbeHosts = ["www.microsoft.com", "www.baidu.com", "www.cloudflare.com"];
 
-    public int CheckIntervalSeconds { get; set; } = 30;
+    public int CheckIntervalSeconds { get; set; } = 90;
     public int ConsecutiveFailuresBeforeRecovery { get; set; } = 3;
     public bool EnableAutoSwitch { get; set; } = true;
     public bool EnableCurrentWifiReconnect { get; set; } = true;

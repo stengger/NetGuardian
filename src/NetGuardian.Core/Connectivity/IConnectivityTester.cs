@@ -9,6 +9,9 @@ namespace NetGuardian.Core.Connectivity;
 /// </summary>
 public interface IConnectivityTester
 {
+    // 保持第三方实现兼容；未实现轻量探测的检测器继续执行完整检查。
+    Task<ConnectivityReport> RunLightweightCheckAsync(MonitorPolicy policy, CancellationToken cancellationToken = default)
+        => RunFullCheckAsync(policy, null, cancellationToken: cancellationToken);
     Task<ConnectivityReport> RunFullCheckAsync(
         MonitorPolicy policy,
         string? currentSsid,
@@ -22,6 +25,8 @@ public interface IConnectivityTester
 /// </summary>
 public sealed class ConnectivityTesterService : IConnectivityTester
 {
+    public Task<ConnectivityReport> RunLightweightCheckAsync(MonitorPolicy policy, CancellationToken cancellationToken = default)
+        => new ConnectivityTester(policy).RunLightweightCheckAsync(cancellationToken);
     public Task<ConnectivityReport> RunFullCheckAsync(
         MonitorPolicy policy,
         string? currentSsid,

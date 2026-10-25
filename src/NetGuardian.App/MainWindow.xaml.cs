@@ -131,7 +131,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             () => _profiles.ToList(),
             highRiskService: new BudgetedRecoveryService(new HighRiskRecoveryService(commandRunner),
                 new RecoveryBudget(Path.GetDirectoryName(_store.Path)!),
-                () => TimeSpan.FromMinutes(_settings.Policy.HighRiskCooldownMinutes)))
+                () => TimeSpan.FromMinutes(_settings.Policy.HighRiskCooldownMinutes)),
+            networkChanges: new NetworkChangeSource())
         {
             WifiValidationTimeout = WifiValidationTimeout,
             WifiRestoreTimeout = WifiRestoreTimeout
@@ -802,7 +803,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             ApplyReport(e.Report);
             UpdateWeeklySummary();
-            EngineLog($"{e.Report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {e.Report.State}: {e.Report.Summary}", e.Report.Ok ? UiLogLevel.Information : UiLogLevel.Warning);
+            EngineLog($"{e.Report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {_localizer.T(e.Report.IsLightweight ? "LightweightCheck" : "FullDiagnosticCheck")} · {StateText(e.Report.State)}: {LocalizeSummary(e.Report.Summary)}", e.Report.Ok ? UiLogLevel.Information : UiLogLevel.Warning);
             SetToolOutput($"{StateText(e.Report.State)}{Environment.NewLine}{LocalizeSummary(e.Report.Summary)}");
         });
     }
@@ -1664,10 +1665,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _ => "StatusDangerBrush"
         });
         SummaryText.Text = LocalizeSummary(report.Summary);
-        ReportContextText.Text = string.Format(_localizer.T("ConnectivityReportContext"), _localizer.T(origin switch
-        {
-            ConnectivityReportOrigin.Manual => "ReportSourceManual", ConnectivityReportOrigin.Background => "ReportSourceBackground", _ => "ReportSourceForeground"
-        }), report.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"));
+        ReportContextText.Text = ConnectivityReportPresentation.Context(report, origin, _localizer);
         ReportContextText.Visibility = Visibility.Visible;
         CurrentSsidText.Text = string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid;
         ProbeGrid.ItemsSource = report.Probes.Select(probe => new ProbeRow(
@@ -1755,6 +1753,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             "Gateway is not reachable." => _localizer.T("GatewayNotReachable"),
             "DNS resolution failed." => _localizer.T("DnsResolutionFailed"),
             "Network is healthy." => _localizer.T("NetworkHealthySummary"),
+            "Lightweight internet check succeeded." => _localizer.T("LightweightCheckSucceeded"),
+            "Lightweight internet check failed." => _localizer.T("LightweightCheckFailed"),
             "Public HTTPS probes did not reach quorum." => _localizer.T("HttpsQuorumFailed"),
             _ => summary
         };
@@ -2100,6 +2100,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SetTooltip(RemoveButton, "RemoveWifiTip");
         SetTooltip(ConnectButton, "ConnectWifiTip");
         SetTooltip(SavePolicyButton, "SavePolicyTip");
+        SetTooltip(IntervalTextBox, "AdaptiveIntervalTip");
         SetTooltip(ToolsCheckButton, "CheckNowTip");
         SetTooltip(ToolsScanButton, "ScanTip");
         SetTooltip(ToolsNetworkSettingsButton, "OpenNetworkSettingsTip");

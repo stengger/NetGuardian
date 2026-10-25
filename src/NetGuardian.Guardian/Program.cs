@@ -85,7 +85,8 @@ using var engine = new MonitoringEngine(wifi, new ConnectivityTesterService(), c
     () => Volatile.Read(ref settings).Profiles,
     highRiskService: new BudgetedRecoveryService(new HighRiskRecoveryService(commands), budget,
         () => TimeSpan.FromMinutes(Volatile.Read(ref settings).Policy.HighRiskCooldownMinutes),
-        deviceFailures.RecordRecoveryAttempt));
+        deviceFailures.RecordRecoveryAttempt),
+    networkChanges: new NetworkChangeSource());
 engine.CheckCompleted += (_, e) =>
 {
     state = e.Report.State.ToString();
@@ -93,7 +94,7 @@ engine.CheckCompleted += (_, e) =>
     Interlocked.Exchange(ref progressTicks, DateTimeOffset.UtcNow.UtcTicks);
     deviceFailures.Record(e.Report.State, DateTimeOffset.UtcNow);
     journal.RecordCheck(e.Report.State, e.Report.Ok);
-    log.Write($"检测：{e.Report.State}，{e.Report.Summary}");
+    log.Write($"{(e.Report.IsLightweight ? "轻量检测" : "完整诊断")}：{e.Report.State}，{e.Report.Summary}");
 };
 engine.EngineEvent += (_, e) =>
 {
