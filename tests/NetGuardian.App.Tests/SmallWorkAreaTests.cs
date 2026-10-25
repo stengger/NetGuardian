@@ -30,7 +30,7 @@ public sealed class SmallWorkAreaTests
             Assert.Equal(Visibility.Visible, actionBar.Visibility);
             Assert.Same(actionBar, FindAncestor(action, actionBar));
             var surface = Assert.IsType<Border>(page);
-            var reference = (Border)window.FindName("ToolsPanel");
+            var reference = (Border)window.FindName("DnsPanel");
             Assert.Equal(((SolidColorBrush)reference.Background).Color, ((SolidColorBrush)surface.Background).Color);
             Assert.Equal(reference.Padding, surface.Padding);
             foreach (var name in new[] { "WifiSelectionBar", "NearbyNetworksCard", "PriorityNetworksCard" })

@@ -19,6 +19,25 @@ public partial class SpeedTestView : UserControl
 
     public SpeedTestView() => InitializeComponent();
 
+    // 主窗口承载同一组按钮，保留测速视图的状态更新、事件及独立预览能力。
+    public static readonly DependencyProperty ActionsHostProperty = DependencyProperty.Register(
+        nameof(ActionsHost), typeof(ContentControl), typeof(SpeedTestView), new PropertyMetadata(null, ActionsHostChanged));
+
+    public ContentControl? ActionsHost
+    {
+        get => (ContentControl?)GetValue(ActionsHostProperty);
+        set => SetValue(ActionsHostProperty, value);
+    }
+
+    private static void ActionsHostChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
+    {
+        var view = (SpeedTestView)sender;
+        var previousHost = (ContentControl?)e.OldValue ?? view.InlineActionsHost;
+        var actions = previousHost.Content;
+        previousHost.Content = null;
+        ((ContentControl?)e.NewValue ?? view.InlineActionsHost).Content = actions;
+    }
+
     public void Update(SpeedTestSession session, Localizer localizer, TimeSpan elapsed, bool cancelling = false)
     {
         Language = System.Windows.Markup.XmlLanguage.GetLanguage(localizer.Language);

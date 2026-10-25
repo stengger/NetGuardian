@@ -17,6 +17,107 @@ namespace NetGuardian.App.Tests;
 public sealed class PanelNavigationTests
 {
     [Theory]
+    [InlineData(1180, 760, "zh-CN")]
+    [InlineData(960, 500, "en-US")]
+    public void 诊断导航和全部操作始终位于正文表面之外(double width, double height, string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            window.MinWidth = 960; window.MinHeight = 500;
+            var localizer = new Localizer();
+            localizer.SetLanguage(language);
+            var tabs = (System.Windows.Controls.TabControl)window.FindName("ToolsTabControl");
+            foreach (var (name, key) in new[] { ("ToolsCheckButton", "CheckNow"), ("ToolsScanButton", "Scan"), ("ToolsNetworkSettingsButton", "OpenNetworkSettings"), ("WebsiteRunButton", "Test"), ("IpInfoRefreshButton", "QueryPublicIpInfo"), ("ReportRunButton", "RunDiagnosticReport") })
+                ((System.Windows.Controls.Button)window.FindName(name)).Content = localizer.T(key);
+            foreach (var name in new[] { "Apple", "GitHub", "Google", "YouTube" })
+                ((System.Windows.Controls.Button)window.FindName($"Website{name}Button")).Content = name;
+            ((System.Windows.Controls.TextBlock)window.FindName("HighRiskText")).Text = localizer.T("HighRiskReserved");
+            foreach (var (tab, key) in new[] { ("QuickToolsTab", "QuickTools"), ("SpeedToolsTab", "SpeedTools"), ("WebsiteToolsTab", "WebsiteTools"), ("IpInfoToolsTab", "IpInfoTools"), ("ReportToolsTab", "ReportTools") })
+                ((System.Windows.Controls.TabItem)window.FindName(tab)).Header = localizer.T(key);
+            foreach (var tabName in new[] { "QuickToolsTab", "SpeedToolsTab", "WebsiteToolsTab", "IpInfoToolsTab", "ReportToolsTab" })
+            {
+                tabs.SelectedItem = window.FindName(tabName);
+                PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
+                var speed = (NetGuardian.App.Views.SpeedTestView)window.FindName("SpeedView");
+                var session = new NetGuardian.Core.Network.SpeedTestSession();
+                session.Begin();
+                speed.Update(session, localizer, TimeSpan.FromSeconds(1));
+                DesktopFixture.Layout(window, width, height);
+                var surface = DesktopFixture.Descendants(tabs).OfType<System.Windows.Controls.Border>()
+                    .FirstOrDefault(element => element.Name == "ToolsContentSurface")
+                    ?? (System.Windows.Controls.Border)window.FindName("ToolsPanel");
+                var surfaceBounds = surface.TransformToAncestor(window).TransformBounds(new Rect(surface.RenderSize));
+                foreach (var header in tabs.Items.Cast<System.Windows.Controls.TabItem>())
+                {
+                    var bounds = header.TransformToAncestor(window).TransformBounds(new Rect(header.RenderSize));
+                    Assert.True(bounds.Height > 0 && bounds.Bottom <= surfaceBounds.Top,
+                        $"{tabName} 标签仍在正文表面内：{bounds}，表面={surfaceBounds}");
+                }
+                var bar = (FrameworkElement)window.FindName("PageActionBar");
+                Assert.True(bar.IsVisible && bar.ActualHeight > 0);
+                if (tabName == "SpeedToolsTab")
+                    foreach (var name in new[] { "RunButton", "CancelButton", "CopyButton" })
+                        Assert.Contains((DependencyObject)speed.FindName(name), DesktopFixture.Descendants(bar));
+                foreach (var button in DesktopFixture.Descendants(bar).OfType<System.Windows.Controls.Button>().Where(button => button.IsVisible))
+                {
+                    var bounds = button.TransformToAncestor(window).TransformBounds(new Rect(button.RenderSize));
+                    Assert.True(bounds.Top >= 0 && bounds.Bottom <= surfaceBounds.Top && bounds.Right <= width,
+                        $"{tabName} 操作不在表面外或被裁切：{button.Name} {bounds}");
+                }
+                Assert.DoesNotContain(DesktopFixture.Descendants(surface).OfType<System.Windows.Controls.Button>(),
+                    button => button.IsVisible && button.Name is "RunButton" or "CancelButton" or "CopyButton");
+                DesktopFixture.Save(window, $"tools-outside-{tabName}-{width}-{language}.png");
+            }
+        });
+    }
+
+    [Fact]
+    public void 测速操作移出正文后保持状态与事件且可以恢复独立承载()
+    {
+        DesktopFixture.Run(window =>
+        {
+            var tabs = (System.Windows.Controls.TabControl)window.FindName("ToolsTabControl");
+            tabs.SelectedItem = window.FindName("SpeedToolsTab");
+            DesktopFixture.ShowPage(window, "ToolsPanel");
+            DesktopFixture.Layout(window, 1180, 760);
+            var view = (NetGuardian.App.Views.SpeedTestView)window.FindName("SpeedView");
+            var session = new NetGuardian.Core.Network.SpeedTestSession();
+            var localizer = new Localizer();
+            var invoked = new List<string>();
+            view.RunRequested += (_, _) => invoked.Add("开始");
+            view.CancelRequested += (_, _) => invoked.Add("取消");
+            view.CopyRequested += (_, _) => invoked.Add("复制");
+            System.Windows.Controls.Button Action(string name) => (System.Windows.Controls.Button)view.FindName(name);
+            void Click(string name)
+            {
+                Assert.True(Action(name).IsEnabled);
+                Action(name).RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+            }
+            view.Update(session, localizer, TimeSpan.Zero);
+            Click("RunButton");
+            var id = session.Begin();
+            view.Update(session, localizer, TimeSpan.Zero);
+            Assert.False(Action("RunButton").IsEnabled);
+            Assert.Equal(Visibility.Visible, Action("CancelButton").Visibility);
+            Click("CancelButton");
+            session.Complete(id, new(100, 20, 30, 5_000_000, 1_000_000, DateTimeOffset.Now, 2));
+            view.Update(session, localizer, TimeSpan.FromSeconds(8));
+            Assert.Equal(Visibility.Collapsed, Action("CancelButton").Visibility);
+            Click("CopyButton");
+            Assert.Equal(new[] { "开始", "取消", "复制" }, invoked);
+            var host = (System.Windows.Controls.ContentControl)window.FindName("SpeedPageActions");
+            Assert.NotNull(host.Content);
+            view.ActionsHost = null;
+            window.UpdateLayout();
+            Assert.Null(host.Content);
+            Assert.Contains((DependencyObject)Action("RunButton"), DesktopFixture.Descendants(view));
+            view.ActionsHost = host;
+            window.UpdateLayout();
+            Assert.Contains((DependencyObject)Action("CopyButton"), DesktopFixture.Descendants(host));
+        });
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void 辅助技术选择现有面板不进入页面实例导航(bool expanded)

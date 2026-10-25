@@ -29,6 +29,7 @@ internal static class PanelNavigationPresenter
     private static readonly IReadOnlyDictionary<string, string> ToolActions = new Dictionary<string, string>
     {
         ["QuickToolsTab"] = "ToolsPageActions",
+        ["SpeedToolsTab"] = "SpeedPageActions",
         ["WebsiteToolsTab"] = "WebsitePageActions",
         ["IpInfoToolsTab"] = "IpInfoPageActions",
         ["ReportToolsTab"] = "ReportPageActions"
@@ -49,6 +50,7 @@ internal static class PanelNavigationPresenter
             var toolTabName = (tools.SelectedIndex < 0 ? 0 : tools.SelectedIndex) switch
             {
                 0 => "QuickToolsTab",
+                1 => "SpeedToolsTab",
                 2 => "WebsiteToolsTab",
                 3 => "IpInfoToolsTab",
                 4 => "ReportToolsTab",

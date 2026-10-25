@@ -305,6 +305,7 @@
                     <Button x:Name="ToolsScanCancelButton" Click="WifiScanCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                     <Button x:Name="ToolsNetworkSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
                 </WrapPanel>
+                <ContentControl x:Name="SpeedPageActions" Visibility="Collapsed" HorizontalContentAlignment="Stretch" />
                 <WrapPanel x:Name="WebsitePageActions" Visibility="Collapsed" AutomationProperties.Name="网站探测操作">
                     <Button x:Name="WebsiteRunButton" Click="WebsiteRun_Click" Margin="0,0,8,8" />
                     <Button x:Name="WebsiteAppleButton" Tag="https://www.apple.com/" Click="WebsitePreset_Click" Margin="0,0,8,8" />
@@ -573,7 +574,7 @@
                     </Grid>
                 </Border>
 
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ToolsPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
+                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="ToolsPanel" Visibility="Collapsed" Background="Transparent">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -581,6 +582,22 @@
                         </Grid.RowDefinitions>
                         <TextBlock x:Name="ToolsTitle" Visibility="Collapsed" />
                         <TabControl x:Name="ToolsTabControl" Grid.Row="1" SelectionChanged="ToolsTabControl_SelectionChanged">
+                            <TabControl.Template>
+                                <ControlTemplate TargetType="TabControl">
+                                    <Grid KeyboardNavigation.TabNavigation="Local">
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="*" />
+                                        </Grid.RowDefinitions>
+                                        <TabPanel IsItemsHost="True" Margin="0,0,0,12"
+                                                  KeyboardNavigation.TabIndex="1" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                        <Border x:Name="ToolsContentSurface" Grid.Row="1" Style="{StaticResource SectionBorderStyle}">
+                                            <ContentPresenter x:Name="PART_SelectedContentHost" ContentSource="SelectedContent"
+                                                              KeyboardNavigation.TabIndex="2" KeyboardNavigation.TabNavigation="Local" />
+                                        </Border>
+                                    </Grid>
+                                </ControlTemplate>
+                            </TabControl.Template>
                             <TabItem x:Name="QuickToolsTab">
                                 <StackPanel Margin="0,12,0,0">
                                     <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Margin="0,10,0,0" Opacity="0.74" />
@@ -588,7 +605,7 @@
                                 </StackPanel>
                             </TabItem>
                             <TabItem x:Name="SpeedToolsTab">
-                                <views:SpeedTestView x:Name="SpeedView" Margin="0,14,0,0" />
+                                <views:SpeedTestView x:Name="SpeedView" ActionsHost="{Binding ElementName=SpeedPageActions}" />
                             </TabItem>
                             <TabItem x:Name="WebsiteToolsTab">
                                 <Grid Margin="0,12,0,0">

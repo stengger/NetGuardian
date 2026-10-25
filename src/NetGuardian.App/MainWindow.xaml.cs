@@ -684,28 +684,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void ToolsTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ToolsPanel.Visibility != Visibility.Visible)
+        if (e.OriginalSource != ToolsTabControl || ToolsPanel.Visibility != Visibility.Visible)
         {
             return;
         }
 
-        foreach (var action in new UIElement[] { ToolsPageActions, WebsitePageActions, IpInfoPageActions, ReportPageActions })
-        {
-            action.Visibility = Visibility.Collapsed;
-        }
-
-        if ((ToolsTabControl.SelectedIndex < 0 ? 0 : ToolsTabControl.SelectedIndex) switch
-            {
-                0 => ToolsPageActions,
-                2 => WebsitePageActions,
-                3 => IpInfoPageActions,
-                4 => ReportPageActions,
-                _ => null
-            } is UIElement selectedAction)
-        {
-            PageActionBar.Visibility = Visibility.Visible;
-            selectedAction.Visibility = Visibility.Visible;
-        }
+        PanelNavigationPresenter.Show(this, "ToolsPanel", _localizer);
     }
 
     private void ShowPanelByTag(string? tag)

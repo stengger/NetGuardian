@@ -73,9 +73,17 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <Grid Margin="0,0,0,18">
+        <ContentControl x:Name="InlineActionsHost" HorizontalContentAlignment="Stretch">
+            <WrapPanel>
+                <Button x:Name="RunButton" Style="{StaticResource PrimaryAction}" Click="Run_Click" FontWeight="SemiBold" Margin="0,0,8,8" />
+                <Button x:Name="CancelButton" Style="{StaticResource Action}" Click="Cancel_Click" Margin="0,0,8,8" Visibility="Collapsed" />
+                <Button x:Name="CopyButton" Style="{StaticResource Action}" Click="Copy_Click" IsEnabled="False" Margin="0,0,8,8" />
+            </WrapPanel>
+        </ContentControl>
+        <Grid Grid.Row="1" Margin="0,0,0,18">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
@@ -84,13 +92,9 @@
                 <TextBlock x:Name="TitleText" FontSize="24" FontWeight="SemiBold" />
                 <TextBlock x:Name="IntroText" Style="{StaticResource Secondary}" Margin="0,6,0,0" />
             </StackPanel>
-            <StackPanel Grid.Column="1" VerticalAlignment="Top">
-                <Button x:Name="RunButton" Style="{StaticResource PrimaryAction}" Click="Run_Click" FontWeight="SemiBold" />
-                <Button x:Name="CancelButton" Style="{StaticResource Action}" Click="Cancel_Click" Margin="0,8,0,0" Visibility="Collapsed" />
-            </StackPanel>
         </Grid>
 
-        <Grid x:Name="MetricsGrid" Grid.Row="1" Margin="0,0,8,16" SizeChanged="ContentPanel_SizeChanged">
+        <Grid x:Name="MetricsGrid" Grid.Row="2" Margin="0,0,8,16" SizeChanged="ContentPanel_SizeChanged">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
@@ -137,7 +141,7 @@
         </Grid>
 
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False"
+        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" CanContentScroll="False"
                       Padding="0,0,8,8" Focusable="False">
             <StackPanel x:Name="ContentPanel" Margin="0,2,0,0">
 
@@ -183,7 +187,6 @@
                             <TextBlock x:Name="MethodDetail" Style="{StaticResource Secondary}" Margin="0,8,0,0" />
                         </Expander>
                         <WrapPanel Margin="0,16,0,0">
-                            <Button x:Name="CopyButton" Style="{StaticResource Action}" Click="Copy_Click" IsEnabled="False" />
                             <TextBlock x:Name="CopyFeedback" Style="{StaticResource Secondary}" VerticalAlignment="Center" Margin="12,0,0,0" AutomationProperties.LiveSetting="Polite" />
                         </WrapPanel>
                     </StackPanel>
