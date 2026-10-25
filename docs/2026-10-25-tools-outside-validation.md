@@ -39,3 +39,29 @@ git diff --check -- src tests
 布局预览位于 `.dotnet-home/validation/tools-outside/`，由加载真实 XAML 的测试窗口生成，不能当作已安装正式业务进程截图。人工核看中文快捷页及英文小窗口测速页，确认标签与操作在正文框外。
 
 本次不修改后台守护、网络配置及用户原有 `docs/2026-10-18-validation.md`。跨显示器 DPI、实际读屏和完整产品级目标不因本次布局回归通过而自动完成。
+
+## 安装续接排查
+
+用户允许管理员更新后，首次安装退出 1，尚未写入安装文件。Windows PowerShell 5.1 按本地代码页读取了无 BOM 的 UTF-8 脚本，导致中文字符乱码及解析错误：`install.ps1:16 字符:85` 的 `UnexpectedToken`，另有第 34、55、68、77 行解析错误。完整错误与堆栈保留于 `.dotnet-home/validation/tools-outside/install-attempt1.log` 和 `install-result-attempt1.json`。
+
+只将忽略目录下的 `install.ps1`、`run-install.ps1` 写为带 BOM 的 UTF-8，未修改产品代码。使用 `powershell.exe -NoProfile -Command` 做验证时，语法检查通过，但执行试运行受执行策略限制，退出 1，`PSSecurityException / AuthorizationManager check failed / UnauthorizedAccess`。随后与实际更新启动方式保持一致，使用 `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command`，同时执行 `Parser.ParseFile` 语法检查及 `install.ps1 -WhatIf`，退出 0。该执行策略仅作用于本次进程，未修改系统执行策略。
+
+重试继续使用原更新范围：11 个界面根目录文件及 `UIInstalledBuild.json`，备份并逐文件校验，持有界面单实例互斥期间才写入，不修改 `guardian/` 或配置。
+
+编码修正后管理员重试已执行，但退出 1：`install.ps1:23`，`界面仍在运行或另一更新正在执行；没有替换文件。请从托盘退出后重试。`。该次完整错误已保存到 `install-attempt2.log`、`install-result-attempt2.json`。沙箱内 CIM 查询被拒绝（`无法从客户端中访问 CIM 资源。`），打开全局互斥也报 `Access to the path 'Global\NetGuardian.UI' is denied.`；放宽沙箱后只读查询确认界面进程 ID 为 `63832`。未强制终止进程，已请用户从托盘退出。
+
+此时实际安装清单仍为 `8b19a4afe6929585c8e73d4ec1337e61ebff5069`，本次目标为 `3f7c6a8654b36aea4754e63a291cded1e8124dae`；不能把管理员授权通过当作更新成功。
+
+## 安装完成核验
+
+用户确认从托盘退出后，放宽沙箱的 CIM 检查确认无界面进程，再启动原范围的管理员更新。更新脚本退出 0，`install-result.json` 的 `Success=true`，`install.log` 记录 11 个文件验证成功。未再修改产品代码，没有重复运行与此编码和安装操作无关的产品测试。
+
+2026-10-25 14:08（Asia/Shanghai）独立读取安装目录，逐一与发布包计算 SHA-256：
+
+- 安装提交与目标提交均为 `3f7c6a8654b36aea4754e63a291cded1e8124dae`。
+- 检查 11 个界面文件，哈希不匹配数量为 0。
+- 安装清单文件与发布包清单的哈希一致。
+- 核验命令退出 0，结果保存在 `.dotnet-home/validation/tools-outside/installed-verification.json`。
+- 更新前文件备份位于 `.dotnet-home/validation/tools-outside/installed-backup/`，仅用于本次更新回退，不是另一套正在运行的应用。
+
+此次已确认安装文件替换完成；未把文件核验当作新版正式进程的实机布局验收，后者需重新打开应用检查。
