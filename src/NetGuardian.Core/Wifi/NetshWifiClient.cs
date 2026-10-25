@@ -92,7 +92,8 @@ public sealed partial class NetshWifiClient : IWifiClient
     public async Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
     {
         var result = await RunNetshAsync(["wlan", "show", "profile", $"name={ssid}", "key=clear"], cancellationToken);
-        var password = result.ExitCode == 0 ? ParseSavedPassword(result.Output) : null;
+        var password = result.ExitCode == 0 && ssid.Equals(ParseProfileSsid(result.Output), StringComparison.Ordinal)
+            ? ParseSavedPassword(result.Output) : null;
         if (!string.IsNullOrWhiteSpace(password))
         {
             return password;
@@ -101,19 +102,16 @@ public sealed partial class NetshWifiClient : IWifiClient
         var profilesResult = await RunNetshAsync(["wlan", "show", "profiles"], cancellationToken);
         foreach (var profileName in ParseProfileNames(profilesResult.Output))
         {
-            if (!profileName.Equals(ssid, StringComparison.Ordinal))
+            var profileResult = await RunNetshAsync(["wlan", "show", "profile", $"name={profileName}"], cancellationToken);
+            var profileSsid = ParseProfileSsid(profileResult.Output);
+            if (profileResult.ExitCode != 0 || !ssid.Equals(profileSsid, StringComparison.Ordinal))
             {
-                var profileResult = await RunNetshAsync(["wlan", "show", "profile", $"name={profileName}"], cancellationToken);
-                var profileSsid = ParseProfileSsid(profileResult.Output);
-                if (string.IsNullOrWhiteSpace(profileSsid)
-                    || !profileSsid.Equals(ssid, StringComparison.Ordinal))
-                {
-                    continue;
-                }
+                continue;
             }
 
             var keyResult = await RunNetshAsync(["wlan", "show", "profile", $"name={profileName}", "key=clear"], cancellationToken);
-            password = keyResult.ExitCode == 0 ? ParseSavedPassword(keyResult.Output) : null;
+            password = keyResult.ExitCode == 0 && ssid.Equals(ParseProfileSsid(keyResult.Output), StringComparison.Ordinal)
+                ? ParseSavedPassword(keyResult.Output) : null;
             if (!string.IsNullOrWhiteSpace(password))
             {
                 return password;
@@ -163,7 +161,7 @@ public sealed partial class NetshWifiClient : IWifiClient
     {
         foreach (var rawLine in SplitLines(output))
         {
-            var line = rawLine.Trim();
+            var line = rawLine.TrimStart();
             if (line.Contains("BSSID", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
@@ -171,7 +169,7 @@ public sealed partial class NetshWifiClient : IWifiClient
 
             if (Regex.IsMatch(line, @"(^|\s)(SSID|SSID 名称)\s*:", RegexOptions.IgnoreCase))
             {
-                var value = line.Split(':', 2).Last().Trim();
+                var value = ReadNameValue(line.Split(':', 2).Last());
                 return string.IsNullOrWhiteSpace(value) ? null : value;
             }
         }
@@ -233,7 +231,7 @@ public sealed partial class NetshWifiClient : IWifiClient
 
         foreach (var rawLine in SplitLines(output))
         {
-            var line = rawLine.Trim();
+            var line = rawLine.TrimStart();
             var ssidMatch = SsidRegex().Match(line);
             if (ssidMatch.Success)
             {
@@ -242,7 +240,7 @@ public sealed partial class NetshWifiClient : IWifiClient
                     .Skip(1)
                     .Select(group => group.Value)
                     .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? "";
-                current = new MutableNetwork { Ssid = ssid.Trim() };
+                current = new MutableNetwork { Ssid = ssid };
                 continue;
             }
 
@@ -323,16 +321,16 @@ public sealed partial class NetshWifiClient : IWifiClient
     public static IReadOnlyList<string> ParseProfileNames(string output)
     {
         return SplitLines(output)
-            .Select(line => line.Trim())
+            .Select(line => line.TrimStart())
             .Where(line => line.Contains(':'))
             .Select(line => line.Split(':', 2))
             .Where(parts => parts[0].Contains("All User Profile", StringComparison.OrdinalIgnoreCase)
                 || parts[0].Contains("User Profile", StringComparison.OrdinalIgnoreCase)
                 || parts[0].Contains("所有用户配置文件", StringComparison.OrdinalIgnoreCase)
                 || parts[0].Contains("用户配置文件", StringComparison.OrdinalIgnoreCase))
-            .Select(parts => parts[1].Trim())
+            .Select(parts => ReadNameValue(parts[1]))
             .Where(value => !string.IsNullOrWhiteSpace(value))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Distinct(StringComparer.Ordinal)
             .ToList();
     }
 
@@ -340,7 +338,7 @@ public sealed partial class NetshWifiClient : IWifiClient
     {
         foreach (var rawLine in SplitLines(output))
         {
-            var line = rawLine.Trim();
+            var line = rawLine.TrimStart();
             if (!line.Contains(':'))
             {
                 continue;
@@ -348,7 +346,8 @@ public sealed partial class NetshWifiClient : IWifiClient
 
             var parts = line.Split(':', 2);
             var key = parts[0].Trim();
-            var value = parts[1].Trim().Trim('"');
+            var value = ReadNameValue(parts[1]);
+            if (value.Length >= 2 && value[0] == '"' && value[^1] == '"') value = value[1..^1];
             if (key.Equals("SSID name", StringComparison.OrdinalIgnoreCase)
                 || key.Equals("SSID 名称", StringComparison.OrdinalIgnoreCase))
             {
@@ -363,6 +362,9 @@ public sealed partial class NetshWifiClient : IWifiClient
     {
         return value.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
     }
+
+    // netsh 在冒号后固定添加一个格式空格，其余空格属于网络或配置名称。
+    private static string ReadNameValue(string value) => value.StartsWith(' ') ? value[1..] : value;
 
     private static bool? ParseRadioFlag(string line, string englishKey, string chineseKey)
     {
@@ -460,7 +462,7 @@ public sealed partial class NetshWifiClient : IWifiClient
         return (result.ExitCode, result.Output);
     }
 
-    [GeneratedRegex(@"^SSID\s+\d+\s*:\s*(.*)$|^SSID\s*\d*\s*名称\s*:\s*(.*)$", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^SSID\s+\d+\s*: ?(.*)$|^SSID\s*\d*\s*名称\s*: ?(.*)$", RegexOptions.IgnoreCase)]
     private static partial Regex SsidRegex();
 
     private sealed class MutableNetwork

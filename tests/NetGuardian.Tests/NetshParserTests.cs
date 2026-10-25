@@ -6,6 +6,22 @@ namespace NetGuardian.Tests;
 public class NetshParserTests
 {
     [Fact]
+    public void 当前网络与扫描保留SSID首尾空格()
+    {
+        const string ssid = " Office ";
+        Assert.Equal(ssid, NetshWifiClient.ParseCurrentSsid($"SSID : {ssid}\nBSSID : aa:bb:cc:dd:ee:ff\n"));
+        Assert.Equal(ssid, NetshWifiClient.ParseScanOutput($"SSID 1 : {ssid}\n    Signal : 86%\n").Single().Ssid);
+        Assert.Equal(ssid, NetshWifiClient.ParseProfileSsid($"SSID name : \"{ssid}\"\n"));
+    }
+
+    [Fact]
+    public void 保存配置列表保留首尾空格与仅大小写不同的名称()
+    {
+        Assert.Equal(new[] { "Office", "office", " Office " }, NetshWifiClient.ParseProfileNames(
+            "All User Profile : Office\nAll User Profile : office\nAll User Profile :  Office \n"));
+    }
+
+    [Fact]
     public void ParseCurrentSsid_ReturnsSsid()
     {
         const string output = """

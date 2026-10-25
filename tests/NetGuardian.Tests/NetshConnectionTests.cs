@@ -13,6 +13,23 @@ public sealed class NetshConnectionTests
         Assert.Null(await client.GetSavedPasswordAsync("office"));
     }
 
+    [Theory]
+    [InlineData("office", "Office", null)]
+    [InlineData("Office", "Office", "仅供测试的密码")]
+    public async Task 配置名称相同仍须核对配置内真实SSID(string requested, string actual, string? expected)
+    {
+        var client = new NetshWifiClient(new NamedPasswordCommandRunner(actual));
+        Assert.Equal(expected, await client.GetSavedPasswordAsync(requested));
+    }
+
+    private sealed class NamedPasswordCommandRunner(string actualSsid) : ISystemCommandRunner
+    {
+        public Task<SystemCommandResult> RunAsync(string fileName, IReadOnlyList<string> arguments,
+            CancellationToken cancellationToken = default) => Task.FromResult(new SystemCommandResult(0,
+                arguments.Contains("profiles") ? "All User Profile : office"
+                    : $"SSID name : \"{actualSsid}\"\nKey Content : 仅供测试的密码"));
+    }
+
     private sealed class PasswordCommandRunner : ISystemCommandRunner
     {
         public Task<SystemCommandResult> RunAsync(string fileName, IReadOnlyList<string> arguments,
