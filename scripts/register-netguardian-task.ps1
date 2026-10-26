@@ -22,7 +22,12 @@ if ($LASTEXITCODE -ne 0) { throw '配置校验失败，未安装后台。' }
 if (-not $PSCmdlet.ShouldProcess($machineDirectory, '安装开机后台守护和心跳监督任务')) { return }
 $existing = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 if ($existing -and $existing.State -eq 'Running') { throw '后台正在运行，请在维护窗口停止旧后台后再升级。' }
-$installDirectory = Join-Path $env:ProgramFiles 'NetGuardian'
+$installDirectory = if (Test-Path -LiteralPath (Join-Path $root 'guardian\NetGuardian.Guardian.exe')) {
+    # 从安装包内运行时，后台沿用用户选择的安装目录。
+    $root
+} else { Join-Path $env:ProgramFiles 'NetGuardian' }
+. (Join-Path $PSScriptRoot 'installer-maintenance.ps1') -InstallDirectory $installDirectory
+Assert-NetGuardianMachineInstallPath -InstallDirectory $installDirectory
 New-Item -ItemType Directory -Path $installDirectory -Force | Out-Null
 if ([IO.Path]::GetFullPath($packageRoot) -ne [IO.Path]::GetFullPath($installDirectory)) {
     Copy-Item -LiteralPath (Join-Path $packageRoot 'guardian') -Destination $installDirectory -Recurse -Force
@@ -30,7 +35,7 @@ if ([IO.Path]::GetFullPath($packageRoot) -ne [IO.Path]::GetFullPath($installDire
 }
 $installedScripts = Join-Path $installDirectory 'scripts'
 New-Item -ItemType Directory -Path $installedScripts -Force | Out-Null
-foreach ($scriptName in @('watch-netguardian.ps1','register-netguardian-task.ps1','unregister-netguardian-task.ps1','start-netguardian.ps1')) {
+foreach ($scriptName in @('watch-netguardian.ps1','register-netguardian-task.ps1','unregister-netguardian-task.ps1','start-netguardian.ps1','installer-maintenance.ps1')) {
     $sourceScript = Join-Path $PSScriptRoot $scriptName
     $targetScript = Join-Path $installedScripts $scriptName
     if ([IO.Path]::GetFullPath($sourceScript) -ne [IO.Path]::GetFullPath($targetScript)) { Copy-Item -LiteralPath $sourceScript -Destination $targetScript -Force }

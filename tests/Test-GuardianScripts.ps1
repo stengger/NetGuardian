@@ -11,14 +11,23 @@ $startedAt = [DateTimeOffset]::UtcNow.AddHours(-1)
 $global:NetGuardianTestState = [pscustomobject]@{ TaskState = 'Running'; ProcessPath = $guardianPath; Starts = 0; Stops = 0; Launches = 0; Removing = $false; Removed = 0 }
 function Start-Process { [CmdletBinding()]param($FilePath, $ArgumentList, $WindowStyle, $Verb) $global:NetGuardianTestState.Launches++ }
 function Get-ScheduledTask {
-    [CmdletBinding()]param($TaskName)
+    [CmdletBinding()]param($TaskName, $TaskPath)
+    if ($global:NetGuardianTestState.Removing -and $TaskPath -ne '\') { throw '安全卸载必须限定根任务文件夹，不能命中其他文件夹的同名任务。' }
     $state = $global:NetGuardianTestState.TaskState
     if ($global:NetGuardianTestState.Removing -and $TaskName -eq 'NetGuardian' -and (Test-Path -LiteralPath (Join-Path $env:ProgramData 'NetGuardian\stop.request'))) { $state = 'Ready' }
     [pscustomobject]@{ State = $state; Actions = @([pscustomobject]@{ Execute = $global:NetGuardianTestState.ProcessPath }) }
 }
-function Unregister-ScheduledTask { [CmdletBinding(SupportsShouldProcess)]param($TaskName) $global:NetGuardianTestState.Removed++ }
+function Unregister-ScheduledTask {
+    [CmdletBinding(SupportsShouldProcess)]param($TaskName, $TaskPath)
+    if ($TaskPath -ne '\') { throw '禁止注销其他任务文件夹中的同名任务。' }
+    $global:NetGuardianTestState.Removed++
+}
 function Start-ScheduledTask { param($TaskName) $global:NetGuardianTestState.Starts++ }
-function Stop-ScheduledTask { param($TaskName) $global:NetGuardianTestState.Stops++ }
+function Stop-ScheduledTask {
+    param($TaskName, $TaskPath)
+    if ($global:NetGuardianTestState.Removing -and $TaskPath -ne '\') { throw '禁止停止其他任务文件夹中的同名任务。' }
+    $global:NetGuardianTestState.Stops++
+}
 function Get-ScheduledTaskInfo { param($TaskName) [pscustomobject]@{ LastRunTime = (Get-Date).AddMinutes(-10) } }
 function Get-Process { [CmdletBinding()]param($Id) [pscustomobject]@{ Path = $global:NetGuardianTestState.ProcessPath; StartTime = $startedAt.LocalDateTime } }
 function Invoke-Watchdog { & (Join-Path $root 'scripts\watch-netguardian.ps1') -GuardianPath $guardianPath }

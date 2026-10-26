@@ -1,7 +1,7 @@
 ﻿param([string]$TaskName = 'NetGuardian')
 $ErrorActionPreference = 'Stop'
 foreach ($name in @("$TaskName-Watchdog", $TaskName)) {
-    $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
+    $task = Get-ScheduledTask -TaskName $name -TaskPath '\' -ErrorAction SilentlyContinue
     if ($null -ne $task) {
         if ($name -eq $TaskName -and $task.State -eq 'Running') {
             $request = Join-Path $env:ProgramData 'NetGuardian\stop.request'
@@ -9,12 +9,12 @@ foreach ($name in @("$TaskName-Watchdog", $TaskName)) {
             $deadline = (Get-Date).AddSeconds(90)
             do {
                 Start-Sleep -Milliseconds 500
-                $task = Get-ScheduledTask -TaskName $name
+                $task = Get-ScheduledTask -TaskName $name -TaskPath '\'
             } while ($task.State -eq 'Running' -and (Get-Date) -lt $deadline)
             if ($task.State -eq 'Running') { throw '后台未能在90秒内安全停止，未强制终止。请检查心跳和恢复日志后在维护窗口处理。' }
         }
-        else { Stop-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue }
-        Unregister-ScheduledTask -TaskName $name -Confirm:$false
+        else { Stop-ScheduledTask -TaskName $name -TaskPath '\' -ErrorAction SilentlyContinue }
+        Unregister-ScheduledTask -TaskName $name -TaskPath '\' -Confirm:$false
         Write-Output "已停止并移除任务：$name"
     }
 }

@@ -1,6 +1,16 @@
 # NetGuardian
 
-面向远程 Windows 实验室电脑的 Wi-Fi 监控与恢复工具。包含 WPF 管理界面和无界面后台守护，要求 .NET 8 桌面运行时；开发、构建才需要 .NET 8 SDK。
+面向远程 Windows 实验室电脑的 Wi-Fi 监控与恢复工具。包含 WPF 管理界面和无界面后台守护。Setup 安装版内置 .NET 8 运行时；默认 ZIP 发布版需要另装 .NET 8 桌面运行时，开发、构建才需要 SDK。
+
+## 安装与卸载
+
+安装包发布后可从 [GitHub Releases](https://github.com/stengger/NetGuardian/releases) 下载 `NetGuardian-<版本>-win-x64-Setup.exe`。双击并接受管理员权限提示，选择安装目录，完成后从开始菜单启动 NetGuardian；桌面快捷方式可在安装时选用。支持 Windows 10 1809 及更新的 x64 兼容系统。
+
+安装器不会自动开启后台任务或高风险恢复。需要无人值守时，先保存两个实际可用的 Wi-Fi，再按下文安装后台；从安装目录运行注册脚本时，后台使用同一目录。SYSTEM 后台仅允许从受保护的 Program Files 子目录启动；选择其他目录安装时可使用管理界面，但需移至 Program Files 后才能启用该后台。
+
+升级前先从托盘退出界面，并运行安装目录的 `scripts/unregister-netguardian-task.ps1` 安全停止并移除后台及监督任务。仅停止当前进程不足以避免监督任务再次拉起；安装器发现已有任务时会拒绝覆盖。升级后可按需重新开启后台，已有配置和日志保留。
+
+卸载入口位于 Windows“设置 → 应用 → 已安装的应用”以及开始菜单。先从托盘退出界面；确认卸载后，卸载器核对后台任务归属、请求退出并等待恢复收尾，停止失败则中止卸载。用户及机器数据目录中的配置和日志不随卸载删除。
 
 ## 恢复行为
 
@@ -65,6 +75,25 @@ dist\NetGuardian\guardian\NetGuardian.Guardian.exe  后台守护
 ```
 
 直接运行发布界面，或使用 `Start-NetGuardian.vbs`。启动正式版不再要求 SDK；启动脚本不会重定向 APPDATA。退出界面时等待正在执行的网络恢复收尾。
+
+### 构建 Setup 安装包
+
+开发机另需 [Inno Setup 7](https://jrsoftware.org/isdl.php)。设置 SDK 和编译器路径后执行（版本号按实际发布版本填写）：
+
+```powershell
+$env:NETGUARDIAN_DOTNET = '你的 dotnet.exe 完整路径'
+$env:NETGUARDIAN_ISCC = '你的 Inno Setup 7\ISCC.exe 完整路径'
+.\scripts\build-installer.ps1 -Version 1.0.0
+```
+
+脚本先运行 Release 完整测试，再将管理界面和 Guardian 以 `win-x64` 自包含模式发布到新的暂存目录，加入 README、启动入口与后台维护脚本，最后编译：
+
+```text
+dist\releases\NetGuardian-1.0.0-win-x64-Setup.exe
+dist\releases\NetGuardian-1.0.0-win-x64-Setup.exe.sha256
+```
+
+将这两个文件上传为 GitHub Release 附件；GitHub 自动生成的源码 ZIP 不能替代安装包。安装包默认未做代码签名，公开分发时可另配置发行者证书签名。构建安装包不会在开发机安装、切网或启动后台。
 
 ## 安装无人值守后台
 
