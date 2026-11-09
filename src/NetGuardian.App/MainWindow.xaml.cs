@@ -377,22 +377,43 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void Connect_Click(object sender, RoutedEventArgs e)
     {
-        if (ProfileGrid.SelectedItem is not WifiProfile profile)
+        var profile = ProfileGrid.SelectedItem as WifiProfile;
+        if (profile is null && NearbyGrid.SelectedItem is NearbyWifiRow nearby)
+            profile = _profiles.FirstOrDefault(item => SsidEquals(item.Ssid, nearby.Ssid));
+        if (profile is null)
         {
             SetWifiSelectionMessage(_localizer.T("SelectProfileFirst"));
             return;
         }
+        if (!profile.CredentialSaved)
+        {
+            SetWifiSelectionMessage(_localizer.T("WifiConnectNeedCredential"));
+            return;
+        }
 
+        string? completedMessage = null;
         await RunUiActionAsync(async () =>
         {
-            await RunExclusiveNetworkActionAsync(async () =>
+            await RunExclusiveNetworkActionAsync(async token =>
             {
-                Log(string.Format(_localizer.T("ConnectingTo"), profile.Ssid));
-                var ok = await ConnectSavedWifiAsync(profile.Ssid);
-                Log(string.Format(_localizer.T(ok ? "ConnectCommandSent" : "ConnectCommandFailed"), profile.Ssid));
-                return ok;
+                var connecting = string.Format(_localizer.T("ConnectingTo"), profile.Ssid);
+                SetWifiSelectionMessage(connecting);
+                Log(connecting);
+                var result = await new ManualWifiConnector(_wifi, _connectivityTester).ConnectAsync(profile, _settings.Policy, token);
+                if (_resourcesCleaned) return result.Connected;
+                if (result.Report is { } report) ApplyReport(report, ConnectivityReportOrigin.Manual);
+                var key = !result.Connected ? "ManualWifiFailed" : result.Report?.Ok == true ? "ManualWifiConnected" : "ManualWifiNoInternet";
+                var message = string.Format(_localizer.T(key), profile.Ssid);
+                if (!string.IsNullOrWhiteSpace(result.Error)) message += " " + result.Error;
+                completedMessage = message;
+                SetWifiSelectionMessage(message);
+                Log(message, result.Connected && result.Report?.Ok == true ? UiLogLevel.Information : UiLogLevel.Warning);
+                ShowFeedback(_localizer.T("Connect"), message, result.Connected && result.Report?.Ok == true
+                    ? FeedbackSeverity.Success : FeedbackSeverity.Warning);
+                return result.Connected;
             });
         });
+        if (!_resourcesCleaned && completedMessage is not null) SetWifiSelectionMessage(completedMessage);
     }
 
     private void SavePolicy_Click(object sender, RoutedEventArgs e)
@@ -527,7 +548,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 AdapterRefreshButton.IsEnabled = true;
             }
         }
-        AdapterRenewDhcpButton.IsEnabled = AdapterTargetComboBox.Items.Count > 0;
+        AdapterRenewDhcpButton.IsEnabled = !_isNetworkActionRunning && AdapterTargetComboBox.Items.Count > 0;
     }
 
     private void AdapterRefresh_Click(object sender, RoutedEventArgs e)
@@ -700,8 +721,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         PanelNavigationPresenter.Show(this, tag, _localizer);
     }
 
-    private async Task StartMonitoringAsync()
+    private async Task StartMonitoringAsync(bool checkImmediately = true)
     {
+        if (_isNetworkActionRunning || _resourcesCleaned) return;
         // 开始监控始终使用已保存策略，不隐式应用表单中的未保存编辑。
         _monitorLease ??= MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
         if (_monitorLease is null)
@@ -714,8 +736,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             UpdateMonitorStatus();
             return;
         }
-        _engine.Start();
-        await RunCheckAsync();
+        _engine.Start(checkImmediately ? null : TimeSpan.FromSeconds(30));
+        if (checkImmediately) await RunCheckAsync();
     }
 
     private void StopMonitoring()
@@ -737,7 +759,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task RunCheckAsync()
     {
-        if (_isImmediateCheckRunning || _engine.IsChecking || _resourcesCleaned) return;
+        if (_isImmediateCheckRunning || _engine.IsChecking || _resourcesCleaned || _isNetworkActionRunning) return;
         using var cancellation = new CancellationTokenSource();
         _immediateCheckCancellation = cancellation;
         _isImmediateCheckRunning = true;
@@ -1053,6 +1075,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task AddWifiProfileAsync(NearbyWifiRow? network, string? initialPassword = null)
     {
+        if (_isNetworkActionRunning || _resourcesCleaned) return;
         var dialog = new AddWifiDialog(_localizer, network is null ? null : ToWifiNetwork(network), initialPassword) { Owner = this };
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.Ssid))
         {
@@ -1099,6 +1122,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task ConfigureProfileCredentialAsync(WifiProfile profile, string? initialPassword = null)
     {
+        if (_isNetworkActionRunning || _resourcesCleaned) return;
         var network = new WifiNetwork(
             profile.Ssid,
             0,
@@ -1144,27 +1168,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private Task<bool> ValidateAndSaveWifiProfileAsync(string ssid, string? password, string authentication) =>
         RunExclusiveNetworkActionAsync(() => ValidateAndSaveWifiProfileCoreAsync(ssid, password, authentication));
-
-    private async Task<bool> RunExclusiveNetworkActionAsync(Func<Task<bool>> action)
-    {
-        var resume = _engine.IsMonitoring;
-        if (resume)
-        {
-            _engine.Stop();
-            await ReleaseMonitorLeaseWhenIdleAsync();
-        }
-        try
-        {
-            using var lease = MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
-            if (lease is null)
-            {
-                ShowFeedback("后台正在守护", "为避免并发切网，请先在维护窗口停止后台任务，再执行手动网络修改。配置策略仍可正常保存。", FeedbackSeverity.Warning);
-                return false;
-            }
-            return await action();
-        }
-        finally { if (resume && !_resourcesCleaned && !_isExiting) await StartMonitoringAsync(); }
-    }
 
     private async Task<bool> ValidateAndSaveWifiProfileCoreAsync(string ssid, string? password, string authentication)
     {
@@ -1526,15 +1529,22 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             SetWifiSelectionVisual(false);
         }
 
-        AddSelectedButton.IsEnabled = hasNearby;
-        SetPasswordButton.IsEnabled = hasNearby || hasProfile;
-        ImportPasswordButton.IsEnabled = hasNearby || hasProfile;
-        RemoveButton.IsEnabled = hasProfile;
-        ConnectButton.IsEnabled = hasProfile;
+        var actions = WifiActionAvailability.Create(_profiles, profile, nearby?.Ssid, _isNetworkActionRunning);
+        AddSelectedButton.IsEnabled = actions.CanAdd;
+        SetPasswordButton.IsEnabled = ImportPasswordButton.IsEnabled = actions.CanEdit;
+        RemoveButton.IsEnabled = !_isNetworkActionRunning && hasProfile;
+        ConnectButton.IsEnabled = actions.CanConnect;
+        ConnectButton.ToolTip = _localizer.T(_isNetworkActionRunning ? "ManualNetworkRunning"
+            : actions.ConnectTarget is null ? "SelectProfileFirst"
+            : actions.ConnectTarget.CredentialSaved ? "ConnectWifiTip" : "WifiConnectNeedCredential");
+        System.Windows.Automation.AutomationProperties.SetHelpText(ConnectButton, ConnectButton.ToolTip.ToString());
+        ToolTipService.SetShowOnDisabled(ConnectButton, true);
+        if (_isNetworkActionRunning && _networkActionStatusKey is not null)
+            CurrentWifiSelectionText.Text = _localizer.T(_networkActionStatusKey);
 
         var profileIndex = hasProfile ? _profiles.IndexOf(profile!) : -1;
-        MoveUpButton.IsEnabled = profileIndex > 0;
-        MoveDownButton.IsEnabled = profileIndex >= 0 && profileIndex < _profiles.Count - 1;
+        MoveUpButton.IsEnabled = !_isNetworkActionRunning && profileIndex > 0;
+        MoveDownButton.IsEnabled = !_isNetworkActionRunning && profileIndex >= 0 && profileIndex < _profiles.Count - 1;
     }
 
     private void SetWifiSelectionMessage(string message)
@@ -2121,7 +2131,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void UpdateMonitorStatus()
     {
         var background = GuardianStatusStore.Read(GuardianPaths.MachineDirectory);
-        var presentation = MonitorStatusPresentation.Create(_engine.IsMonitoring, _engine.IsChecking || _isImmediateCheckRunning, background, DateTimeOffset.UtcNow, _localizer);
+        var presentation = MonitorStatusPresentation.Create(_engine.IsMonitoring, _engine.IsChecking || _isImmediateCheckRunning,
+            background, DateTimeOffset.UtcNow, _localizer, _isNetworkActionRunning);
         MonitorStateText.Text = presentation.OwnerText;
         HeaderStateText.Text = presentation.ActivityText;
         System.Windows.Automation.AutomationProperties.SetName(StatusDot, presentation.ActivityText);
@@ -2139,7 +2150,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateTrayText(presentation);
         if (presentation.HasBackground && background is not null)
         {
-            if (background.Report is { } report) ApplyReport(report, ConnectivityReportOrigin.Background);
+            if (!_isNetworkActionRunning && background.State != "ManualControl" && background.Report is { } report)
+                ApplyReport(report, ConnectivityReportOrigin.Background);
             FailureStreakText.Text = background.FailureStreak.ToString();
             NextCheckText.Text = background.NextCheckAt.HasValue
                 ? FormatDuration(background.NextCheckAt.Value > DateTimeOffset.Now ? background.NextCheckAt.Value - DateTimeOffset.Now : TimeSpan.Zero)
@@ -2630,7 +2642,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void UpdateDnsApplyAvailability()
     {
-        DnsApplyButton.IsEnabled = !_isApplyingDns && DnsAdapterComboBox.SelectedItem is DnsAdapterOption && GetSelectedDnsPreset() != "none";
+        DnsApplyButton.IsEnabled = !_isApplyingDns && !_isNetworkActionRunning
+            && DnsAdapterComboBox.SelectedItem is DnsAdapterOption && GetSelectedDnsPreset() != "none";
     }
 
     private void SelectDnsPreset(string key)
@@ -3008,6 +3021,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         _resourcesCleaned = true;
+        _networkActionCancellation?.Cancel();
         _windowWorkArea.Dispose();
         _engine.Stop();
         _engine.Dispose();

@@ -76,7 +76,8 @@ public partial class MainWindow
             _adapterReadFailed = false;
             AdapterEmptyText.Text = _localizer.T("NoAdapterRows");
         }
-        if (AdapterTargetComboBox.IsEnabled) AdapterRenewDhcpButton.IsEnabled = AdapterTargetComboBox.Items.Count > 0;
+        if (AdapterTargetComboBox.IsEnabled)
+            AdapterRenewDhcpButton.IsEnabled = !_isNetworkActionRunning && AdapterTargetComboBox.Items.Count > 0;
         return success;
     }
 }

@@ -12,21 +12,24 @@ public partial class MainWindow
 {
     private Task? _savedWifiImportTask;
 
-    private async Task ImportSavedWifiProfilesAsync()
+    private Task ImportSavedWifiProfilesAsync() => ImportSavedWifiProfilesAsync(CancellationToken.None);
+
+    private async Task ImportSavedWifiProfilesAsync(CancellationToken cancellationToken)
     {
         if (_resourcesCleaned) return;
         if (_savedWifiImportTask is { IsCompleted: false })
         {
-            await _savedWifiImportTask;
+            await _savedWifiImportTask.WaitAsync(cancellationToken);
             return;
         }
-        _savedWifiImportTask = ImportSavedWifiProfilesCoreAsync();
+        _savedWifiImportTask = ImportSavedWifiProfilesCoreAsync(cancellationToken);
         await _savedWifiImportTask;
     }
 
-    private async Task ImportSavedWifiProfilesCoreAsync()
+    private async Task ImportSavedWifiProfilesCoreAsync(CancellationToken cancellationToken)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(30));
         SavedWifiProfileInventory inventory;
         string? currentSsid;
         try
@@ -39,11 +42,12 @@ public partial class MainWindow
             }
             currentSsid = await _wifi.GetCurrentSsidAsync(deadline.Token);
         }
-        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+        catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             if (!_resourcesCleaned) Log(_localizer.T("SavedWifiImportTimeout"), UiLogLevel.Warning);
             return;
         }
+        cancellationToken.ThrowIfCancellationRequested();
         if (_resourcesCleaned) return;
 
         // 先保存独立快照，再发布给界面和监控，避免写入失败仍显示导入成功。

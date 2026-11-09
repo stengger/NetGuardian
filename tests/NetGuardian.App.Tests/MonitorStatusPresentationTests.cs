@@ -7,6 +7,19 @@ namespace NetGuardian.App.Tests;
 
 public sealed class MonitorStatusPresentationTests
 {
+    [Fact]
+    public void 手动操作接管时页头托盘均不能启动检测或误报后台仍在自动恢复()
+    {
+        var now = DateTimeOffset.Now;
+        var background = new GuardianStatus(1, now, now, "ManualControl", false);
+        var state = MonitorStatusPresentation.Create(false, false, background, now, new Localizer());
+        Assert.True(state.HasBackground);
+        Assert.Contains("暂停", state.ActivityText);
+        Assert.False(state.CanStart || state.CanStop || state.CanCheck);
+        state = MonitorStatusPresentation.Create(false, false, background, now, new Localizer(), true);
+        Assert.Contains("手动", state.ActivityText);
+        Assert.False(state.CanStart || state.CanStop || state.CanCheck);
+    }
     [Theory]
     [InlineData(false, "后台监控中")]
     [InlineData(true, "后台检测中")]

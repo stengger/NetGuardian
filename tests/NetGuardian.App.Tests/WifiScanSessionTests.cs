@@ -7,6 +7,26 @@ namespace NetGuardian.App.Tests;
 public sealed class WifiScanSessionTests
 {
     [Fact]
+    public async Task 同步配置的准备阶段也显示忙碌且取消后不再扫描()
+    {
+        var session = new WifiScanSession();
+        var preparation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var scanCalled = false;
+        var pending = session.RunAsync(async token =>
+        {
+            Assert.True(session.IsBusy);
+            await preparation.Task.WaitAsync(token);
+            scanCalled = true;
+            return [];
+        }, () => { });
+        Assert.Equal(WifiScanPhase.Running, session.Phase);
+        session.Cancel();
+        await pending;
+        Assert.False(scanCalled);
+        Assert.Equal(WifiScanPhase.Cancelled, session.Phase);
+        Assert.False(session.IsBusy);
+    }
+    [Fact]
     public async Task 两个入口不能并发扫描且取消后丢弃迟到结果()
     {
         var session = new WifiScanSession();
