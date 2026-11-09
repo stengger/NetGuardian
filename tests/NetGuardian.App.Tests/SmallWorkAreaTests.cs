@@ -4,6 +4,8 @@ using System.Windows.Automation.Peers;
 using System.Windows.Media;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Models;
+using NetGuardian.Core.Wifi;
+using NetGuardian.App.Presentation;
 using Xunit;
 
 namespace NetGuardian.App.Tests;
@@ -106,9 +108,18 @@ public sealed class SmallWorkAreaTests
             ((DataGrid)window.FindName("NearbyGrid")).ItemsSource = new[] { new WifiNetwork("完整的长网络名称-5GHz", 85, "WPA2-PSK", "AES", true, true) };
             ((DataGrid)window.FindName("ProfileGrid")).ItemsSource = new[] { new WifiProfile { Ssid = "完整的长网络名称-5GHz", Priority = 1, Enabled = true } };
             DesktopFixture.Layout(window, 960, 500);
+            var layout = string.Join("；", new[] { "PageActionBar", "WifiPageActions", "WifiPanel", "CurrentWifiCard",
+                "WifiSelectionBar", "WifiScanStatusPanel", "WifiListsGrid", "NearbyNetworksCard", "NearbyGrid", "ProfileGrid" }
+                .Select(name =>
+                {
+                    var element = (FrameworkElement)window.FindName(name);
+                    var bounds = element.TransformToAncestor(window).TransformBounds(new Rect(element.RenderSize));
+                    return $"{name}={bounds}，期望尺寸={element.DesiredSize}";
+                }));
+            DesktopFixture.Save(window, $"small-workarea-wifi-with-data-{language}.png");
             foreach (var name in new[] { "NearbyGrid", "ProfileGrid" })
             {
-                Assert.True(((DataGrid)window.FindName(name)).ActualHeight >= 90, $"{name} 只剩表头");
+                Assert.True(((DataGrid)window.FindName(name)).ActualHeight >= 90, $"{name} 只剩表头：{layout}");
                 var row = (DataGridRow)((DataGrid)window.FindName(name)).ItemContainerGenerator.ContainerFromIndex(0);
                 Assert.True(row.ActualHeight >= 38);
                 var grid = (DataGrid)window.FindName(name);
@@ -147,6 +158,36 @@ public sealed class SmallWorkAreaTests
             ("ProfilePriorityColumn", "Priority"), ("ProfileCredentialColumn", "CredentialSaved"),
             ("ProfileEnabledColumn", "Enabled"), ("ProfileFailuresColumn", "Failures") })
             ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
+        var current = CurrentWifiPresentation.Create(new WifiConnectionInfo(true, true, "Redmi_9F56_8B311 5g",
+            SignalPercent: 90, Authentication: "WPA2-Personal", Encryption: "CCMP", Ipv4: "192.168.31.89"), localizer);
+        ((TextBlock)window.FindName("CurrentWifiTitle")).Text = localizer.T("WifiCurrentConnection");
+        ((TextBlock)window.FindName("CurrentWifiNameText")).Text = current.Name;
+        ((TextBlock)window.FindName("CurrentWifiDetailsText")).Text = current.Details;
+    }
+
+    [Theory]
+    [InlineData("zh-CN")]
+    [InlineData("en-US")]
+    public void 短窗口无线操作可以横向访问且恢复大窗口换行(string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            window.MinWidth = 960; window.MinHeight = 500;
+            DesktopFixture.ShowPage(window, "WifiPanel");
+            ApplyWifiLabels(window, language);
+            DesktopFixture.Layout(window, 960, 500);
+            var actions = Assert.IsType<ScrollViewer>(window.FindName("WifiPageActions"));
+            // 英文按钮需要横向滚动；中文按钮可完整放下时无需产生滚动条。
+            if (language == "en-US") Assert.True(actions.ScrollableWidth > 0);
+            actions.ScrollToRightEnd(); window.UpdateLayout();
+            var connect = (FrameworkElement)window.FindName("ConnectButton");
+            var bounds = connect.TransformToAncestor(actions).TransformBounds(new Rect(connect.RenderSize));
+            Assert.True(bounds.Left >= 0 && bounds.Right <= actions.ViewportWidth && bounds.Height >= 28,
+                $"连接按钮无法完整滚动到操作栏视口：{bounds}；视口宽={actions.ViewportWidth}");
+            DesktopFixture.Layout(window, 1180, 760);
+            Assert.Equal(ScrollBarVisibility.Disabled, actions.HorizontalScrollBarVisibility);
+            Assert.Equal(0, actions.HorizontalOffset);
+        });
     }
 
     [Fact]

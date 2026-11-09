@@ -32,6 +32,51 @@ public sealed partial class NetshWifiClient : IWifiClient
         return ParseCurrentSsid(result.Output);
     }
 
+    public async Task<WifiConnectionInfo> GetConnectionInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await RunNetshAsync(["wlan", "show", "interfaces"], cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (result.ExitCode != 0) return new(false, false, Error: $"Windows 查询失败（退出码 {result.ExitCode}）：{result.Output}");
+        var info = ParseConnectionInfo(result.Output);
+        if (!info.Connected) return info;
+        var adapter = NetworkInterface.GetAllNetworkInterfaces().FirstOrDefault(item =>
+            item.NetworkInterfaceType == NetworkInterfaceType.Wireless80211 && item.Name == info.AdapterName);
+        var ipv4 = adapter?.GetIPProperties().UnicastAddresses.FirstOrDefault(item =>
+            item.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)?.Address.ToString();
+        return info with { Ipv4 = ipv4 };
+    }
+
+    public static WifiConnectionInfo ParseConnectionInfo(string output)
+    {
+        var interfaces = new List<Dictionary<string, string>>();
+        var fields = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var line in SplitLines(output))
+        {
+            var parts = line.TrimStart().Split(':', 2);
+            if (parts.Length != 2) continue;
+            var key = parts[0].Trim();
+            if ((key.Equals("Name", StringComparison.OrdinalIgnoreCase) || key == "名称") && fields.Count > 0)
+            { interfaces.Add(fields); fields = new(StringComparer.OrdinalIgnoreCase); }
+            fields[key] = ReadNameValue(parts[1]);
+        }
+        interfaces.Add(fields);
+        var connections = interfaces.Select(values =>
+        {
+            string? Read(string english, string chinese) => values.GetValueOrDefault(english) ?? values.GetValueOrDefault(chinese);
+            var state = Read("State", "状态")?.Trim();
+            var connected = (state?.Equals("connected", StringComparison.OrdinalIgnoreCase) == true || state == "已连接")
+                && !string.IsNullOrWhiteSpace(Read("SSID", "SSID 名称"));
+            var signal = Regex.Match(Read("Signal", "信号") ?? "", @"\d+");
+            return new WifiConnectionInfo(true, connected, connected ? Read("SSID", "SSID 名称") : null,
+                Read("Name", "名称")?.Trim(), connected && signal.Success && int.TryParse(signal.Value, out var percent)
+                    ? Math.Clamp(percent, 0, 100) : null,
+                connected ? Read("Authentication", "身份验证")?.Trim() : null,
+                connected ? Read("Cipher", "密码")?.Trim() : null);
+        }).ToList();
+        return connections.FirstOrDefault(item => item.Connected) ?? connections.FirstOrDefault(item => item.AdapterName is not null)
+            ?? new(true, false);
+    }
+
     public async Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default)
     {
         var adapter = GetPrimaryWifiInterface();

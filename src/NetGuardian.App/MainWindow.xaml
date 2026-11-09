@@ -282,7 +282,8 @@
             </DockPanel>
 
             <StackPanel x:Name="PageActionBar" Grid.Row="1" Margin="0,0,0,12" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite">
-                <WrapPanel x:Name="WifiPageActions" Visibility="Collapsed" AutomationProperties.Name="Wi-Fi 操作">
+                <ScrollViewer x:Name="WifiPageActions" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" Focusable="False" AutomationProperties.Name="Wi-Fi 操作">
+                <WrapPanel>
                     <Button x:Name="ScanButton" Click="Scan_Click" Margin="0,0,6,6" />
                     <Button x:Name="WifiScanCancelButton" Click="WifiScanCancel_Click" Visibility="Collapsed" Margin="0,0,6,6" />
                     <Button x:Name="AddSelectedButton" Click="AddSelected_Click" Margin="0,0,6,6" />
@@ -294,6 +295,7 @@
                     <Button x:Name="RemoveButton" Click="Remove_Click" Margin="0,0,6,6" />
                     <Button x:Name="ConnectButton" Click="Connect_Click" Margin="0,0,6,6" />
                 </WrapPanel>
+                </ScrollViewer>
                 <WrapPanel x:Name="QualityPageActions" Visibility="Collapsed" AutomationProperties.Name="网络质量操作">
                     <Button x:Name="QualityRunButton" Click="QualityRun_Click" Margin="0,0,8,8" />
                     <Button x:Name="QualityCancelButton" Click="QualityCancel_Click" Margin="0,0,8,8" Visibility="Collapsed" />
@@ -417,10 +419,19 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
+                    <Border x:Name="CurrentWifiCard" Grid.Row="0" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
+                        <StackPanel>
+                            <DockPanel>
+                                <TextBlock x:Name="CurrentWifiTitle" DockPanel.Dock="Left" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
+                                <TextBlock x:Name="CurrentWifiNameText" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                            </DockPanel>
+                            <TextBlock x:Name="CurrentWifiDetailsText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                        </StackPanel>
+                    </Border>
                     <Border x:Name="WifiSelectionBar" Grid.Row="1" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
                         <TextBlock x:Name="CurrentWifiSelectionText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                     </Border>
-                    <StackPanel Grid.Row="2" Margin="0,0,0,12">
+                    <StackPanel x:Name="WifiScanStatusPanel" Grid.Row="2" Margin="0,0,0,12">
                         <TextBlock x:Name="DragHintText" Opacity="0.72" TextWrapping="Wrap" />
                         <ScrollViewer MaxHeight="48" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,4,0,0">
                             <TextBlock x:Name="WifiScanStatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />

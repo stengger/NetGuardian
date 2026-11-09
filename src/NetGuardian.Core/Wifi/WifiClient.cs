@@ -41,6 +41,9 @@ public sealed class WifiClient : IWifiClient
         return _netsh.GetCurrentSsidAsync(cancellationToken);
     }
 
+    public Task<WifiConnectionInfo> GetConnectionInfoAsync(CancellationToken cancellationToken = default)
+        => _netsh.GetConnectionInfoAsync(cancellationToken);
+
     public async Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default)
     {
         var result = await _netsh.GetAdapterDiagnosticsAsync(cancellationToken);
@@ -103,11 +106,21 @@ public sealed class WifiClient : IWifiClient
             var accepted = await Task.Run(() => _nativeConnector.TryConnectProfile(profileName, cancellationToken), cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             if (accepted) return true;
+            if (_nativeConnector.ConnectionFailureIsFinal)
+            {
+                LastConnectionFailure = _nativeConnector.LastConnectionFailure;
+                return false;
+            }
             nativeFailure = $"原生 WLAN 请求未接受，错误码：{_nativeConnector.LastNativeError?.ToString() ?? "未提供"}";
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not OutOfMemoryException)
         {
             nativeFailure = $"原生 WLAN 请求异常：{ex.Message}";
+            if (_nativeConnector.ConnectionFailureIsFinal)
+            {
+                LastConnectionFailure = _nativeConnector.LastConnectionFailure ?? nativeFailure;
+                return false;
+            }
         }
         cancellationToken.ThrowIfCancellationRequested();
         var connected = await _netsh.ConnectProfileAsync(profileName, ssid, cancellationToken);

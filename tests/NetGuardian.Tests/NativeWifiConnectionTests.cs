@@ -6,6 +6,23 @@ namespace NetGuardian.Tests;
 public sealed class NativeWifiConnectionTests
 {
     [Fact]
+    public async Task Windows明确连接失败时直接报告原因且不能再次发送回退连接()
+    {
+        var native = new FakeNativeConnector
+        {
+            ConnectionFailureIsFinal = true,
+            LastConnectionFailure = "特定的网络不可用。"
+        };
+        var fallback = new FakeWifiClient();
+        fallback.ConnectSucceedsFor.Add("目标网络");
+        var client = new WifiClient(native, fallback);
+
+        Assert.False(await client.ConnectAsync("目标网络"));
+        Assert.Equal("特定的网络不可用。", client.LastConnectionFailure);
+        Assert.Empty(fallback.ConnectAttempts);
+    }
+
+    [Fact]
     public async Task 原生连接运行中取消须传递令牌并等待收尾且不回退()
     {
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -91,6 +108,8 @@ public sealed class NativeWifiConnectionTests
 
     private sealed class FakeNativeConnector : INativeWifiConnector
     {
+        public bool ConnectionFailureIsFinal { get; set; }
+        public string? LastConnectionFailure { get; set; }
         public bool Accepted { get; set; }
         public uint? LastNativeError { get; set; }
         public Exception? Failure { get; set; }

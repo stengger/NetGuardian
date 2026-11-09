@@ -7,6 +7,11 @@ public interface IWifiClient
     string? LastConnectionFailure => null;
     Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default);
     Task<string?> GetCurrentSsidAsync(CancellationToken cancellationToken = default);
+    async Task<WifiConnectionInfo> GetConnectionInfoAsync(CancellationToken cancellationToken = default)
+    {
+        var ssid = await GetCurrentSsidAsync(cancellationToken);
+        return new(true, !string.IsNullOrWhiteSpace(ssid), ssid);
+    }
     Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetProfileNamesAsync(CancellationToken cancellationToken = default);
     Task<SavedWifiProfileInventory> GetSavedProfilesAsync(CancellationToken cancellationToken = default) =>

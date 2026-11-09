@@ -11,22 +11,25 @@ public partial class MainWindow
     private bool _isNetworkActionRunning;
     private string? _networkActionStatusKey;
     private CancellationTokenSource? _networkActionCancellation;
+    private Task? _networkActionCompletion;
 
     private Task<bool> RunExclusiveNetworkActionAsync(Func<Task<bool>> action)
         => RunExclusiveNetworkActionAsync(_ => action());
 
     private async Task<bool> RunExclusiveNetworkActionAsync(Func<CancellationToken, Task<bool>> action)
     {
-        if (_resourcesCleaned || _isNetworkActionRunning) return false;
+        if (_resourcesCleaned || _isExiting || _isNetworkActionRunning) return false;
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _networkActionCompletion = completion.Task;
         using var cancellation = new CancellationTokenSource();
         _networkActionCancellation = cancellation;
         var previousDnsStatus = DnsStatusText.Text;
         _isNetworkActionRunning = true;
         _networkActionStatusKey = "ManualNetworkWaiting";
-        RefreshNetworkActionUi();
         var resume = _engine.IsMonitoring;
         try
         {
+            RefreshNetworkActionUi();
             if (resume || _monitorLease is not null)
             {
                 _engine.Stop();
@@ -54,16 +57,21 @@ public partial class MainWindow
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { return false; }
         finally
         {
-            _networkActionCancellation = null;
-            _isNetworkActionRunning = false;
-            _networkActionStatusKey = null;
-            if (!_resourcesCleaned)
+            try
             {
-                if (DnsStatusText.Text == _localizer.T("ManualNetworkWaiting") || DnsStatusText.Text == _localizer.T("ManualNetworkRunning"))
-                    DnsStatusText.Text = previousDnsStatus;
-                RefreshNetworkActionUi();
-                if (resume && !_isExiting) await StartMonitoringAsync(checkImmediately: false);
+                _networkActionCancellation = null;
+                _isNetworkActionRunning = false;
+                _networkActionStatusKey = null;
+                if (!_resourcesCleaned)
+                {
+                    if (DnsStatusText.Text == _localizer.T("ManualNetworkWaiting") || DnsStatusText.Text == _localizer.T("ManualNetworkRunning"))
+                        DnsStatusText.Text = previousDnsStatus;
+                    RefreshNetworkActionUi();
+                    if (!_isExiting) _ = RefreshCurrentWifiAsync();
+                    if (resume && !_isExiting) await StartMonitoringAsync(checkImmediately: false);
+                }
             }
+            finally { _networkActionCompletion = null; completion.TrySetResult(); }
         }
     }
 

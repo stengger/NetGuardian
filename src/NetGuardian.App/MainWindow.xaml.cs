@@ -163,7 +163,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _snackbar.SetSnackbarPresenter(RootSnackbar);
 
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
-        _countdownTimer.Tick += (_, _) => UpdateMonitorStatus();
+        _countdownTimer.Tick += (_, _) => { UpdateMonitorStatus(); RefreshCurrentWifiIfDue(); };
         _countdownTimer.Start();
         _sidebarSpeedTimer.Interval = TimeSpan.FromSeconds(1);
         _sidebarSpeedTimer.Tick += (_, _) => UpdateSidebarSpeed();
@@ -402,7 +402,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 var result = await new ManualWifiConnector(_wifi, _connectivityTester).ConnectAsync(profile, _settings.Policy, token);
                 if (_resourcesCleaned) return result.Connected;
                 if (result.Report is { } report) ApplyReport(report, ConnectivityReportOrigin.Manual);
-                var key = !result.Connected ? "ManualWifiFailed" : result.Report?.Ok == true ? "ManualWifiConnected" : "ManualWifiNoInternet";
+                var key = !result.Connected ? string.IsNullOrWhiteSpace(result.Error) ? "ManualWifiFailed" : "ManualWifiRejected"
+                    : result.Report?.Ok == true ? "ManualWifiConnected" : "ManualWifiNoInternet";
                 var message = string.Format(_localizer.T(key), profile.Ssid);
                 if (!string.IsNullOrWhiteSpace(result.Error)) message += " " + result.Error;
                 completedMessage = message;
@@ -719,6 +720,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void ShowPanelByTag(string? tag)
     {
         PanelNavigationPresenter.Show(this, tag, _localizer);
+        RenderCurrentWifi();
+        if (tag == "WifiPanel") _ = RefreshCurrentWifiAsync();
     }
 
     private async Task StartMonitoringAsync(bool checkImmediately = true)
@@ -2927,6 +2930,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (_isExiting) return;
         _isExiting = true;
+        _networkActionCancellation?.Cancel();
+        if (_networkActionCompletion is { } actionCompletion) await actionCompletion;
         _engine.Stop();
         await ReleaseMonitorLeaseWhenIdleAsync();
         _forceExit = true;
@@ -3021,6 +3026,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         _resourcesCleaned = true;
+        _currentWifiLifetime.Cancel();
         _networkActionCancellation?.Cancel();
         _windowWorkArea.Dispose();
         _engine.Stop();
