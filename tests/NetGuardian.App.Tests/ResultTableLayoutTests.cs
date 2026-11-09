@@ -24,10 +24,11 @@ public sealed class ResultTableLayoutTests
             var toggle = DesktopFixture.Descendants(row).OfType<ToggleButton>().FirstOrDefault();
             Assert.NotNull(toggle);
             toggle.IsChecked = true;
-            window.UpdateLayout();
-            var details = DesktopFixture.Descendants(row).OfType<TextBox>().Single();
+            ExpansionInteractionTests.Settle(window);
+            var values = DesktopFixture.Descendants(row).OfType<TextBox>().ToArray();
+            var details = values.Single(value => value.Text.Contains("2001:4860:4860::8888"));
             Assert.Contains("2001:4860:4860::8888", details.Text);
-            Assert.Contains("192.0.2.1", details.Text);
+            Assert.Contains(values, value => value.Text == "192.0.2.1");
             Assert.True(details.IsReadOnly && details.IsVisible && details.Focusable);
             var scroll = DesktopFixture.Descendants(grid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
             Assert.Equal(0, scroll.ScrollableWidth);

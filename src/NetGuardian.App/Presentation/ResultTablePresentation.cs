@@ -1,7 +1,5 @@
 using System;
-using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -32,27 +30,6 @@ public static class ResultTablePresentation
                 grid.Columns[column].Visibility = grid.ActualWidth < 920 ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    internal static string Details(object row, DataGrid grid) => string.Join(Environment.NewLine,
-        grid.Columns.OrderBy(column => column.DisplayIndex).Select(column =>
-        {
-            var binding = (column is DataGridBoundColumn bound ? bound.Binding : column.ClipboardContentBinding) as Binding;
-            var property = binding?.Path?.Path;
-            if (string.IsNullOrWhiteSpace(property)) return null;
-            var value = TypeDescriptor.GetProperties(row).Find(property, false)?.GetValue(row);
-            if (binding?.Converter is { } converter)
-                value = converter.Convert(value, typeof(string), binding.ConverterParameter, CultureInfo.CurrentCulture);
-            var label = column.Header?.ToString();
-            return string.IsNullOrWhiteSpace(label) ? null : $"{label}  {value}";
-        }).Where(value => value is not null));
-}
-
-public sealed class TableDetailsConverter : IMultiValueConverter
-{
-    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture) =>
-        values.Length == 2 && values[1] is DataGrid grid && values[0] != DependencyProperty.UnsetValue
-            ? ResultTablePresentation.Details(values[0], grid) : "";
-
-    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
 
 public sealed class RowDetailsToggleConverter : IValueConverter

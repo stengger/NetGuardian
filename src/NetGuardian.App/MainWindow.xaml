@@ -22,7 +22,6 @@
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <presentation:AddressLinesConverter x:Key="AddressLinesConverter" />
-        <presentation:TableDetailsConverter x:Key="TableDetailsConverter" />
         <presentation:RowDetailsToggleConverter x:Key="RowDetailsToggleConverter" />
         <sys:String x:Key="TableDetailLabel">详情</sys:String>
         <sys:String x:Key="TableCopyLabel">复制结果</sys:String>
@@ -106,6 +105,8 @@
             <Setter Property="TextAlignment" Value="Center" />
         </Style>
         <Style TargetType="DataGrid">
+            <Setter Property="presentation:ResultTableInteraction.IsEnabled" Value="True" />
+            <Setter Property="AreRowDetailsFrozen" Value="True" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CanUserResizeRows" Value="False" />
@@ -133,22 +134,34 @@
             </Setter>
             <Setter Property="RowDetailsTemplate">
                 <Setter.Value><DataTemplate>
-                    <TextBox IsReadOnly="True" TextWrapping="Wrap" MaxHeight="160" VerticalScrollBarVisibility="Auto" Margin="8" Padding="12" AutomationProperties.Name="{DynamicResource TableDetailLabel}">
-                        <TextBox.Text><MultiBinding Mode="OneWay" Converter="{StaticResource TableDetailsConverter}"><Binding /><Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" /></MultiBinding></TextBox.Text>
-                    </TextBox>
+                    <presentation:TableRowDetails />
                 </DataTemplate></Setter.Value>
             </Setter>
             <Setter Property="SelectionUnit" Value="FullRow" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
         <Style x:Key="GridRowStyle" TargetType="DataGridRow">
+            <!-- 选中边框绘制在内容之上，避免挤动单元格或扩张滚动范围。 -->
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridRow">
+                <Grid Background="{TemplateBinding Background}">
+                    <SelectiveScrollingGrid>
+                        <SelectiveScrollingGrid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></SelectiveScrollingGrid.ColumnDefinitions>
+                        <SelectiveScrollingGrid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></SelectiveScrollingGrid.RowDefinitions>
+                        <DataGridCellsPresenter Grid.Column="1" ItemsPanel="{TemplateBinding ItemsPanel}" MinHeight="{TemplateBinding MinHeight}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        <DataGridDetailsPresenter Grid.Column="1" Grid.Row="1" Visibility="{TemplateBinding DetailsVisibility}" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical" />
+                        <DataGridRowHeader Grid.RowSpan="2" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical"
+                                           Visibility="{Binding HeadersVisibility, RelativeSource={RelativeSource AncestorType=DataGrid}, Converter={x:Static DataGrid.HeadersVisibilityConverter}, ConverterParameter={x:Static DataGridHeadersVisibility.Row}}" />
+                    </SelectiveScrollingGrid>
+                    <Border BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" IsHitTestVisible="False" />
+                </Grid>
+            </ControlTemplate></Setter.Value></Setter>
             <Setter Property="MinHeight" Value="{DynamicResource GridRowHeight}" />
             <Setter Property="Margin" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="BorderThickness" Value="1" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
@@ -554,7 +567,7 @@
                             <DockPanel>
                                 <TextBlock x:Name="NearbyNetworksTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
                                 <TextBlock x:Name="NearbyEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
-                                <DataGrid x:Name="NearbyGrid" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
+                                <DataGrid x:Name="NearbyGrid" presentation:ResultTableInteraction.DeferSingleClick="True" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" MinWidth="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
@@ -588,7 +601,7 @@
                             <DockPanel>
                                 <TextBlock x:Name="PriorityListTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
                                 <TextBlock x:Name="ProfileEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
-                                <DataGrid x:Name="ProfileGrid" AutomationProperties.Name="{Binding Text, ElementName=PriorityListTitle}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
+                                <DataGrid x:Name="ProfileGrid" presentation:ResultTableInteraction.DeferSingleClick="True" AutomationProperties.Name="{Binding Text, ElementName=PriorityListTitle}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" MinWidth="42" IsReadOnly="True" ElementStyle="{StaticResource DragHandleTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
