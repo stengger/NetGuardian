@@ -6,6 +6,7 @@ public sealed class Localizer
     {
         ["zh-CN"] = new()
         {
+            ["UiResetFilters"] = "重置筛选",
             ["UiPolicyDetection"] = "检测",
             ["UiPolicyActions"] = "恢复动作",
             ["UiPolicyTargets"] = "探测目标",
@@ -549,6 +550,7 @@ public sealed class Localizer
         },
         ["en-US"] = new()
         {
+            ["UiResetFilters"] = "Reset filters",
             ["UiPolicyDetection"] = "Detection",
             ["UiPolicyActions"] = "Recovery actions",
             ["UiPolicyTargets"] = "Probe targets",

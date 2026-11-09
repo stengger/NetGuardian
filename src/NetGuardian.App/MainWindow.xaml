@@ -985,17 +985,36 @@
                         <Grid MinHeight="400" Height="{Binding ViewportHeight, ElementName=LogBodyScrollViewer}">
                         <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <Grid>
-                            <DataGrid x:Name="LogGrid" AutomationProperties.Name="{Binding Content, ElementName=LogNavButton}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" PreviewKeyDown="LogReading_KeyDown" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
+                            <DataGrid x:Name="LogGrid" presentation:ResultTablePresentation.CompactColumns="2" AutomationProperties.Name="{Binding Content, ElementName=LogNavButton}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" PreviewKeyDown="LogReading_KeyDown" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
                                 <DataGrid.Columns>
                                     <DataGridTextColumn x:Name="LogTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="155" ElementStyle="{StaticResource GridTextStyle}" />
-                                    <DataGridTextColumn x:Name="LogLevelColumn" Binding="{Binding LevelText}" Width="80" MinWidth="75" ElementStyle="{StaticResource GridTextStyle}" />
+                                    <DataGridTemplateColumn x:Name="LogLevelColumn" ClipboardContentBinding="{Binding LevelText}" Width="100" MinWidth="100">
+                                        <DataGridTemplateColumn.CellTemplate><DataTemplate>
+                                            <Border Padding="8,4" Margin="4" CornerRadius="{DynamicResource CornerControl}" BorderThickness="1" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <Border.Style><Style TargetType="Border">
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource StatusInfoBrush}" />
+                                                    <Setter Property="TextElement.Foreground" Value="{DynamicResource StatusInfoBrush}" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Warning"><Setter Property="BorderBrush" Value="{DynamicResource StatusWarningBrush}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource StatusWarningBrush}" /></DataTrigger>
+                                                        <DataTrigger Binding="{Binding Level}" Value="Error"><Setter Property="BorderBrush" Value="{DynamicResource StatusDangerBrush}" /><Setter Property="TextElement.Foreground" Value="{DynamicResource StatusDangerBrush}" /></DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style></Border.Style>
+                                                <TextBlock Text="{Binding LevelText}" ToolTip="{Binding LevelText}" />
+                                            </Border>
+                                        </DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn x:Name="LogSourceColumn" Binding="{Binding SourceText}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
                                     <DataGridTemplateColumn x:Name="LogMessageColumn" ClipboardContentBinding="{Binding Message}" Width="*" MinWidth="200">
                                         <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Summary}" ToolTip="{Binding Message}" Style="{StaticResource GridTextStyle}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
                             </DataGrid>
-                            <TextBlock x:Name="LogEmptyText" Margin="12,54,12,0" VerticalAlignment="Top" TextWrapping="Wrap" IsHitTestVisible="False" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=LogEmptyText}"><StackPanel>
+                                <TextBlock Text="≡" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" />
+                                <TextBlock x:Name="LogEmptyText" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                <Button x:Name="LogEmptyAction" Content="{Binding Content, ElementName=CheckNowButton}" IsEnabled="{Binding IsEnabled, ElementName=CheckNowButton}" ToolTip="{Binding ToolTip, ElementName=CheckNowButton}" Click="CheckNow_Click" HorizontalAlignment="Center" />
+                                <Button x:Name="LogResetFilterButton" Click="LogResetFilter_Click" HorizontalAlignment="Center" Visibility="Collapsed" />
+                            </StackPanel></Border>
                         </Grid>
                         <Expander x:Name="LogDetailsExpander" Grid.Row="1" Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                             <TextBox x:Name="LogDetailsTextBox" AutomationProperties.Name="{Binding Header, ElementName=LogDetailsExpander}" Text="{Binding SelectedItem.Message, ElementName=LogGrid, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="120" VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" />

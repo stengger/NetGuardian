@@ -52,6 +52,8 @@ public partial class MainWindow
         UpdateLogViewInfo();
     }
 
+    private void LogResetFilter_Click(object sender, RoutedEventArgs e) => EventLogPresentation.ResetFilters(this);
+
     private void LogFollow_Changed(object sender, RoutedEventArgs e)
     {
         if (_logView is null || LogFollowCheckBox.IsChecked != true) return;
@@ -69,12 +71,13 @@ public partial class MainWindow
         if (_logView is null) return;
         var count = _logView.Cast<object>().Count();
         LogCountText.Text = string.Format(_localizer.T("LogVisibleCount"), count, _eventLogStore.Entries.Count);
-        LogEmptyText.Visibility = count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        EventLogPresentation.UpdateEmptyActions(this, _eventLogStore.Entries.Count, count);
         LogEmptyText.Text = _localizer.T(_eventLogStore.Entries.Count == 0 ? "LogNoEntries" : "LogNoMatches");
     }
 
     private void RefreshLogLanguage()
     {
+        LogResetFilterButton.Content = _localizer.T("UiResetFilters");
         LogSearchLabel.Text = _localizer.T("LogSearch");
         LogLevelLabel.Text = _localizer.T("LogLevel");
         LogSourceLabel.Text = _localizer.T("LogSource");
