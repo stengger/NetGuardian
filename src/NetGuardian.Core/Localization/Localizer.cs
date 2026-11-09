@@ -6,6 +6,9 @@ public sealed class Localizer
     {
         ["zh-CN"] = new()
         {
+            ["UiLastSevenDays"] = "近 7 天",
+            ["UiOutages"] = "断网次数",
+            ["UiRecoveryRate"] = "恢复成功率",
             ["LogSearch"] = "搜索记录",
             ["LogLevel"] = "级别",
             ["LogSource"] = "来源",
@@ -543,6 +546,9 @@ public sealed class Localizer
         },
         ["en-US"] = new()
         {
+            ["UiLastSevenDays"] = "Last 7 days",
+            ["UiOutages"] = "Outages",
+            ["UiRecoveryRate"] = "Recovery success rate",
             ["LogSearch"] = "Search records",
             ["LogLevel"] = "Level",
             ["LogSource"] = "Source",

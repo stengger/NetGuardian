@@ -1004,6 +1004,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         try
         {
             var summary = _journal.GetSummary();
+            WeeklyOutagesText.Text = summary.OutageEpisodes.ToString();
+            WeeklyRateText.Text = DashboardPresentation.SuccessRate(summary.RecoverySuccesses, summary.RecoveryAttempts);
             WeeklySummaryText.Text = string.Format(
                 _localizer.T("WeeklySummary"),
                 summary.OutageEpisodes,
@@ -1013,6 +1015,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         catch (Exception ex)
         {
             WeeklySummaryText.Text = ex.Message;
+            WeeklyOutagesText.Text = WeeklyRateText.Text = "—";
         }
     }
 
@@ -1658,6 +1661,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var unchanged = _reportSelection.Report?.CheckedAt == report.CheckedAt && _reportSelection.Origin == origin;
         if (!_reportSelection.TryAccept(report, origin) || unchanged && !forceRefresh) return;
         HealthStateText.Text = StateText(report.State);
+        RenderDashboardMetrics(report);
         AppThemePolicy.BindBrush(HealthStateText, TextBlock.ForegroundProperty, report.State switch
         {
             NetworkState.Healthy => "StatusHealthyBrush",
@@ -1886,6 +1890,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         StartMonitorButton.Content = _engine.IsMonitoring ? _localizer.T("Monitoring") : _localizer.T("StartMonitor");
         StopButton.Content = _localizer.T("Stop");
         HealthStateLabel.Text = _localizer.T("HealthState");
+        WeeklyPeriodText.Text = _localizer.T("UiLastSevenDays");
+        WeeklyOutagesLabel.Text = _localizer.T("UiOutages");
+        WeeklyRateLabel.Text = _localizer.T("UiRecoveryRate");
+        RenderDashboardMetrics(_reportSelection.Report);
         MonitorStateLabel.Text = _localizer.T("MonitorStatus");
         NextCheckLabel.Text = _localizer.T("NextCheck");
         CurrentNetworkLabel.Text = _localizer.T("CurrentNetwork");

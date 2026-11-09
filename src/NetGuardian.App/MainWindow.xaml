@@ -395,55 +395,55 @@
             </StackPanel>
 
                 <Grid Grid.Row="2">
-                    <Grid xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="StatusPanel">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="1.35*" />
-                        <ColumnDefinition Width="1*" />
-                        <ColumnDefinition Width="1*" />
-                    </Grid.ColumnDefinitions>
-
-                    <Border Grid.Column="0" Margin="0,0,12,12" Style="{StaticResource StatusHeroCardStyle}">
-                        <StackPanel>
-                            <TextBlock x:Name="HealthStateLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" FontWeight="SemiBold" />
-                            <TextBlock x:Name="HealthStateText" FontSize="{DynamicResource FontDisplay}" FontWeight="SemiBold" Foreground="{DynamicResource SpeedDownloadBrush}" Margin="0,8,0,10" />
-                            <TextBlock x:Name="SummaryText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                            <TextBlock x:Name="ReportContextText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
-                            <TextBlock x:Name="WeeklySummaryText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" Margin="0,10,0,0" TextWrapping="Wrap" />
-                            <TextBlock x:Name="FirstRunGuideText" Foreground="{DynamicResource SpeedDownloadBrush}" FontSize="{DynamicResource FontCaption}" Margin="0,10,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="1" Margin="6,0,6,12" Style="{StaticResource StatusMetricCardStyle}">
-                        <StackPanel>
-                            <TextBlock x:Name="MonitorStateLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" FontWeight="SemiBold" />
-                            <TextBlock x:Name="MonitorStateText" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,14" />
-                            <TextBlock x:Name="NextCheckLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" />
-                            <TextBlock x:Name="NextCheckText" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,6,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <Border Grid.Column="2" Margin="12,0,0,12" Style="{StaticResource StatusMetricCardStyle}">
-                        <StackPanel>
-                            <TextBlock x:Name="CurrentNetworkLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" FontWeight="SemiBold" />
-                            <TextBlock x:Name="CurrentSsidText" FontSize="{DynamicResource FontSubtitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,8,0,14" TextWrapping="Wrap" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-                            <TextBlock x:Name="FailureStreakLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" />
-                            <TextBlock x:Name="FailureStreakText" FontSize="{DynamicResource FontSubtitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,6,0,0" />
-                        </StackPanel>
-                    </Border>
-
-                    <Grid Grid.Row="1" Grid.ColumnSpan="3">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*" />
-                            <ColumnDefinition Width="1*" />
-                        </Grid.ColumnDefinitions>
-                        <Border Margin="0,0,12,0" Style="{StaticResource SectionBorderStyle}">
-                            <DockPanel>
-                                <TextBlock x:Name="ProbeTitleText" DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,12" />
-                                <DataGrid x:Name="ProbeGrid" presentation:ResultTablePresentation.CompactColumns="3" AutomationProperties.Name="{Binding Text, ElementName=ProbeTitleText}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
+                    <ScrollViewer x:Name="StatusPanel" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+ <StackPanel>
+  <Border Style="{StaticResource StatusHeroCardStyle}" Margin="0,0,0,16">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Grid Margin="0,0,24,0"><Grid.ColumnDefinitions><ColumnDefinition Width="56"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+     <TextBlock x:Name="HealthStateIcon" Text="—" FontSize="{DynamicResource FontDisplay}" FontWeight="SemiBold" VerticalAlignment="Center" AutomationProperties.Name="{Binding Text, ElementName=HealthStateText}" />
+     <StackPanel Grid.Column="1">
+      <TextBlock x:Name="HealthStateLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" />
+      <TextBlock x:Name="HealthStateText" FontSize="{DynamicResource FontDisplay}" FontWeight="SemiBold" Margin="0,4,0,8" TextWrapping="Wrap" />
+      <TextBlock x:Name="SummaryText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+      <TextBlock x:Name="ReportContextText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
+      <TextBlock x:Name="FirstRunGuideText" Foreground="{DynamicResource StatusInfoBrush}" Margin="0,8,0,0" TextWrapping="Wrap" Visibility="Collapsed" />
+     </StackPanel>
+    </Grid>
+    <StackPanel Grid.Column="1">
+     <TextBlock x:Name="MonitorStateLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" />
+     <TextBlock x:Name="MonitorStateText" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="0,4,0,8" TextWrapping="Wrap" />
+     <WrapPanel><TextBlock x:Name="NextCheckLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,8,0"/><TextBlock x:Name="NextCheckText" FontWeight="SemiBold"/></WrapPanel>
+     <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,12,0,0"><StackPanel>
+      <TextBlock x:Name="CurrentNetworkLabel" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+      <TextBlock x:Name="CurrentSsidText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,4,0,8" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+      <WrapPanel><TextBlock x:Name="FailureStreakLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,8,0"/><TextBlock x:Name="FailureStreakText" FontWeight="SemiBold"/></WrapPanel>
+     </StackPanel></Border>
+    </StackPanel>
+   </Grid>
+  </Border>
+  <Grid Margin="0,0,0,16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Grid.Column="0" Style="{StaticResource SectionBorderStyle}" Margin="0,0,8,0"><StackPanel>
+ <TextBlock x:Name="HomeGatewayLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+ <TextBlock x:Name="HomeGatewayValue" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,8,0,4" />
+ <TextBlock x:Name="HomeGatewaySamples" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+ </StackPanel></Border><Border Grid.Column="1" Style="{StaticResource SectionBorderStyle}" Margin="8,0,8,0"><StackPanel>
+ <TextBlock x:Name="HomeDnsLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+ <TextBlock x:Name="HomeDnsValue" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,8,0,4" />
+ <TextBlock x:Name="HomeDnsSamples" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+ </StackPanel></Border><Border Grid.Column="2" Style="{StaticResource SectionBorderStyle}" Margin="8,0,0,0"><StackPanel>
+ <TextBlock x:Name="HomeHttpsLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+ <TextBlock x:Name="HomeHttpsValue" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,8,0,4" />
+ <TextBlock x:Name="HomeHttpsSamples" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+ </StackPanel></Border></Grid>
+  <Border Style="{StaticResource SectionBorderStyle}" Margin="0,0,0,16">
+   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <StackPanel Margin="0,0,16,0"><TextBlock x:Name="WeeklyPeriodText" Style="{StaticResource SectionTitleStyle}"/><TextBlock x:Name="WeeklySummaryText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" /></StackPanel>
+    <StackPanel Grid.Column="1"><TextBlock x:Name="WeeklyOutagesLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/><TextBlock x:Name="WeeklyOutagesText" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,8,0,0"/></StackPanel>
+    <StackPanel Grid.Column="2"><TextBlock x:Name="WeeklyRateLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/><TextBlock x:Name="WeeklyRateText" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,8,0,0" ToolTip="{Binding Text, ElementName=WeeklySummaryText}"/></StackPanel>
+   </Grid>
+  </Border>
+  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Border Style="{StaticResource SectionBorderStyle}" Margin="0,0,8,0"><StackPanel>
+    <TextBlock x:Name="ProbeTitleText" Style="{StaticResource SectionTitleStyle}" /><DataGrid x:Name="ProbeGrid" presentation:ResultTablePresentation.CompactColumns="3" AutomationProperties.Name="{Binding Text, ElementName=ProbeTitleText}" Height="200" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProbeNameColumn" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="ProbeOkColumn" Binding="{Binding ResultText}" Width="90" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
@@ -451,17 +451,21 @@
                                         <DataGridTextColumn x:Name="ProbeDetailColumn" Binding="{Binding Detail}" Width="3*" ElementStyle="{StaticResource GridTextStyle}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
-                            </DockPanel>
-                        </Border>
-                        <Border Grid.Column="1" Margin="12,0,0,0" Style="{StaticResource SectionBorderStyle}">
-                            <DockPanel>
-                                <TextBlock x:Name="RecentEventsTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,12" />
-                                <TextBlock x:Name="RecentEventsEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
-                                <ListBox x:Name="RecentEventsList" AutomationProperties.Name="{Binding Text, ElementName=RecentEventsTitle}" BorderThickness="0" />
-                            </DockPanel>
-                        </Border>
-                    </Grid>
-                </Grid>
+   </StackPanel></Border>
+   <Border Grid.Column="1" Style="{StaticResource SectionBorderStyle}" Margin="8,0,0,0"><StackPanel>
+    <TextBlock x:Name="RecentEventsTitle" Style="{StaticResource SectionTitleStyle}" />
+    <TextBlock x:Name="RecentEventsEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
+    <ListBox x:Name="RecentEventsList" AutomationProperties.Name="{Binding Text, ElementName=RecentEventsTitle}" BorderThickness="0" Background="Transparent" MaxHeight="240" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+     <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem"><Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="Padding" Value="0"/></Style></ListBox.ItemContainerStyle>
+     <ListBox.ItemTemplate><DataTemplate><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="20"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+      <Border BorderBrush="{DynamicResource ChartTrackBrush}" BorderThickness="2,0,0,0" Margin="5,0,0,0"/><Ellipse Width="8" Height="8" Fill="{DynamicResource StatusInfoBrush}" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="2,6,0,0"/>
+      <TextBlock Grid.Column="1" Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,16" Foreground="{DynamicResource TextFillColorSecondaryBrush}" ToolTip="{Binding}"/>
+     </Grid></DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+   </StackPanel></Border>
+  </Grid>
+ </StackPanel>
+</ScrollViewer>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="WifiPanel" Visibility="Collapsed" Style="{StaticResource SectionBorderStyle}">
                     <Grid>
