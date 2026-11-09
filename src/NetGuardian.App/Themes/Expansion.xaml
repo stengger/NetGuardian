@@ -4,6 +4,11 @@
     <Style x:Key="ExpansionToggleStyle" TargetType="ToggleButton">
         <Setter Property="MinWidth" Value="32" />
         <Setter Property="MinHeight" Value="32" />
+        <Setter Property="FocusVisualStyle"><Setter.Value>
+            <Style TargetType="Control"><Setter Property="Template"><Setter.Value>
+                <ControlTemplate><Border Margin="2" BorderThickness="1" CornerRadius="4" BorderBrush="{DynamicResource TextFillColorPrimaryBrush}" IsHitTestVisible="False" /></ControlTemplate>
+            </Setter.Value></Setter></Style>
+        </Setter.Value></Setter>
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Template">
@@ -31,7 +36,6 @@
                         </Trigger>
                         <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" /></Trigger>
                         <Trigger Property="IsPressed" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource ControlFillColorTertiaryBrush}" /></Trigger>
-                        <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Surface" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" /></Trigger>
                         <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.5" /></Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -44,7 +48,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Expander">
                     <Grid>
-                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                         <ToggleButton Style="{StaticResource ExpansionToggleStyle}" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
                                       Foreground="{TemplateBinding Foreground}" AutomationProperties.Name="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}"
                                       IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />

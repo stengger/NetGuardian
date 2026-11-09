@@ -45,3 +45,12 @@ public sealed class RowDetailsToggleConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => value is Visibility.Visible;
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => value is true ? Visibility.Visible : Visibility.Collapsed;
 }
+
+// 原文与列表是并列区域；原文上限随实际可用高度变化。
+public sealed class ViewportFractionConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+        value is double height && double.TryParse(parameter?.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out var fraction)
+            ? Math.Max(0, height * fraction) : double.PositiveInfinity;
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}

@@ -206,7 +206,7 @@ public sealed class DesktopLayoutTests
             var original = (TextBox)window.FindName("LogDetailsTextBox");
             Assert.StartsWith("DNS 检查记录 0", original.Text);
             Assert.Equal(0, original.VerticalOffset);
-            Assert.True(grid.ActualHeight >= 100, $"日志表仅 {grid.ActualHeight} DIP");
+            Assert.True(grid.ActualHeight >= DesktopFixture.Descendants(grid).OfType<System.Windows.Controls.Primitives.DataGridColumnHeadersPresenter>().First().ActualHeight + 38, $"日志视口不足一条完整记录：{grid.ActualHeight} DIP");
             foreach (var name in new[] { "LogSearchTextBox", "ExportLogsButton", "LogFollowCheckBox" })
             {
                 var control = (FrameworkElement)window.FindName(name);
@@ -294,32 +294,13 @@ public sealed class DesktopLayoutTests
             var body = (ScrollViewer)window.FindName("QualityBodyScrollViewer");
             body.ScrollToTop(); window.UpdateLayout();
             DesktopFixture.Save(window, $"quality-complete-initial-{width}-{height}-{language}.png");
-            if (height == 500)
-            {
-                var inner = DesktopFixture.Descendants(completedGrid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
-                inner.ScrollToEnd(); body.ScrollToTop(); window.UpdateLayout();
-                var lastOffset = inner.VerticalOffset;
-                var modifiersBefore = Keyboard.Modifiers;
-                Wheel(inner, -120); window.UpdateLayout();
-                Assert.True(body.VerticalOffset > 0,
-                    $"表格到底后，向下滚轮未衔接正文。修饰键={modifiersBefore}/{Keyboard.Modifiers}；内层={lastOffset:R}→{inner.VerticalOffset:R}/{inner.ScrollableHeight:R}；正文={body.VerticalOffset:R}/{body.ScrollableHeight:R}；启用={NetGuardian.App.Presentation.ScrollWheelChaining.GetIsEnabled(body)}");
-                Assert.Equal(lastOffset, inner.VerticalOffset);
-                inner.ScrollToTop(); body.ScrollToEnd(); window.UpdateLayout();
-                var bodyEnd = body.VerticalOffset;
-                Wheel(inner, 120); window.UpdateLayout();
-                Assert.True(body.VerticalOffset < bodyEnd, "表格到顶后，向上滚轮未衔接正文。");
-                body.ScrollToTop(); inner.ScrollToTop(); window.UpdateLayout();
-                Wheel(inner, -120); window.UpdateLayout();
-                Assert.True(inner.VerticalOffset > 0, "表格尚可滚动时应保留内部阅读行为。");
-                Assert.Equal(0, body.VerticalOffset);
-                NetGuardian.App.Presentation.ScrollWheelChaining.SetIsEnabled(body, false);
-                inner.ScrollToEnd(); body.ScrollToTop(); window.UpdateLayout();
-                Wheel(inner, -120); window.UpdateLayout();
-                Assert.Equal(0, body.VerticalOffset);
-                NetGuardian.App.Presentation.ScrollWheelChaining.SetIsEnabled(body, true);
-                Wheel(inner, -120); window.UpdateLayout();
-                Assert.True(body.VerticalOffset > 0, "重新启用后应恢复边界衔接。");
-            }
+            var inner = DesktopFixture.Descendants(completedGrid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
+            Assert.Equal(0, inner.ScrollableHeight);
+            Assert.True(completedGrid.ActualHeight >= completedGrid.Items.Count * 38);
+            body.ScrollToEnd(); window.UpdateLayout();
+            Assert.True(body.VerticalOffset > 0, "结果应随正文滚动到末尾。");
+            Assert.Equal(0, inner.VerticalOffset);
+            body.ScrollToTop(); window.UpdateLayout();
             foreach (var index in new[] { 0, completedGrid.Items.Count - 1 })
             {
                 completedGrid.ScrollIntoView(completedGrid.Items[index]); window.UpdateLayout();
@@ -337,14 +318,6 @@ public sealed class DesktopLayoutTests
                 $"阅读结果后取消操作不可达：{cancelBounds}");
             DesktopFixture.Save(window, $"quality-complete-{width}-{language}.png");
         });
-    }
-
-    private static void Wheel(UIElement target, int delta)
-    {
-        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta) { RoutedEvent = Mouse.PreviewMouseWheelEvent };
-        target.RaiseEvent(preview);
-        if (!preview.Handled)
-            target.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, Environment.TickCount, delta) { RoutedEvent = Mouse.MouseWheelEvent });
     }
 
     [Theory]

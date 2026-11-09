@@ -66,6 +66,28 @@ public sealed class ExpansionInteractionTests
         });
     }
 
+    [Theory]
+    [InlineData("FailureExpander")]
+    [InlineData("MethodExpander")]
+    public void 测速折叠栏实际接入共用箭头状态(string name)
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "ToolsPanel");
+            ((TabControl)window.FindName("ToolsTabControl")).SelectedItem = window.FindName("SpeedToolsTab");
+            var speed = (NetGuardian.App.Views.SpeedTestView)window.FindName("SpeedView");
+            var expander = (Expander)speed.FindName(name);
+            expander.Visibility = Visibility.Visible;
+            DesktopFixture.Layout(window, 1040, 660);
+            expander.IsExpanded = true;
+            Settle(window);
+            var glyph = DesktopFixture.Descendants(expander).OfType<TextBlock>().Single(text => text.Name == "ExpansionGlyph");
+            Assert.InRange(((RotateTransform)glyph.RenderTransform).Angle, 89.9, 90.1);
+            expander.IsExpanded = false;
+            Settle(window);
+            Assert.InRange(((RotateTransform)glyph.RenderTransform).Angle, -0.1, 0.1);
+        });
+    }
     internal static void Settle(Window window)
     {
         var frame = new DispatcherFrame();

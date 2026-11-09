@@ -172,7 +172,7 @@
                         <TextBlock x:Name="CheckedAtText" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
                         <Expander Style="{DynamicResource ContentExpanderStyle}" x:Name="FailureExpander" Visibility="Collapsed" Margin="0,14,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                             <TextBox x:Name="FailureText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent"
-                                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" MaxHeight="120" VerticalScrollBarVisibility="Auto" />
+                                     Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalScrollBarVisibility="Disabled" />
                         </Expander>
                     </StackPanel>
                 </Border>
