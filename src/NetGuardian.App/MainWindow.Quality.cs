@@ -115,8 +115,7 @@ public partial class MainWindow
 
     private void SetQualityTiming(TextBlock value, TextBlock samples, ProbeTimingSummary? timing)
     {
-        value.Text = timing?.AverageMs is { } average ? $"{average:F0} ms" : "—";
-        samples.Text = timing is null || timing.Attempted == 0 ? _localizer.T("QualityNotMeasured")
-            : string.Format(_localizer.T("QualityTimingSamples"), timing.Succeeded, timing.Attempted, timing.Measured);
+        var kind = ReferenceEquals(value, QualityGatewayValue) ? "Gateway" : ReferenceEquals(value, QualityDnsValue) ? "Dns" : "Https";
+        DashboardPresentation.RenderTiming(value, samples, timing, kind, _localizer);
     }
 }

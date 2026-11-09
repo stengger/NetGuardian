@@ -61,6 +61,8 @@ internal static class PanelNavigationPresenter
         actionBar.Visibility = actionNameForPage is not null ? Visibility.Visible : Visibility.Collapsed;
         if (actionNameForPage is not null)
             ((UIElement)window.FindName(actionNameForPage)).Visibility = Visibility.Visible;
+        ((Button)window.FindName("CheckNowButton")).Style = (Style)window.FindResource(
+            target.Name == "StatusPanel" ? "PrimaryButtonStyle" : "SecondaryButtonStyle");
         ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.TitleKey);
         ((TextBlock)window.FindName("PageSubtitleText")).Text = target.Name == "StatusPanel" ? localizer.T("Summary") : "";
     }

@@ -93,7 +93,7 @@
             <Setter Property="RowBackground" Value="Transparent" />
             <Setter Property="RowHeaderWidth" Value="28" />
             <Setter Property="ContextMenu">
-                <Setter.Value><ContextMenu><MenuItem Header="{DynamicResource TableCopyLabel}" Command="ApplicationCommands.Copy" /></ContextMenu></Setter.Value>
+                <Setter.Value><ContextMenu><MenuItem Header="{DynamicResource TableCopyLabel}" Command="ApplicationCommands.Copy" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" /></ContextMenu></Setter.Value>
             </Setter>
             <Setter Property="RowHeaderStyle">
                 <Setter.Value>
@@ -176,11 +176,11 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.9" />
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.98" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.8" />
+                                <Setter TargetName="Chrome" Property="Opacity" Value="0.96" />
                                 <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
@@ -208,6 +208,12 @@
             <Setter Property="Background" Value="{DynamicResource DangerButtonBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource DangerButtonTextBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource DangerButtonBrush}" />
+        </Style>
+        <Style x:Key="EmptyStateStyle" TargetType="Border">
+            <Setter Property="Padding" Value="{DynamicResource SpacingCardPadding}" />
+            <Setter Property="MaxWidth" Value="400" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="{DynamicResource FontSection}" />
@@ -369,7 +375,7 @@
                     <Button x:Name="QualityOpenSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
                 </WrapPanel>
                 <WrapPanel x:Name="ToolsPageActions" Visibility="Collapsed" AutomationProperties.Name="诊断快捷操作">
-                    <Button x:Name="ToolsCheckButton" Click="CheckNow_Click" Margin="0,0,8,8" />
+                    <Button x:Name="ToolsCheckButton" Style="{StaticResource PrimaryButtonStyle}" Click="CheckNow_Click" Margin="0,0,8,8" />
                     <Button x:Name="ToolsScanButton" Click="Scan_Click" Margin="0,0,8,8" />
                     <Button x:Name="ToolsScanCancelButton" Click="WifiScanCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                     <Button x:Name="ToolsNetworkSettingsButton" Click="ToolsNetworkSettings_Click" Margin="0,0,8,8" />
@@ -384,7 +390,7 @@
                     <Button x:Name="WebsiteCancelButton" Click="WebsiteCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                 </WrapPanel>
                 <WrapPanel x:Name="IpInfoPageActions" Visibility="Collapsed" AutomationProperties.Name="IP 信息操作">
-                    <Button x:Name="IpInfoRefreshButton" Click="IpInfoRefresh_Click" Margin="0,0,8,8" />
+                    <Button x:Name="IpInfoRefreshButton" Style="{StaticResource PrimaryButtonStyle}" Click="IpInfoRefresh_Click" Margin="0,0,8,8" />
                     <Button x:Name="IpInfoCancelButton" Click="IpInfoCancel_Click" Visibility="Collapsed" Margin="0,0,8,8" />
                 </WrapPanel>
                 <WrapPanel x:Name="ReportPageActions" Visibility="Collapsed" AutomationProperties.Name="诊断报告操作">
@@ -683,7 +689,10 @@
                             </TabControl.Template>
                             <TabItem x:Name="QuickToolsTab">
                                 <StackPanel Margin="0,12,0,0">
-                                    <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Border Background="{DynamicResource WarningSurfaceBrush}" BorderBrush="{DynamicResource StatusWarningBrush}" BorderThickness="1" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCardPadding}"><DockPanel>
+ <TextBlock Text="!" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Foreground="{DynamicResource StatusWarningBrush}" Margin="0,0,16,0"/>
+ <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
+ </DockPanel></Border>
                                     <TextBlock x:Name="ToolsOutputText" Margin="0,14,0,0" TextWrapping="Wrap" />
                                 </StackPanel>
                             </TabItem>
@@ -704,7 +713,7 @@
                                     <StackPanel Grid.Row="2">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="WebsiteStatusText" Margin="0,0,0,10" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="WebsiteActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
-                                    <DataGrid Grid.Row="3" x:Name="WebsiteGrid" presentation:ResultTablePresentation.CompactColumns="0,3,4,6,7" AutomationProperties.Name="{Binding Header, ElementName=WebsiteToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
+                                    <Grid Grid.Row="3"><DataGrid x:Name="WebsiteGrid" presentation:ResultTablePresentation.CompactColumns="0,3,4,6,7" AutomationProperties.Name="{Binding Header, ElementName=WebsiteToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="WebsiteTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="160" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="WebsiteNameColumn" Binding="{Binding Name}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
@@ -715,10 +724,14 @@
                                             <DataGridTextColumn x:Name="WebsiteAddressColumn" Binding="{Binding Address}" Width="150" MinWidth="150" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="WebsiteDetailColumn" Binding="{Binding Detail}" Width="2*" MinWidth="200" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
-                                    </DataGrid>
+                                    </DataGrid><Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=WebsiteEmptyText}"><StackPanel>
+ <TextBlock Text="◎" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" />
+ <TextBlock x:Name="WebsiteEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed"  TextAlignment="Center" Margin="0,8,0,12" />
+ <Button x:Name="WebsiteEmptyAction" Content="{Binding Content, ElementName=WebsiteRunButton}" IsEnabled="{Binding IsEnabled, ElementName=WebsiteRunButton}" ToolTip="{Binding ToolTip, ElementName=WebsiteRunButton}" Click="WebsiteRun_Click" HorizontalAlignment="Center" />
+ </StackPanel></Border></Grid>
                                     <StackPanel Grid.Row="4" Margin="0,8,0,0">
                                         <TextBlock x:Name="WebsiteHistoryHintText" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
-                                        <TextBlock x:Name="WebsiteEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,4,0,0" Visibility="Collapsed" />
+
                                     </StackPanel>
                                 </Grid>
                             </TabItem>
@@ -728,13 +741,17 @@
                                     <StackPanel Grid.Row="1">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="IpInfoStatusText" Margin="0,4,0,10" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="IpInfoActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
-                                    <DataGrid Grid.Row="2" x:Name="IpInfoGrid" AutomationProperties.Name="{Binding Header, ElementName=IpInfoToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
+                                    <Grid Grid.Row="2"><DataGrid x:Name="IpInfoGrid" AutomationProperties.Name="{Binding Header, ElementName=IpInfoToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="IpInfoNameColumn" Binding="{Binding Name}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="IpInfoValueColumn" Binding="{Binding Value}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
-                                    </DataGrid>
-                                    <TextBlock Grid.Row="3" x:Name="IpInfoEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
+                                    </DataGrid><Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=IpInfoEmptyText}"><StackPanel>
+ <TextBlock Text="◎" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" />
+ <TextBlock Grid.Row="3" x:Name="IpInfoEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed"  TextAlignment="Center" Margin="0,8,0,12" />
+ <Button x:Name="IpInfoEmptyAction" Content="{Binding Content, ElementName=IpInfoRefreshButton}" IsEnabled="{Binding IsEnabled, ElementName=IpInfoRefreshButton}" ToolTip="{Binding ToolTip, ElementName=IpInfoRefreshButton}" Click="IpInfoRefresh_Click" HorizontalAlignment="Center" />
+ </StackPanel></Border></Grid>
+
                                 </Grid>
                             </TabItem>
                             <TabItem x:Name="ReportToolsTab">
@@ -743,14 +760,18 @@
                                     <StackPanel Grid.Row="1">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="ReportStatusText" Margin="0,4,0,10" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="ReportActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
-                                    <DataGrid Grid.Row="2" x:Name="ReportGrid" AutomationProperties.Name="{Binding Header, ElementName=ReportToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
+                                    <Grid Grid.Row="2"><DataGrid x:Name="ReportGrid" AutomationProperties.Name="{Binding Header, ElementName=ReportToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="ReportItemColumn" Binding="{Binding Item}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="ReportResultColumn" Binding="{Binding Result}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="ReportAdviceColumn" Binding="{Binding Advice}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
                                         </DataGrid.Columns>
-                                    </DataGrid>
-                                    <TextBlock Grid.Row="3" x:Name="ReportEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,12,0,0" Visibility="Collapsed" />
+                                    </DataGrid><Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=ReportEmptyText}"><StackPanel>
+ <TextBlock Text="◎" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" />
+ <TextBlock Grid.Row="3" x:Name="ReportEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed"  TextAlignment="Center" Margin="0,8,0,12" />
+ <Button x:Name="ReportEmptyAction" Content="{Binding Content, ElementName=ReportRunButton}" IsEnabled="{Binding IsEnabled, ElementName=ReportRunButton}" ToolTip="{Binding ToolTip, ElementName=ReportRunButton}" Click="ReportRun_Click" HorizontalAlignment="Center" />
+ </StackPanel></Border></Grid>
+
                                 </Grid>
                             </TabItem>
                         </TabControl>
@@ -821,40 +842,44 @@
                             <ProgressBar x:Name="QualityActivityBar" IsIndeterminate="True" Height="3" Margin="0,0,0,8" Visibility="Collapsed" AutomationProperties.Name="{Binding Text, ElementName=QualityStateText}" />
                         </StackPanel>
                         <ScrollViewer x:Name="QualityBodyScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0" presentation:ScrollWheelChaining.IsEnabled="True">
-                        <Grid MinHeight="400" Height="{Binding ViewportHeight, ElementName=QualityBodyScrollViewer}">
+                        <Grid MinHeight="520" Height="{Binding ViewportHeight, ElementName=QualityBodyScrollViewer}">
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <TextBlock x:Name="QualityScopeText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" Margin="0,0,0,12" />
                         <StackPanel Grid.Row="1" Margin="0,4,0,12">
                             <TextBlock x:Name="QualityStateText" FontSize="22" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                             <TextBlock x:Name="QualityPassedText" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,4,0,12" TextWrapping="Wrap" />
                         <UniformGrid Columns="3">
-                            <StackPanel Margin="0,0,12,0">
+                            <Border Style="{StaticResource SectionBorderStyle}" Padding="12" Margin="0,0,8,0"><StackPanel>
                                 <TextBlock x:Name="QualityGatewayLabel" TextWrapping="Wrap" />
                                 <TextBlock x:Name="QualityGatewayValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,4,0,4" />
                                 <TextBlock x:Name="QualityGatewaySamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-                            <StackPanel Margin="0,0,12,0">
+                            </StackPanel></Border>
+                            <Border Style="{StaticResource SectionBorderStyle}" Padding="12" Margin="0,0,8,0"><StackPanel>
                                 <TextBlock x:Name="QualityDnsLabel" TextWrapping="Wrap" />
                                 <TextBlock x:Name="QualityDnsValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,4,0,4" />
                                 <TextBlock x:Name="QualityDnsSamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
-                            <StackPanel>
+                            </StackPanel></Border>
+                            <Border Style="{StaticResource SectionBorderStyle}" Padding="12" Margin="0,0,8,0"><StackPanel>
                                 <TextBlock x:Name="QualityHttpsLabel" TextWrapping="Wrap" />
                                 <TextBlock x:Name="QualityHttpsValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="0,4,0,4" />
                                 <TextBlock x:Name="QualityHttpsSamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                            </StackPanel>
+                            </StackPanel></Border>
                         </UniformGrid>
                         </StackPanel>
                         <Grid Grid.Row="2">
-                        <DataGrid x:Name="QualityProbeGrid" AutomationProperties.Name="{Binding Text, ElementName=QualityToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
+                        <Grid><DataGrid x:Name="QualityProbeGrid" AutomationProperties.Name="{Binding Text, ElementName=QualityToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn x:Name="QualityProbeColumn" Binding="{Binding Name}" Width="2*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="QualityResultColumn" Binding="{Binding ResultText}" Width="90" MinWidth="80" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                 <DataGridTextColumn x:Name="QualityLatencyColumn" Binding="{Binding LatencyText}" Width="110" MinWidth="100" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="QualityDetailColumn" Binding="{Binding Detail}" Width="3*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                             </DataGrid.Columns>
-                        </DataGrid>
-                        <TextBlock x:Name="QualityEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="12,54,12,0" VerticalAlignment="Top" Visibility="Collapsed" IsHitTestVisible="False" />
+                        </DataGrid><Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=QualityEmptyText}"><StackPanel>
+ <TextBlock Text="◎" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" />
+ <TextBlock x:Name="QualityEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed"  TextAlignment="Center" Margin="0,8,0,12" />
+ <Button x:Name="QualityEmptyAction" Content="{Binding Content, ElementName=QualityRunButton}" IsEnabled="{Binding IsEnabled, ElementName=QualityRunButton}" ToolTip="{Binding ToolTip, ElementName=QualityRunButton}" Click="QualityRun_Click" HorizontalAlignment="Center" />
+ </StackPanel></Border></Grid>
+
                         </Grid>
                         <ScrollViewer Grid.Row="3" Margin="0,12,0,0" MaxHeight="64" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="QualityStatusText" TextWrapping="Wrap" />
@@ -986,7 +1011,7 @@
                     </StackPanel>
                     </ScrollViewer>
                 </Border>
-            
+
                 </Grid>
             </Grid>
         </Grid>
