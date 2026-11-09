@@ -1660,7 +1660,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         HealthStateText.Text = StateText(report.State);
         AppThemePolicy.BindBrush(HealthStateText, TextBlock.ForegroundProperty, report.State switch
         {
-            NetworkState.Healthy or NetworkState.Recovering => "StatusHealthyBrush",
+            NetworkState.Healthy => "StatusHealthyBrush",
+            NetworkState.Recovering => "StatusWarningBrush",
             NetworkState.GatewayIssue or NetworkState.DnsIssue or NetworkState.InternetIssue => "StatusWarningBrush",
             _ => "StatusDangerBrush"
         });
@@ -2141,6 +2142,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         System.Windows.Automation.AutomationProperties.SetName(StatusDot, presentation.ActivityText);
         AppThemePolicy.BindBrush(StatusDot, System.Windows.Shapes.Shape.FillProperty, presentation.BrushKey);
         HeaderStateText.ToolTip = presentation.Hint;
+        CheckNowButton.ToolTip = presentation.CanCheck ? _localizer.T("CheckNowTip") : presentation.Hint;
         StartMonitorButton.ToolTip = presentation.Hint;
         StopButton.ToolTip = presentation.Hint;
         System.Windows.Controls.ToolTipService.SetShowOnDisabled(StartMonitorButton, true);
