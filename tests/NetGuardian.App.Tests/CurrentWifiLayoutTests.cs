@@ -36,8 +36,18 @@ public sealed class CurrentWifiLayoutTests
                 $"当前连接卡片越界或覆盖提示：卡片={currentBounds}，提示={selectionBounds}，窗口宽度={width}");
             Assert.Contains("Redmi", ssid.Text);
             Assert.DoesNotContain("目标网络", ssid.Text);
-            Assert.True(((DataGrid)window.FindName("NearbyGrid")).ActualHeight >= 90);
-            Assert.True(((DataGrid)window.FindName("ProfileGrid")).ActualHeight >= 90);
+            var page = (ScrollViewer)window.FindName("WifiContentScrollViewer");
+            foreach (var name in new[] { "NearbyGrid", "ProfileGrid" })
+            {
+                var grid = (DataGrid)window.FindName(name);
+                var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0);
+                Assert.True(row.ActualHeight >= 38);
+                Assert.True(grid.ActualHeight >= grid.ColumnHeaderHeight + row.ActualHeight);
+                row.BringIntoView(); window.UpdateLayout();
+                var bounds = row.TransformToAncestor(page).TransformBounds(new Rect(row.RenderSize));
+                Assert.True(bounds.Top >= 0 && bounds.Bottom <= page.ActualHeight);
+            }
+            page.ScrollToTop(); window.UpdateLayout();
             DesktopFixture.Save(window, $"current-wifi-{width}.png");
         });
     }

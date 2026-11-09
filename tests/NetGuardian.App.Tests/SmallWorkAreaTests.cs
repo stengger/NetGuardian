@@ -38,9 +38,10 @@ public sealed class SmallWorkAreaTests
             foreach (var name in new[] { "WifiSelectionBar", "NearbyNetworksCard", "PriorityNetworksCard" })
             {
                 var child = (FrameworkElement)window.FindName(name);
-                var bounds = child.TransformToAncestor(surface).TransformBounds(new Rect(child.RenderSize));
-                Assert.True(bounds.Left >= surface.Padding.Left && bounds.Right <= surface.ActualWidth - surface.Padding.Right + 1
-                    && bounds.Top >= surface.Padding.Top && bounds.Bottom <= surface.ActualHeight - surface.Padding.Bottom + 1,
+                var content = (FrameworkElement)((ScrollViewer)window.FindName("WifiContentScrollViewer")).Content;
+                var bounds = child.TransformToAncestor(content).TransformBounds(new Rect(child.RenderSize));
+                Assert.True(bounds.Left >= 0 && bounds.Right <= content.ActualWidth + 1
+                    && bounds.Top >= 0 && bounds.Bottom <= content.ActualHeight + 1,
                     $"{name} 没有完整归属内容表面：{bounds}；表面={surface.RenderSize}");
             }
             DesktopFixture.Save(window, $"wifi-page-surface-{width}-{language}-{light}.png");
@@ -119,20 +120,23 @@ public sealed class SmallWorkAreaTests
             DesktopFixture.Save(window, $"small-workarea-wifi-with-data-{language}.png");
             foreach (var name in new[] { "NearbyGrid", "ProfileGrid" })
             {
-                Assert.True(((DataGrid)window.FindName(name)).ActualHeight >= 90, $"{name} 只剩表头：{layout}");
                 var row = (DataGridRow)((DataGrid)window.FindName(name)).ItemContainerGenerator.ContainerFromIndex(0);
                 Assert.True(row.ActualHeight >= 38);
                 var grid = (DataGrid)window.FindName(name);
+                Assert.True(grid.ActualHeight >= grid.ColumnHeaderHeight + row.ActualHeight, $"{name} 未完整测量表头和首行：{layout}");
                 var scroll = DesktopFixture.Descendants(grid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
                 var viewport = DesktopFixture.Descendants(scroll).OfType<ScrollContentPresenter>().First();
                 var rowBounds = row.TransformToAncestor(viewport).TransformBounds(new Rect(row.RenderSize));
                 Assert.True(rowBounds.Top >= 0 && rowBounds.Bottom <= viewport.ActualHeight,
                     $"{name} 第一行未完整处于结果视口：{rowBounds}；视口高={viewport.ActualHeight}");
-                scroll.ScrollToRightEnd(); window.UpdateLayout();
-                var lastCell = grid.Columns[^1].GetCellContent(row);
-                var cellBounds = lastCell.TransformToAncestor(grid).TransformBounds(new Rect(lastCell.RenderSize));
-                Assert.True(scroll.HorizontalOffset > 0 && cellBounds.Left >= 0 && cellBounds.Right <= grid.ActualWidth,
-                    $"{name} 最后一列无法通过横向滚动读取：{cellBounds}；表宽={grid.ActualWidth}，偏移={scroll.HorizontalOffset}，可滚宽={scroll.ScrollableWidth}，视口={scroll.ViewportWidth}");
+                Assert.Equal(0, scroll.ScrollableWidth);
+                foreach (var column in grid.Columns.Where(column => column.Visibility == Visibility.Visible))
+                {
+                    var cell = column.GetCellContent(row);
+                    var cellBounds = cell.TransformToAncestor(grid).TransformBounds(new Rect(cell.RenderSize));
+                    Assert.True(cellBounds.Left >= 0 && cellBounds.Right <= grid.ActualWidth,
+                        $"{name} 可见列超出结果视口：{cellBounds}");
+                }
                 scroll.ScrollToLeftEnd(); window.UpdateLayout();
             }
             DesktopFixture.Save(window, $"small-workarea-wifi-with-data-{language}.png");

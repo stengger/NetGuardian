@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -20,14 +21,21 @@ public static class ResultTablePresentation
         if (target is not DataGrid grid) return;
         grid.SizeChanged -= Resize;
         grid.SizeChanged += Resize;
+        grid.Loaded -= Loaded;
+        grid.Loaded += Loaded;
     }
+
+    private static void Loaded(object sender, RoutedEventArgs args) => Resize(sender, null!);
+
+    internal static double RequiredWidth(DataGrid grid) => grid.RowHeaderWidth + SystemParameters.VerticalScrollBarWidth + 4
+        + grid.Columns.Sum(column => column.Width.IsAbsolute ? Math.Max(column.Width.Value, column.MinWidth) : Math.Max(120, column.MinWidth));
 
     private static void Resize(object sender, SizeChangedEventArgs args)
     {
         var grid = (DataGrid)sender;
         foreach (var index in GetCompactColumns(grid).Split(',', StringSplitOptions.RemoveEmptyEntries))
             if (int.TryParse(index, out var column) && column >= 0 && column < grid.Columns.Count)
-                grid.Columns[column].Visibility = grid.ActualWidth < 920 ? Visibility.Collapsed : Visibility.Visible;
+                grid.Columns[column].Visibility = grid.ActualWidth < RequiredWidth(grid) ? Visibility.Collapsed : Visibility.Visible;
     }
 
 }
