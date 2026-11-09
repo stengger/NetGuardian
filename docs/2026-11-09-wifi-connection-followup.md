@@ -50,4 +50,21 @@
 
 最终完整 Debug 回归：`dotnet test NetGuardian.sln --no-restore --logger 'console;verbosity=minimal'`，正常桌面权限下 Core **289/289**、App **170/170**，0 失败、0 跳过，退出码 **0**，见 [完整输出](../.dotnet-home/validation/wifi-connection-followup/solution-debug-final.log)。`git diff --check` 通过。原有 WFAC010 高 DPI 警告未作无关调整。
 
-代码验证已完成，隔离发布、本机更新及安装启动核验将在提交后执行，结果另行补充。
+## 发布与本机验收
+
+代码提交：`6e4180f336dec49783c609b3db3a3b8b430189a9`，提交信息“完善无线连接失败反馈与当前连接展示并修复短窗口布局”。
+
+以 `git archive` 导出该提交到忽略目录，设置仓库 SDK 路径及 `SourceRevisionId`，执行隔离源码的 `scripts/publish.ps1 -OutputDirectory <隔离发布目录>/package`。脚本完成还原、完整 Release 测试和界面/后台发布：Core **289/289**、App **170/170**，0 失败、0 跳过，退出码 **0**；[完整发布输出](../.dotnet-home/validation/wifi-connection-followup/isolated-release-publish.log)。构建标识为 `1.0.0+6e4180f336dec49783c609b3db3a3b8b430189a9`。
+
+部署及验收脚本通过实际 Windows PowerShell 5 解析，按系统正常管理员确认运行。更新前界面已退出，无自动化关闭界面操作；核实后台及计划任务归属，备份差异文件、任务及配置后，发送正常停止请求，更新以下两个目录并恢复原任务状态：
+
+- 本机：`C:\Program Files\NetGuardian`
+- 项目发布目录：`C:\Users\Qiu\Documents\Net\dist\NetGuardian`
+
+2026-11-09 19:01（北京时间）部署成功、退出码 **0**：共更新 20 个差异文件，每个目录核验 25 个文件哈希，设置字节一致。备份位于本机忽略目录 `.dotnet-home/validation/wifi-connection-followup/deployment-backup-20261109-190104`，详见 [部署结果](../.dotnet-home/validation/wifi-connection-followup/deployment-result.json)。
+
+19:02 启动验收成功、退出码 **0**：GUI 来自安装目录并可响应，界面/Core/后台四个主要程序集的版本及哈希一致；后台来自安装目录，状态 `Healthy`、失败计数 0、心跳正常，原有 57 个网络及恢复策略均保留，配置文件字节一致，无新增崩溃日志。详见 [启动验收结果](../.dotnet-home/validation/wifi-connection-followup/installed-verification.json)。
+
+使用实际安装的 `NetGuardian.Core.dll` 再次执行只读查询，退出码 **0**：当前连接、SSID、信号 89%、WPA2、CCMP 与 IPv4 均读取成功，原因码 163851 翻译正确，见 [安装版只读查询输出](../.dotnet-home/validation/wifi-connection-followup/installed-read/read-current.log)。
+
+桌面工具已确认实际安装路径的主窗口显示正常；管理员界面没有响应自动化导航，已请用户手动打开 Wi-Fi 管理页以继续核验当前连接卡片。当前记录不将该页面的实机视觉验收列为已完成。未实际执行切网，目标网络的物理可用性仍需以 Windows 的最新结果为准。
