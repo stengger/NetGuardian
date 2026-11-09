@@ -13,7 +13,7 @@
 - [x] 等待实际连接及联网状态；恢复列表和周围已保存网络都能发起连接。
 - [x] 冲突按钮、重复添加、缺少凭据的引导、页头托盘状态及扫描准备阶段取消已修正。
 - [x] 单元测试、完整 Debug 回归及跨进程独占验证通过。
-- [ ] 本机发布、安装和启动核验：实施结果另附部署记录。
+- [x] 从提交 `4db35be` 隔离发布，完成本机安装、启动和真实后台交权核验，见[部署记录](2026-11-09-workflow-deployment.md)。
 
 ## 发现的问题
 
@@ -60,6 +60,9 @@
 | `tests/Test-GuardianScripts.ps1` | 监督、启动、安全卸载的替身测试通过，退出码 0。 | `guardian-scripts.log` |
 | `dotnet exec .dotnet-home/validation/manual-network/ProcessHandoff.dll` | 两个真实独立进程验证请求、交权、独占、撤销及恢复通过，退出码 0；没有执行网络命令。 | `process-handoff.log` |
 | `git diff --check` | 无空白错误，退出码 0。 | 工具输出 |
+| 隔离源码的 `scripts/publish.ps1 -OutputDirectory …/package` | 完整 Release 回归 442 项通过、0 跳过；界面与后台发布成功，退出码 0。 | `isolated-release-publish.log` |
+| `dotnet exec …/live/LiveHandoff.dll` | 已安装 Core 与真实后台交权、独占、拒绝并发请求、持续心跳、撤销及稳定期恢复全部通过，退出码 0；没有执行网络命令。 | `live-handoff.log`、`live-handoff-exit.json` |
+| 本机部署及启动核验 | 两处目录各 27 个文件哈希一致；界面响应、后台健康、协议版本 1；原策略及 57 条网络配置保留，配置字节一致。 | `deployment-result.json`、`installed-verification.json` |
 
 本轮没有测试失败。最初只读查看正在运行的管理员进程时，受限权限无法读取其路径、命令退出码 1；没有据此停止任何进程。通过管理员只读脚本核实后确认界面与后台都位于 `C:\Program Files\NetGuardian`，心跳健康。该权限检查不属于构建或运行时故障。
 
