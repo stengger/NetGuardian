@@ -17,4 +17,5 @@ public sealed class AppSettings
     public string Theme { get; set; } = "auto";
     public MonitorPolicy Policy { get; set; } = new();
     public List<WifiProfile> Profiles { get; set; } = [];
+    public List<string> ExcludedWifiSsids { get; set; } = [];
 }

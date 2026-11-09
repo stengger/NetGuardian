@@ -65,6 +65,9 @@ public sealed class WifiClient : IWifiClient
     public Task<WifiProfileInventory> GetProfileInventoryAsync(CancellationToken cancellationToken = default) =>
         _netsh.GetProfileInventoryAsync(cancellationToken);
 
+    public Task<SavedWifiProfileInventory> GetSavedProfilesAsync(CancellationToken cancellationToken = default) =>
+        _netsh.GetSavedProfilesAsync(cancellationToken);
+
     public Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
     {
         return _netsh.TryEnableWifiAdapterAsync(adapterName, cancellationToken);

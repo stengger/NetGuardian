@@ -186,13 +186,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateSidebarSpeed();
         UpdateWeeklySummary();
         UpdateFirstRunGuide();
-        _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(CleanupTemporaryWifiProfilesAsync));
-        _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(RefreshScheduledStartupSettingAsync));
-
-        if (_settings.StartMonitoringOnLaunch)
+        _ = Dispatcher.BeginInvoke(async () =>
         {
-            _ = Dispatcher.BeginInvoke(async () => await StartMonitoringAsync());
-        }
+            await RunUiActionAsync(CleanupTemporaryWifiProfilesAsync);
+            await RunUiActionAsync(ImportSavedWifiProfilesAsync);
+            if (!_resourcesCleaned && _settings.StartMonitoringOnLaunch) await StartMonitoringAsync();
+        });
+        _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(RefreshScheduledStartupSettingAsync));
 
         if (_settings.StartMinimizedToTray)
         {
@@ -314,6 +314,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         var removedIndex = _profiles.IndexOf(profile);
+        if (!_settings.ExcludedWifiSsids.Contains(profile.Ssid, StringComparer.Ordinal))
+            _settings.ExcludedWifiSsids.Add(profile.Ssid);
         _profiles.Remove(profile);
         RenumberProfiles();
         UpdateEmptyStates();
@@ -348,6 +350,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             if (!_profiles.Contains(removed))
             {
                 var insertAt = Math.Clamp(originalIndex, 0, _profiles.Count);
+                _settings.ExcludedWifiSsids.RemoveAll(ssid => SsidEquals(ssid, removed.Ssid));
                 _profiles.Insert(insertAt, removed);
                 RenumberProfiles();
                 UpdateEmptyStates();
@@ -385,7 +388,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             await RunExclusiveNetworkActionAsync(async () =>
             {
                 Log(string.Format(_localizer.T("ConnectingTo"), profile.Ssid));
-                var ok = await _wifi.ConnectAsync(profile.Ssid);
+                var ok = await ConnectSavedWifiAsync(profile.Ssid);
                 Log(string.Format(_localizer.T(ok ? "ConnectCommandSent" : "ConnectCommandFailed"), profile.Ssid));
                 return ok;
             });
@@ -1085,6 +1088,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             Enabled = true,
             AutoConnect = true
         });
+        _settings.ExcludedWifiSsids.RemoveAll(item => SsidEquals(item, ssid));
         RenumberProfiles();
         UpdateEmptyStates();
         SaveSettings();
@@ -1129,6 +1133,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         profile.Ssid = ssid;
+        profile.WindowsProfileName = ssid;
         profile.Security = dialog.Authentication;
         profile.CredentialSaved = true;
         ProfileGrid.Items.Refresh();
@@ -1286,7 +1291,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         Log(string.Format(_localizer.T("WifiRestoringPrevious"), previousSsid));
-        var commandSent = await _wifi.ConnectAsync(previousSsid);
+        var commandSent = await ConnectSavedWifiAsync(previousSsid);
         var restored = commandSent && await WaitForSsidAsync(previousSsid, WifiRestoreTimeout);
         if (!restored)
         {

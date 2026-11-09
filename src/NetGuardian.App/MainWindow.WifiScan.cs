@@ -11,6 +11,8 @@ public partial class MainWindow
     private async Task ScanWifiAsync()
     {
         if (_resourcesCleaned || _wifiScan.IsBusy) return;
+        await ImportSavedWifiProfilesAsync();
+        if (_resourcesCleaned || _wifiScan.IsBusy) return;
         await _wifiScan.RunAsync(token => _wifi.ScanAsync(token), () =>
         {
             if (_resourcesCleaned) return;

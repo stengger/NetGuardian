@@ -106,6 +106,7 @@ public sealed class SettingsStore
             var loaded = JsonSerializer.Deserialize<AppSettings>(json, JsonOptions);
             if (loaded?.Policy is null || loaded.Profiles is null || loaded.Profiles.Any(profile => profile is null)) return false;
             settings = loaded;
+            settings.ExcludedWifiSsids ??= [];
             settings.Policy.Normalize();
             settings.LogRetentionDays = Math.Clamp(settings.LogRetentionDays, 1, 90);
             settings.DeviceFailureMinutesBeforeRestart = Math.Clamp(settings.DeviceFailureMinutesBeforeRestart, 10, 24 * 60);

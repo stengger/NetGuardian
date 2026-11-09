@@ -11,6 +11,6 @@ public static class WifiProfileAvailability
     {
         if (!inventory.Success) return;
         var saved = inventory.Names.ToHashSet(StringComparer.Ordinal);
-        foreach (var profile in profiles) profile.CredentialSaved = saved.Contains(profile.Ssid);
+        foreach (var profile in profiles) profile.CredentialSaved = saved.Contains(profile.ConnectionProfileName);
     }
 }

@@ -9,6 +9,8 @@ public interface IWifiClient
     Task<string?> GetCurrentSsidAsync(CancellationToken cancellationToken = default);
     Task<WifiAdapterDiagnostics> GetAdapterDiagnosticsAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> GetProfileNamesAsync(CancellationToken cancellationToken = default);
+    Task<SavedWifiProfileInventory> GetSavedProfilesAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(new SavedWifiProfileInventory(false, [], "当前无线客户端不支持读取已保存网络。"));
     async Task<WifiProfileInventory> GetProfileInventoryAsync(CancellationToken cancellationToken = default) =>
         new(true, await GetProfileNamesAsync(cancellationToken));
     Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default);

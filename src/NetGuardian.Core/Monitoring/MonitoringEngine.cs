@@ -523,7 +523,10 @@ public sealed class MonitoringEngine : IDisposable
     {
         token.ThrowIfCancellationRequested();
         // 已启动的连接操作必须收尾后才释放检查控制权，避免停止后延迟切网。
-        var accepted = await _wifi.ConnectAsync(ssid, token);
+        var profile = _profilesProvider().FirstOrDefault(item => RecoveryPlanner.SsidEquals(item.Ssid, ssid));
+        var accepted = profile is not null && profile.ConnectionProfileName != ssid
+            ? await _wifi.ConnectProfileAsync(profile.ConnectionProfileName, ssid, token)
+            : await _wifi.ConnectAsync(ssid, token);
         token.ThrowIfCancellationRequested();
         if (!accepted)
         {

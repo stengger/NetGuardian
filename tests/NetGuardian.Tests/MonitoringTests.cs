@@ -319,6 +319,7 @@ internal sealed class FakeCommandRunner : ISystemCommandRunner
 
 internal sealed class FakeWifiClient : IWifiClient
 {
+    public List<(string ProfileName, string Ssid)> ProfileConnectAttempts { get; } = [];
     public string? CurrentSsid { get; set; }
     public HashSet<string> ConnectSucceedsFor { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<string> ConnectAttempts { get; } = [];
@@ -368,7 +369,10 @@ internal sealed class FakeWifiClient : IWifiClient
     }
 
     public Task<bool> ConnectProfileAsync(string profileName, string ssid, CancellationToken cancellationToken = default)
-        => ConnectAsync(ssid, cancellationToken);
+    {
+        ProfileConnectAttempts.Add((profileName, ssid));
+        return ConnectAsync(ssid, cancellationToken);
+    }
 
     public Task<bool> DeleteProfileAsync(string profileName, CancellationToken cancellationToken = default)
         => Task.FromResult(true);

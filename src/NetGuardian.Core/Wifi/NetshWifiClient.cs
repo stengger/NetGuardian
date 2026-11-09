@@ -66,6 +66,31 @@ public sealed partial class NetshWifiClient : IWifiClient
             : new WifiProfileInventory(false, [], result.Output);
     }
 
+    public async Task<SavedWifiProfileInventory> GetSavedProfilesAsync(CancellationToken cancellationToken = default)
+    {
+        var inventory = await GetProfileInventoryAsync(cancellationToken);
+        if (!inventory.Success) return new(false, [], inventory.Error);
+        var profiles = new List<SavedWifiProfile>();
+        foreach (var name in inventory.Names)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (name.StartsWith("NetGuardian-Verify-", StringComparison.OrdinalIgnoreCase)) continue;
+            // 只查询元数据，不使用 key=clear，不读取或落盘无线密码。
+            var result = await RunNetshAsync(["wlan", "show", "profile", $"name={name}"], cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            var ssid = result.ExitCode == 0 ? ParseProfileSsid(result.Output) : null;
+            if (ssid is null)
+                return new(false, [], $"无法读取无线配置“{name}”（退出码 {result.ExitCode}）。{result.Output}");
+            var authentication = SplitLines(result.Output)
+                .Select(line => line.Split(':', 2))
+                .Where(parts => parts.Length == 2 && (parts[0].Trim().Equals("Authentication", StringComparison.OrdinalIgnoreCase)
+                    || parts[0].Trim() == "身份验证"))
+                .Select(parts => parts[1].Trim()).FirstOrDefault() ?? "";
+            profiles.Add(new(name, ssid, authentication));
+        }
+        return new(true, profiles);
+    }
+
     public async Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
     {
         if (adapterName?.StartsWith("PCI\\", StringComparison.OrdinalIgnoreCase) == true
@@ -347,7 +372,8 @@ public sealed partial class NetshWifiClient : IWifiClient
             var parts = line.Split(':', 2);
             var key = parts[0].Trim();
             var value = ReadNameValue(parts[1]);
-            if (value.Length >= 2 && value[0] == '"' && value[^1] == '"') value = value[1..^1];
+            if (value.Length >= 2 && ((value[0] == '"' && value[^1] == '"')
+                || (value[0] == '“' && value[^1] == '”'))) value = value[1..^1];
             if (key.Equals("SSID name", StringComparison.OrdinalIgnoreCase)
                 || key.Equals("SSID 名称", StringComparison.OrdinalIgnoreCase))
             {
