@@ -41,9 +41,17 @@ internal sealed class PolicyEditFeedback
         _saved = true;
         _baseline = _readState();
         _status.Text = message;
+        UpdateColor();
     }
 
-    public void RefreshLanguage() => _status.Text = _localizer.T(IsDirty ? "PolicyUnsavedHint" : _saved ? "PolicySavedTitle" : "PolicySaveHint");
+    public void RefreshLanguage()
+    {
+        _status.Text = _localizer.T(IsDirty ? "PolicyUnsavedHint" : _saved ? "PolicySavedTitle" : "PolicySaveHint");
+        UpdateColor();
+    }
+
+    private void UpdateColor() => _status.SetResourceReference(TextBlock.ForegroundProperty,
+        IsDirty ? "StatusWarningBrush" : _saved ? "StatusHealthyBrush" : "TextFillColorSecondaryBrush");
 
     private void Changed()
     {

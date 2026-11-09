@@ -564,7 +564,8 @@ internal static class DesktopFixture
         var localizer = new Localizer();
         var labels = new Dictionary<string, string>
         {
-            ["SavePolicyButton"] = "Save", ["PolicyTitle"] = "Policy", ["IntervalLabel"] = "IntervalValue",
+            ["PolicyDetectionTitle"] = "UiPolicyDetection", ["PolicyActionsTitle"] = "UiPolicyActions",
+            ["PolicyTargetsTitle"] = "UiPolicyTargets", ["SavePolicyButton"] = "Save", ["PolicyTitle"] = "Policy", ["IntervalLabel"] = "IntervalValue",
             ["FailuresBeforeRecoveryLabel"] = "FailuresBeforeRecovery", ["CooldownLabel"] = "CooldownValue",
             ["AutoSwitchCheckBox"] = "AutoSwitch", ["SoftReconnectCheckBox"] = "SoftReconnect",
             ["WifiAutoEnableCheckBox"] = "WifiAutoEnable", ["DnsFlushCheckBox"] = "DnsFlush",

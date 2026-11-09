@@ -1941,6 +1941,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProfileFailuresColumn.Header = _localizer.T("Failures");
         NearbyPriorityColumn.Header = _localizer.T("PriorityState");
         PolicyTitle.Text = _localizer.T("Policy");
+        PolicyDetectionTitle.Text = _localizer.T("UiPolicyDetection");
+        PolicyActionsTitle.Text = _localizer.T("UiPolicyActions");
+        PolicyTargetsTitle.Text = _localizer.T("UiPolicyTargets");
         IntervalLabel.Text = _localizer.T("IntervalValue");
         FailuresBeforeRecoveryLabel.Text = _localizer.T("FailuresBeforeRecovery");
         CooldownLabel.Text = _localizer.T("CooldownValue");

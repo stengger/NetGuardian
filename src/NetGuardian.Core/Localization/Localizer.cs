@@ -6,6 +6,9 @@ public sealed class Localizer
     {
         ["zh-CN"] = new()
         {
+            ["UiPolicyDetection"] = "检测",
+            ["UiPolicyActions"] = "恢复动作",
+            ["UiPolicyTargets"] = "探测目标",
             ["UiLastSevenDays"] = "近 7 天",
             ["UiOutages"] = "断网次数",
             ["UiRecoveryRate"] = "恢复成功率",
@@ -546,6 +549,9 @@ public sealed class Localizer
         },
         ["en-US"] = new()
         {
+            ["UiPolicyDetection"] = "Detection",
+            ["UiPolicyActions"] = "Recovery actions",
+            ["UiPolicyTargets"] = "Probe targets",
             ["UiLastSevenDays"] = "Last 7 days",
             ["UiOutages"] = "Outages",
             ["UiRecoveryRate"] = "Recovery success rate",

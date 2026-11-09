@@ -631,6 +631,8 @@
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,8">
                         <StackPanel MaxWidth="720" HorizontalAlignment="Left">
                         <TextBlock x:Name="PolicyTitle" Visibility="Collapsed" />
+                        <Border Style="{StaticResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}"><StackPanel>
+                        <TextBlock x:Name="PolicyDetectionTitle" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="{DynamicResource SpacingFieldGap}" />
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="180" />
@@ -667,17 +669,29 @@
                                 <ComboBoxItem Tag="3600" />
                             </ComboBox>
                         </Grid>
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}"><StackPanel>
+                        <TextBlock x:Name="PolicyActionsTitle" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="{DynamicResource SpacingFieldGap}" />
                         <ui:ToggleSwitch x:Name="AutoSwitchCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="SoftReconnectCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="WifiAutoEnableCheckBox" Margin="0,9" />
                         <ui:ToggleSwitch x:Name="DnsFlushCheckBox" Margin="0,9" />
+                        <Border BorderBrush="{DynamicResource StatusWarningBrush}" BorderThickness="1" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCardPadding}" Margin="0,12,0,0"><Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                        <TextBlock Text="!" FontSize="{DynamicResource FontMetric}" FontWeight="Bold" Foreground="{DynamicResource StatusWarningBrush}" Margin="{DynamicResource SpacingInlineGap}" />
+                        <StackPanel Grid.Column="1">
                         <ui:ToggleSwitch x:Name="HighRiskCheckBox" Margin="0,9" Checked="HighRiskCheckBox_Checked" />
                         <TextBlock x:Name="HighRiskTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                        </StackPanel></Grid></Border>
+                        </StackPanel></Border>
+                        <Border Style="{StaticResource SectionBorderStyle}"><StackPanel>
+                        <TextBlock x:Name="PolicyTargetsTitle" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="{DynamicResource SpacingFieldGap}" />
                         <TextBlock x:Name="DnsProbeHostsLabel" Margin="0,12,0,4" />
                         <TextBox x:Name="DnsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=DnsProbeHostsLabel}" />
                         <TextBlock x:Name="HttpsProbeHostsLabel" Margin="0,10,0,4" />
                         <TextBox x:Name="HttpsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=HttpsProbeHostsLabel}" />
                         <TextBlock x:Name="ProbeTargetsTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="0,6,0,0" />
+                        </StackPanel></Border>
                         </StackPanel>
                         </ScrollViewer>
                         <Border Grid.Row="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,12,0,0" Margin="0,8,0,0">
