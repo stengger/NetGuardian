@@ -116,7 +116,7 @@
             <Setter Property="ClipboardCopyMode" Value="IncludeHeader" />
             <Setter Property="RowDetailsVisibilityMode" Value="Collapsed" />
             <Setter Property="RowBackground" Value="Transparent" />
-            <Setter Property="RowHeaderWidth" Value="28" />
+            <Setter Property="RowHeaderWidth" Value="36" />
             <Setter Property="ContextMenu">
                 <Setter.Value><ContextMenu><MenuItem Header="{DynamicResource TableCopyLabel}" Command="ApplicationCommands.Copy" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" /></ContextMenu></Setter.Value>
             </Setter>
@@ -125,7 +125,7 @@
                     <Style TargetType="DataGridRowHeader">
                         <Setter Property="Template">
                             <Setter.Value><ControlTemplate TargetType="DataGridRowHeader">
-                                <ToggleButton Content="›" FontSize="{DynamicResource FontSubtitle}" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" ToolTip="{DynamicResource TableDetailLabel}" AutomationProperties.Name="{DynamicResource TableDetailLabel}" IsChecked="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource RowDetailsToggleConverter}, Mode=TwoWay}" />
+                                <ToggleButton Style="{DynamicResource ExpansionToggleStyle}" Height="40" VerticalAlignment="Top" ToolTip="{DynamicResource TableDetailLabel}" AutomationProperties.Name="{DynamicResource TableDetailLabel}" IsChecked="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource RowDetailsToggleConverter}, Mode=TwoWay}" />
                             </ControlTemplate></Setter.Value>
                         </Setter>
                     </Style>
@@ -1016,7 +1016,7 @@
                                 <Button x:Name="LogResetFilterButton" Click="LogResetFilter_Click" HorizontalAlignment="Center" Visibility="Collapsed" />
                             </StackPanel></Border>
                         </Grid>
-                        <Expander x:Name="LogDetailsExpander" Grid.Row="1" Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                        <Expander Style="{DynamicResource ContentExpanderStyle}" x:Name="LogDetailsExpander" Grid.Row="1" Margin="0,8,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                             <TextBox x:Name="LogDetailsTextBox" AutomationProperties.Name="{Binding Header, ElementName=LogDetailsExpander}" Text="{Binding SelectedItem.Message, ElementName=LogGrid, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="120" VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" />
                         </Expander>
                         <DockPanel Grid.Row="2" Margin="0,8,0,0">

@@ -170,7 +170,7 @@
                         <ProgressBar x:Name="RunningIndicator" Height="3" IsIndeterminate="True" Foreground="{DynamicResource SpeedDownloadBrush}"
                                      Margin="0,18,0,0" Visibility="Collapsed" AutomationProperties.Name="" />
                         <TextBlock x:Name="CheckedAtText" Style="{StaticResource Secondary}" Margin="0,16,0,0" />
-                        <Expander x:Name="FailureExpander" Visibility="Collapsed" Margin="0,14,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                        <Expander Style="{DynamicResource ContentExpanderStyle}" x:Name="FailureExpander" Visibility="Collapsed" Margin="0,14,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                             <TextBox x:Name="FailureText" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0" Background="Transparent"
                                      Foreground="{DynamicResource TextFillColorSecondaryBrush}" MaxHeight="120" VerticalScrollBarVisibility="Auto" />
                         </Expander>
@@ -183,7 +183,7 @@
                         <TextBlock x:Name="TrafficText" Style="{StaticResource Secondary}" Margin="0,8,0,0" />
                         <TextBlock x:Name="TargetText" Style="{StaticResource Secondary}" Margin="0,5,0,0" />
                         <TextBlock x:Name="MethodText" Style="{StaticResource Secondary}" Margin="0,5,0,0" />
-                        <Expander x:Name="MethodExpander" Margin="0,12,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+                        <Expander Style="{DynamicResource ContentExpanderStyle}" x:Name="MethodExpander" Margin="0,12,0,0" Foreground="{DynamicResource TextFillColorPrimaryBrush}">
                             <TextBlock x:Name="MethodDetail" Style="{StaticResource Secondary}" Margin="0,8,0,0" />
                         </Expander>
                         <WrapPanel Margin="0,16,0,0">
