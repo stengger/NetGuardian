@@ -99,7 +99,7 @@ at TrayContextMenuTests.cs:line 120
 
 待实机检查（不能由离屏 96 DPI 位图替代）：
 
-- [ ] 八页实际显示、系统主题与 Mica 合成效果。
+- [x] 正式安装目录首页显示，用户确认顶部状态卡完整；其余七页实机显示与系统合成效果待检查。
 - [ ] 100% / 150% / 200% 显示缩放及跨屏移动。
 - [ ] Tab / Shift+Tab / Enter / Space，焦点环、禁用 tooltip 与键盘复制。
 - [ ] 长 SSID 拖拽排序及持久化，连接 / 扫描的真实反馈。
@@ -112,3 +112,19 @@ Wi-Fi 表格保留既有“窄窗口可内部横向阅读末列”的回归契�
 ## 本机更新
 
 发布前核实安装 UI 与守护文件实际版本均为 `6e4180f`，界面 PID 23600、后台 PID 76000，均来自 `C:\Program Files\NetGuardian`。后续只更新 UI 根目录必要组件，同时同步项目 `dist\NetGuardian`；保留配置、后台文件和进程。安装及实际启动结果在完成部署后补记。
+
+
+### 发布与安装结果
+
+- 从 `0c503b2be164b13adbf5ac59dbb8eeceddfdbd49` 用 `git archive` 导出独立源码；运行该快照的 `scripts/publish.ps1`，Release Core 289/289、App 197/197，发布退出码 0。完整日志 `release-0c503b2/publish.log`，结果 `publish-result.json`。
+- 用户确认从托盘退出后，管理员脚本备份、校验并同步 `C:\Program Files\NetGuardian` 和项目 `dist\NetGuardian`，每个目录仅替换 5 个不同的 UI 二进制 / 调试文件和 `UIInstalledBuild.json`，共 12 个文件；校验每目录 7 个 UI 文件，结果成功。
+- 备份：`.dotnet-home/validation/ui-fluent/ui-backup-20261109-215652/`。配置字节一致，后台目录全部文件哈希一致；后台 PID 76000、启动时间和路径保持不变。未停止任务、重启后台或触发切网。
+- 正式 UI 已重新启动，PID 92148，实际路径 `C:\Program Files\NetGuardian\NetGuardian.exe`，窗口响应正常，无新增崩溃；恢复策略与 57 个原网络配置保留，启动后配置仍字节一致，后台状态 Healthy、心跳有效。
+- 本次 UI 构建 `1.0.0+0c503b2be164b13adbf5ac59dbb8eeceddfdbd49`；后台保持原 `6e4180f`。UI 清单明确仅更新界面和本地化，不覆盖原后台安装清单。
+- 自动化安装记录：`ui-deployment-preflight.json`、`ui-deployment-result.json`、`ui-installed-verification.json`。管理员辅助脚本使用正常系统权限流程，预检阶段不替换文件，部署失败有按哈希回滚处理。
+
+### 实机视觉检查的边界
+
+computer-use 已看到正式目录的新首页：正常状态图标、延迟语义色、七天 9 次断网 / 3 次恢复的 100% 成功率、流量曲线和上下行图例、事件时间线均显示。两次导航点击未改变页面，辅助功能树只返回顶层窗口，故未声称实机八页导航通过，也未用其他 UI 自动化方式绕过。
+
+首次实机截图处于向下滚动的阅读位置，顶部卡片被视口裁切。用真实 XAML 验证首批探针 / 事件的两种更新顺序和窗口激活，共两次精确诊断命令、各两项通过（退出码 0），未复现后台刷新自动滚动；诊断保存在忽略目录，不增加产品逻辑或无证据的滚动修复。用户已人工确认“可以，顶部完整显示”，未确认有自动滚动缺陷。真实 DPI、键盘、系统高对比和真实网络操作仍按上方清单标记，不以离屏测试替代。
