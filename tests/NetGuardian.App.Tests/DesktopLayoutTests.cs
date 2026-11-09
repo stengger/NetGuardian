@@ -564,6 +564,12 @@ internal static class DesktopFixture
         var localizer = new Localizer();
         var labels = new Dictionary<string, string>
         {
+            ["WeeklyPeriodText"] = "UiLastSevenDays", ["WeeklyOutagesLabel"] = "UiOutages", ["WeeklyRateLabel"] = "UiRecoveryRate",
+            ["HomeGatewayLabel"] = "QualityGatewayTiming", ["HomeDnsLabel"] = "QualityDnsTiming", ["HomeHttpsLabel"] = "QualityHttpsTiming",
+            ["HomeGatewaySamples"] = "QualityNotMeasured", ["HomeDnsSamples"] = "QualityNotMeasured", ["HomeHttpsSamples"] = "QualityNotMeasured",
+            ["SidebarSpeedTitle"] = "InterfaceTraffic", ["SidebarSpeedScopeText"] = "InterfaceTrafficSummary",
+            ["LogResetFilterButton"] = "UiResetFilters", ["LogEmptyText"] = "LogNoEntries",
+            ["HighRiskText"] = "HighRiskReserved", ["ToolsCheckButton"] = "CheckNow", ["ToolsScanButton"] = "Scan", ["ToolsNetworkSettingsButton"] = "OpenNetworkSettings",
             ["PolicyDetectionTitle"] = "UiPolicyDetection", ["PolicyActionsTitle"] = "UiPolicyActions",
             ["PolicyTargetsTitle"] = "UiPolicyTargets", ["SavePolicyButton"] = "Save", ["PolicyTitle"] = "Policy", ["IntervalLabel"] = "IntervalValue",
             ["FailuresBeforeRecoveryLabel"] = "FailuresBeforeRecovery", ["CooldownLabel"] = "CooldownValue",
@@ -602,6 +608,12 @@ internal static class DesktopFixture
         {
             if (window.FindName(name) is HeaderedContentControl header) header.Header = localizer.T(key);
             else if (window.FindName(name) is ContentControl content) content.Content = localizer.T(key);
+        }
+        foreach (var name in new[] { "IntervalUnitComboBox", "CooldownUnitComboBox" })
+        {
+            var combo = (ComboBox)window.FindName(name);
+            foreach (ComboBoxItem item in combo.Items) item.Content = localizer.T(item.Tag?.ToString() switch { "60" => "Minutes", "3600" => "Hours", _ => "Seconds" });
+            combo.SelectedIndex = 0;
         }
         ((Wpf.Ui.Controls.NumberBox)window.FindName("IntervalTextBox")).Value = 30;
         ((Wpf.Ui.Controls.NumberBox)window.FindName("FailuresTextBox")).Value = 3;

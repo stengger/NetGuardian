@@ -21,6 +21,7 @@ public sealed class EventLogPresentationTests
             DesktopFixture.Layout(window, 1040, 660);
             Assert.Equal(detect, ((Button)window.FindName("LogEmptyAction")).IsVisible);
             Assert.Equal(reset, ((Button)window.FindName("LogResetFilterButton")).IsVisible);
+            DesktopFixture.Save(window, $"logs-empty-{total}-{visible}.png");
         });
     }
 
