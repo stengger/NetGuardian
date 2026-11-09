@@ -65,5 +65,6 @@ internal static class PanelNavigationPresenter
             target.Name == "StatusPanel" ? "PrimaryButtonStyle" : "SecondaryButtonStyle");
         ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.TitleKey);
         ((TextBlock)window.FindName("PageSubtitleText")).Text = target.Name == "StatusPanel" ? localizer.T("Summary") : "";
+        ResponsiveLayout.ApplyWifi(window);
     }
 }

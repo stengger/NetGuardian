@@ -119,6 +119,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         InitializeComponent();
         _windowWorkArea = new WindowWorkArea(this);
         WifiListsGrid.SizeChanged += (_, _) => ResponsiveLayout.ApplyWifi(this);
+        SizeChanged += (_, _) => ResponsiveLayout.ApplyWifi(this);
         _isFirstRun = !File.Exists(_store.Path);
         _settings = _store.Load();
         _localizer.SetLanguage(_settings.Language);

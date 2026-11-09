@@ -25,6 +25,13 @@ public sealed class NetworkAdapterPresentationTests
         Assert.Equal(localizer.T("LinkUnknown"), NetworkAdapterPresentation.Status((OperationalStatus)9999, localizer));
     }
 
+    [Theory]
+    [InlineData("223.5.5.5, 2001:4860:4860::8888", "IPv4  223.5.5.5\nIPv6  2001:4860:4860::8888")]
+    [InlineData("fe80::1%12, 192.0.2.1, 192.0.2.2", "IPv4  192.0.2.1, 192.0.2.2\nIPv6  fe80::1%12")]
+    [InlineData("—", "—")]
+    public void 地址按协议分行但保留完整地址与作用域(string input, string expected) =>
+        Assert.Equal(expected.Replace("\n", Environment.NewLine), NetworkAdapterPresentation.AddressLines(input));
+
     [Fact]
     public void 两页使用同一DNS格式且保留IPv6与未知空值()
     {

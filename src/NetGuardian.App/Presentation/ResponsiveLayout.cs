@@ -11,6 +11,7 @@ internal static class ResponsiveLayout
         var nearby = (Border)root.FindName("NearbyNetworksCard");
         var priority = (Border)root.FindName("PriorityNetworksCard");
         var compact = root.ActualHeight < 600;
+        ((ScrollViewer)root.FindName("DnsEditorScroller")).MaxHeight = compact ? 140 : 290;
         // 短窗口单行滚动操作栏，避免英文按钮换行挤掉列表数据行。
         ((ScrollViewer)root.FindName("WifiPageActions")).HorizontalScrollBarVisibility =
             compact ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
