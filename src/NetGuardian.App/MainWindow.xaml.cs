@@ -1874,6 +1874,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Title = _localizer.T("AppTitle");
         Resources["TableDetailLabel"] = _localizer.T("Detail");
         Resources["TableCopyLabel"] = _localizer.T("SpeedCopy");
+        Resources["TableDragLabel"] = _localizer.T("DragHint");
         TitleBar.Title = _localizer.T("AppTitle");
         StatusNavButton.Content = _localizer.T("Status");
         WifiNavButton.Content = _localizer.T("Wifi");
@@ -2064,6 +2065,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ((ComboBoxItem)CloseBehaviorComboBox.Items[2]).Content = _localizer.T("CloseTray");
         SidebarSpeedTitle.Text = _localizer.T("InterfaceTraffic");
         SidebarSpeedScopeText.Text = _localizer.T("InterfaceTrafficSummary");
+        SidebarUploadLegend.Text = "↑ " + _localizer.T("UploadSpeed");
+        SidebarDownloadLegend.Text = "↓ " + _localizer.T("DownloadSpeed");
         if (HealthStateText.Text == "" || HealthStateText.Text == "尚未检测" || HealthStateText.Text == "Not checked")
         {
             HealthStateText.Text = _localizer.T("NotChecked");
@@ -2267,8 +2270,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         var max = _downloadSpeedSamples.Concat(_uploadSpeedSamples).DefaultIfEmpty(1).Max();
         max = Math.Max(1, max);
-        SidebarDownloadLine.Points = BuildSparklinePoints(_downloadSpeedSamples, 158, 38, max);
-        SidebarUploadLine.Points = BuildSparklinePoints(_uploadSpeedSamples, 158, 38, max);
+        SidebarDownloadLine.Points = BuildSparklinePoints(_downloadSpeedSamples, (double)FindResource("TrafficChartWidth"), (double)FindResource("TrafficChartHeight"), max);
+        SidebarUploadLine.Points = BuildSparklinePoints(_uploadSpeedSamples, (double)FindResource("TrafficChartWidth"), (double)FindResource("TrafficChartHeight"), max);
     }
 
     private static PointCollection BuildSparklinePoints(IEnumerable<double> samples, double width, double height, double max)

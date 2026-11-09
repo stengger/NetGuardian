@@ -34,4 +34,6 @@
     <sys:Double x:Key="LatencyDnsWarning">300</sys:Double>
     <sys:Double x:Key="LatencyHttpsGood">300</sys:Double>
     <sys:Double x:Key="LatencyHttpsWarning">1000</sys:Double>
+    <sys:Double x:Key="TrafficChartWidth">158</sys:Double>
+    <sys:Double x:Key="TrafficChartHeight">56</sys:Double>
 </ResourceDictionary>
