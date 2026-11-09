@@ -1868,6 +1868,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         Language = System.Windows.Markup.XmlLanguage.GetLanguage(_localizer.Language);
         Title = _localizer.T("AppTitle");
+        Resources["TableDetailLabel"] = _localizer.T("Detail");
+        Resources["TableCopyLabel"] = _localizer.T("SpeedCopy");
         TitleBar.Title = _localizer.T("AppTitle");
         StatusNavButton.Content = _localizer.T("Status");
         WifiNavButton.Content = _localizer.T("Wifi");

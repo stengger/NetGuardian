@@ -4,6 +4,7 @@
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:views="clr-namespace:NetGuardian.App.Views"
         xmlns:presentation="clr-namespace:NetGuardian.App.Presentation"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Title="NetGuardian"
         Icon="Assets/app.ico"
         Width="1180"
@@ -20,6 +21,10 @@
         StateChanged="Window_StateChanged">
     <ui:FluentWindow.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <presentation:TableDetailsConverter x:Key="TableDetailsConverter" />
+        <presentation:RowDetailsToggleConverter x:Key="RowDetailsToggleConverter" />
+        <sys:String x:Key="TableDetailLabel">详情</sys:String>
+        <sys:String x:Key="TableCopyLabel">复制结果</sys:String>
         <presentation:CredentialStatusConverter x:Key="CredentialStatusConverter" />
         <Style x:Key="SectionBorderStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
@@ -41,7 +46,7 @@
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
             <Setter Property="BorderThickness" Value="0,0,1,1" />
-            <Setter Property="Height" Value="38" />
+            <Setter Property="Height" Value="{DynamicResource GridHeaderHeight}" />
             <Setter Property="Padding" Value="10,0" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
             <Setter Property="HorizontalContentAlignment" Value="Left" />
@@ -74,14 +79,38 @@
             <Setter Property="CanUserResizeRows" Value="False" />
             <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
             <Setter Property="GridLinesVisibility" Value="None" />
-            <Setter Property="HeadersVisibility" Value="Column" />
+            <Setter Property="HeadersVisibility" Value="All" />
+            <Setter Property="CanUserResizeColumns" Value="True" />
+            <Setter Property="ClipboardCopyMode" Value="IncludeHeader" />
+            <Setter Property="RowDetailsVisibilityMode" Value="Collapsed" />
             <Setter Property="RowBackground" Value="Transparent" />
-            <Setter Property="RowHeaderWidth" Value="0" />
+            <Setter Property="RowHeaderWidth" Value="28" />
+            <Setter Property="ContextMenu">
+                <Setter.Value><ContextMenu><MenuItem Header="{DynamicResource TableCopyLabel}" Command="ApplicationCommands.Copy" /></ContextMenu></Setter.Value>
+            </Setter>
+            <Setter Property="RowHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridRowHeader">
+                        <Setter Property="Template">
+                            <Setter.Value><ControlTemplate TargetType="DataGridRowHeader">
+                                <ToggleButton Content="›" FontSize="{DynamicResource FontSubtitle}" Background="Transparent" BorderThickness="0" Foreground="{DynamicResource TextFillColorPrimaryBrush}" ToolTip="{DynamicResource TableDetailLabel}" AutomationProperties.Name="{DynamicResource TableDetailLabel}" IsChecked="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource RowDetailsToggleConverter}, Mode=TwoWay}" />
+                            </ControlTemplate></Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RowDetailsTemplate">
+                <Setter.Value><DataTemplate>
+                    <TextBox IsReadOnly="True" TextWrapping="Wrap" MaxHeight="160" VerticalScrollBarVisibility="Auto" Margin="8" Padding="12" AutomationProperties.Name="{DynamicResource TableDetailLabel}">
+                        <TextBox.Text><MultiBinding Mode="OneWay" Converter="{StaticResource TableDetailsConverter}"><Binding /><Binding RelativeSource="{RelativeSource AncestorType=DataGrid}" /></MultiBinding></TextBox.Text>
+                    </TextBox>
+                </DataTemplate></Setter.Value>
+            </Setter>
             <Setter Property="SelectionUnit" Value="FullRow" />
             <Setter Property="SnapsToDevicePixels" Value="True" />
         </Style>
         <Style x:Key="GridRowStyle" TargetType="DataGridRow">
-            <Setter Property="Height" Value="40" />
+            <Setter Property="MinHeight" Value="{DynamicResource GridRowHeight}" />
             <Setter Property="Margin" Value="0" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -414,7 +443,7 @@
                         <Border Margin="0,0,12,0" Style="{StaticResource SectionBorderStyle}">
                             <DockPanel>
                                 <TextBlock x:Name="ProbeTitleText" DockPanel.Dock="Top" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" Margin="0,0,0,12" />
-                                <DataGrid x:Name="ProbeGrid" AutomationProperties.Name="{Binding Text, ElementName=ProbeTitleText}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
+                                <DataGrid x:Name="ProbeGrid" presentation:ResultTablePresentation.CompactColumns="3" AutomationProperties.Name="{Binding Text, ElementName=ProbeTitleText}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProbeNameColumn" Binding="{Binding Name}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="ProbeOkColumn" Binding="{Binding ResultText}" Width="90" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
@@ -474,12 +503,12 @@
                             <DockPanel>
                                 <TextBlock x:Name="NearbyNetworksTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
                                 <TextBlock x:Name="NearbyEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
-                                <DataGrid x:Name="NearbyGrid" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
+                                <DataGrid x:Name="NearbyGrid" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" MinWidth="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTextColumn x:Name="NearbySecurityColumn" Binding="{Binding Authentication}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
-                                        <DataGridTemplateColumn x:Name="NearbyPriorityColumn" Width="108" MinWidth="108" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                        <DataGridTemplateColumn x:Name="NearbyPriorityColumn" ClipboardContentBinding="{Binding PriorityBadge}" Width="108" MinWidth="108" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <Border Padding="8,2" CornerRadius="4" HorizontalAlignment="Center" VerticalAlignment="Center" BorderThickness="1">
@@ -508,12 +537,12 @@
                             <DockPanel>
                                 <TextBlock x:Name="PriorityListTitle" DockPanel.Dock="Top" FontWeight="SemiBold" Margin="0,0,0,10" />
                                 <TextBlock x:Name="ProfileEmptyText" DockPanel.Dock="Bottom" Margin="0,10,0,0" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" />
-                                <DataGrid x:Name="ProfileGrid" AutomationProperties.Name="{Binding Text, ElementName=PriorityListTitle}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
+                                <DataGrid x:Name="ProfileGrid" AutomationProperties.Name="{Binding Text, ElementName=PriorityListTitle}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" MinWidth="42" IsReadOnly="True" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="74" MinWidth="74" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
-                                        <DataGridTemplateColumn x:Name="ProfileCredentialColumn" IsReadOnly="True" Width="88" MinWidth="88" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                        <DataGridTemplateColumn x:Name="ProfileCredentialColumn" ClipboardContentBinding="{Binding CredentialSaved, Converter={StaticResource CredentialStatusConverter}}" IsReadOnly="True" Width="88" MinWidth="88" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="{Binding CredentialSaved, Converter={StaticResource CredentialStatusConverter}, ConverterParameter=hint}">
@@ -526,7 +555,7 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn x:Name="ProfileEnabledColumn" Width="78" MinWidth="78" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                        <DataGridTemplateColumn x:Name="ProfileEnabledColumn" ClipboardContentBinding="{Binding Enabled}" Width="78" MinWidth="78" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
                                                     <ui:ToggleSwitch IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Ssid}" AutomationProperties.HelpText="{Binding Column.Header, RelativeSource={RelativeSource AncestorType=DataGridCell}}" HorizontalAlignment="Center" Checked="ProfileEnabledToggle_Changed" Unchecked="ProfileEnabledToggle_Changed" />
@@ -655,7 +684,7 @@
                                     <StackPanel Grid.Row="2">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="WebsiteStatusText" Margin="0,0,0,10" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="WebsiteActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
-                                    <DataGrid Grid.Row="3" x:Name="WebsiteGrid" AutomationProperties.Name="{Binding Header, ElementName=WebsiteToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
+                                    <DataGrid Grid.Row="3" x:Name="WebsiteGrid" presentation:ResultTablePresentation.CompactColumns="0,3,4,6,7" AutomationProperties.Name="{Binding Header, ElementName=WebsiteToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="WebsiteTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="160" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="WebsiteNameColumn" Binding="{Binding Name}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
@@ -679,7 +708,7 @@
                                     <StackPanel Grid.Row="1">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="IpInfoStatusText" Margin="0,4,0,10" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="IpInfoActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
-                                    <DataGrid Grid.Row="2" x:Name="IpInfoGrid" AutomationProperties.Name="{Binding Header, ElementName=IpInfoToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
+                                    <DataGrid Grid.Row="2" x:Name="IpInfoGrid" AutomationProperties.Name="{Binding Header, ElementName=IpInfoToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="IpInfoNameColumn" Binding="{Binding Name}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="IpInfoValueColumn" Binding="{Binding Value}" Width="*" ElementStyle="{StaticResource GridTextStyle}" />
@@ -694,7 +723,7 @@
                                     <StackPanel Grid.Row="1">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="ReportStatusText" Margin="0,4,0,10" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="ReportActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="0,0,0,8" /></StackPanel>
-                                    <DataGrid Grid.Row="2" x:Name="ReportGrid" AutomationProperties.Name="{Binding Header, ElementName=ReportToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
+                                    <DataGrid Grid.Row="2" x:Name="ReportGrid" AutomationProperties.Name="{Binding Header, ElementName=ReportToolsTab}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn x:Name="ReportItemColumn" Binding="{Binding Item}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
                                             <DataGridTextColumn x:Name="ReportResultColumn" Binding="{Binding Result}" Width="180" ElementStyle="{StaticResource GridTextStyle}" />
@@ -748,7 +777,7 @@
                         </StackPanel>
                         </ScrollViewer>
                         <Grid Grid.Row="1">
-                        <DataGrid x:Name="DnsGrid" AutomationProperties.Name="{Binding Text, ElementName=DnsToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
+                        <DataGrid x:Name="DnsGrid" presentation:ResultTablePresentation.CompactColumns="2" AutomationProperties.Name="{Binding Text, ElementName=DnsToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn x:Name="DnsAdapterColumn" Binding="{Binding Adapter}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="DnsServersColumn" Binding="{Binding Servers}" Width="2*" ElementStyle="{StaticResource GridTextStyle}" />
@@ -797,7 +826,7 @@
                         </UniformGrid>
                         </StackPanel>
                         <Grid Grid.Row="2">
-                        <DataGrid x:Name="QualityProbeGrid" AutomationProperties.Name="{Binding Text, ElementName=QualityToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
+                        <DataGrid x:Name="QualityProbeGrid" AutomationProperties.Name="{Binding Text, ElementName=QualityToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn x:Name="QualityProbeColumn" Binding="{Binding Name}" Width="2*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="QualityResultColumn" Binding="{Binding ResultText}" Width="90" MinWidth="80" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
@@ -828,7 +857,7 @@
                         <TextBlock x:Name="AdapterStatusText" Margin="0,14,0,10" TextWrapping="Wrap" />
                         </StackPanel>
                         <Grid Grid.Row="1">
-                        <DataGrid x:Name="AdapterGrid" AutomationProperties.Name="{Binding Text, ElementName=AdapterToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="38">
+                        <DataGrid x:Name="AdapterGrid" presentation:ResultTablePresentation.CompactColumns="1,4,5" AutomationProperties.Name="{Binding Text, ElementName=AdapterToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                             <DataGrid.Columns>
                                 <DataGridTextColumn x:Name="AdapterNameColumn" Binding="{Binding Name}" Width="1.8*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="AdapterTypeColumn" Binding="{Binding Type}" Width="110" MinWidth="90" ElementStyle="{StaticResource GridTextStyle}" />
@@ -877,7 +906,7 @@
                                     <DataGridTextColumn x:Name="LogTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="155" ElementStyle="{StaticResource GridTextStyle}" />
                                     <DataGridTextColumn x:Name="LogLevelColumn" Binding="{Binding LevelText}" Width="80" MinWidth="75" ElementStyle="{StaticResource GridTextStyle}" />
                                     <DataGridTextColumn x:Name="LogSourceColumn" Binding="{Binding SourceText}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
-                                    <DataGridTemplateColumn x:Name="LogMessageColumn" Width="*" MinWidth="200">
+                                    <DataGridTemplateColumn x:Name="LogMessageColumn" ClipboardContentBinding="{Binding Message}" Width="*" MinWidth="200">
                                         <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding Summary}" ToolTip="{Binding Message}" Style="{StaticResource GridTextStyle}" /></DataTemplate></DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
                                 </DataGrid.Columns>
