@@ -63,7 +63,7 @@ if (args.Contains("--diagnose"))
     return diagnostic.ReadyForUnattendedRecovery ? 0 : 2;
 }
 
-using var lease = MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
+var lease = MonitoringLease.TryAcquire(GuardianPaths.MachineDirectory);
 if (lease is null) { Console.Error.WriteLine("已有监控控制者或无权获取机器级控制锁。"); return 73; }
 using var cancellation = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
@@ -124,6 +124,8 @@ engine.EngineEvent += (_, e) =>
     }
 };
 engine.StateChanged += (_, _) => Interlocked.Exchange(ref progressTicks, DateTimeOffset.UtcNow.UtcTicks);
+using var control = new GuardianControlSession(GuardianPaths.MachineDirectory, lease,
+    engine.Stop, () => engine.IsChecking, () => { engine.Start(TimeSpan.FromSeconds(30)); state = "Running"; });
 
 try
 {
@@ -143,6 +145,7 @@ try
             cancellation.Cancel();
             break;
         }
+        control.Poll(DateTimeOffset.UtcNow);
         if (store.TryLoad(out var loaded))
         {
             if (DateTimeOffset.UtcNow >= nextInventoryCheck)
@@ -160,9 +163,10 @@ try
         if (engine.IsChecking && DateTimeOffset.UtcNow.UtcTicks - Interlocked.Read(ref progressTicks) > TimeSpan.FromMinutes(10).Ticks)
             throw new TimeoutException("监控引擎十分钟没有进展，退出供计划任务重新启动。");
         GuardianStatusStore.Write(directory, new GuardianStatus(Environment.ProcessId, processStartedAt,
-            DateTimeOffset.UtcNow, state, engine.IsChecking, Volatile.Read(ref lastReport), engine.FailureStreak, engine.NextCheckAt));
+            DateTimeOffset.UtcNow, control.IsManualControl ? "ManualControl" : state, engine.IsChecking,
+            Volatile.Read(ref lastReport), engine.FailureStreak, engine.NextCheckAt, ManualControlRequestStore.ProtocolVersion));
         if (firstCheck.IsCompleted) await firstCheck;
-        if (!engine.IsChecking && ComputerRestartPlanner.ShouldRestart(settings,
+        if (!control.IsManualControl && !engine.IsChecking && ComputerRestartPlanner.ShouldRestart(settings,
             Volatile.Read(ref lastReport)?.State ?? NetworkState.Healthy,
             deviceFailures.FailedSince, DateTimeOffset.UtcNow,
             deviceFailures.RecoveryAttemptsCompleted))
@@ -180,7 +184,7 @@ try
             }
             else if (fresh.ProblemCode is null or 0) deviceFailures.Record(NetworkState.Healthy, DateTimeOffset.UtcNow);
         }
-        await Task.Delay(TimeSpan.FromSeconds(5), cancellation.Token);
+        await Task.Delay(control.IsManualControl ? TimeSpan.FromMilliseconds(250) : TimeSpan.FromSeconds(5), cancellation.Token);
     }
 }
 catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }

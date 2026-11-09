@@ -31,7 +31,8 @@ public sealed class MonitoringLease : IDisposable
 }
 
 public sealed record GuardianStatus(int ProcessId, DateTimeOffset ProcessStartedAt, DateTimeOffset HeartbeatAt, string State,
-    bool IsChecking, NetGuardian.Core.Models.ConnectivityReport? Report = null, int FailureStreak = 0, DateTimeOffset? NextCheckAt = null);
+    bool IsChecking, NetGuardian.Core.Models.ConnectivityReport? Report = null, int FailureStreak = 0, DateTimeOffset? NextCheckAt = null,
+    int ControlProtocolVersion = 0);
 
 public static class GuardianStatusStore
 {

@@ -25,6 +25,7 @@ public sealed class MonitoringEngine : IDisposable
     private IDisposable? _networkSubscription;
     private long _generation;
     private DateTimeOffset? _networkChangeDue;
+    private DateTimeOffset? _resumeNotBefore;
     private bool _lastCheckHealthy;
     private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly object _lifecycle = new();
@@ -91,13 +92,14 @@ public sealed class MonitoringEngine : IDisposable
     public event EventHandler? StateChanged;
 
     /// <summary>Starts periodic monitoring. Does not run an immediate check — call <see cref="CheckNowAsync"/>.</summary>
-    public void Start()
+    public void Start(TimeSpan? initialDelay = null)
     {
         lock (_lifecycle)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (IsMonitoring) return;
             IsMonitoring = true;
+            _resumeNotBefore = initialDelay is { } delay && delay > TimeSpan.Zero ? _time.GetLocalNow().Add(delay) : null;
             _lastCheckHealthy = false;
             var generation = ++_generation;
             _timer = _time.CreateTimer(_ => OnTimerTick(generation), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -118,6 +120,8 @@ public sealed class MonitoringEngine : IDisposable
             var interval = TimeSpan.FromSeconds(_lastCheckHealthy ? seconds : Math.Min(seconds, 10));
             if (_networkChangeDue is { } due)
                 interval = due > _time.GetLocalNow() ? due - _time.GetLocalNow() : TimeSpan.FromMilliseconds(1);
+            if (_resumeNotBefore is { } notBefore && notBefore - _time.GetLocalNow() > interval)
+                interval = notBefore - _time.GetLocalNow();
             NextCheckAt = _time.GetLocalNow().Add(interval);
             _timer?.Change(interval, Timeout.InfiniteTimeSpan);
         }
@@ -142,6 +146,7 @@ public sealed class MonitoringEngine : IDisposable
         _networkSubscription?.Dispose();
         _networkSubscription = null;
         _networkChangeDue = null;
+        _resumeNotBefore = null;
         _timer?.Dispose();
         _timer = null;
         NextCheckAt = null;

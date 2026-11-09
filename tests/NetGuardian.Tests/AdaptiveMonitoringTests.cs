@@ -9,6 +9,24 @@ namespace NetGuardian.Tests;
 public sealed class AdaptiveMonitoringTests
 {
     [Fact]
+    public void 手动操作后给网络稳定时间且地址事件不能提前触发自动恢复()
+    {
+        var clock = new DrivenClock();
+        var tester = new AdaptiveTester();
+        var source = new TestNetworkChanges();
+        using var engine = Create(clock, tester, new MonitorPolicy(), source);
+        engine.Start(TimeSpan.FromSeconds(30));
+        Assert.Equal(clock.GetLocalNow().AddSeconds(30), engine.NextCheckAt);
+        source.Notify();
+        clock.Advance(TimeSpan.FromSeconds(29));
+        Assert.Equal(0, tester.FullChecks);
+        clock.Advance(TimeSpan.FromSeconds(1));
+        Assert.Equal(1, tester.FullChecks);
+        engine.Stop();
+        engine.Start();
+        Assert.Equal(clock.GetLocalNow().AddSeconds(10), engine.NextCheckAt);
+    }
+    [Fact]
     public async Task 单次定时回调提前到达也必须继续安排检测()
     {
         var clock = new DrivenClock();
