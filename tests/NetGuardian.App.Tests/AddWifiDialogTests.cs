@@ -34,6 +34,7 @@ public sealed class AddWifiDialogTests
             localizer.SetLanguage(language);
             var dialog = CreateDialog(owner, localizer);
             dialog.FontSize = fontSize;
+            dialog.SizeToContent = SizeToContent.Manual;
             dialog.Height = 430;
             try
             {
@@ -75,6 +76,7 @@ public sealed class AddWifiDialogTests
         {
             var localizer = new Localizer();
             var dialog = CreateDialog(owner, localizer);
+            dialog.SizeToContent = SizeToContent.Manual;
             dialog.Height = 430;
             Exception? failure = null;
             dialog.Dispatcher.BeginInvoke(() =>

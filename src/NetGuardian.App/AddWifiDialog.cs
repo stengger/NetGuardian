@@ -5,12 +5,13 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
+using NetGuardian.App.Presentation;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Models;
 
 namespace NetGuardian.App;
 
-public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
+public sealed class AddWifiDialog : FluentDialogWindow
 {
     private readonly TextBox _ssidBox = new();
     private readonly TextBox _authBox = new();
@@ -21,78 +22,11 @@ public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
     public AddWifiDialog(Localizer localizer, WifiNetwork? network, string? initialPassword = null)
     {
         Title = localizer.T("AddWifi");
-        Width = 480;
-        Height = 520;
-        MinWidth = 480;
-        MinHeight = 430;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        ExtendsContentIntoTitleBar = true;
-        WindowCornerPreference = Wpf.Ui.Controls.WindowCornerPreference.Round;
-        WindowBackdropType = Wpf.Ui.Controls.WindowBackdropType.None;
-        ResizeMode = ResizeMode.NoResize;
-        SetResourceReference(FontFamilyProperty, "AppFontFamily");
         Language = System.Windows.Markup.XmlLanguage.GetLanguage(localizer.Language);
-        SetResourceReference(FontSizeProperty, "FontBody");
-        UseLayoutRounding = true;
-        SetResourceReference(BackgroundProperty, "SurfaceCardBrush");
-        SetResourceReference(ForegroundProperty, "TextFillColorPrimaryBrush");
-
-        var shell = new Grid();
-        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(38) });
-        shell.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-        var titleBar = new Border
-        {
-            BorderThickness = new Thickness(0, 0, 0, 1)
-        };
-        titleBar.SetResourceReference(Border.BackgroundProperty, "SurfaceCardBrush");
-        titleBar.SetResourceReference(Border.BorderBrushProperty, "CardStrokeColorDefaultBrush");
-        titleBar.MouseLeftButtonDown += (_, _) => DragMove();
-        var titleGrid = new Grid();
-        titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        titleGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
-        var caption = new TextBlock
-        {
-            Text = localizer.T("AddWifi"),
-            FontSize = 13,
-            FontWeight = FontWeights.SemiBold,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(16, 0, 0, 0)
-        };
-        caption.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
-        titleGrid.Children.Add(caption);
-        var closeButton = new Button
-        {
-            Content = "x",
-            MinHeight = 38,
-            Padding = new Thickness(0),
-            Margin = new Thickness(0),
-            BorderThickness = new Thickness(0)
-        };
-        closeButton.SetResourceReference(Control.BackgroundProperty, "SurfaceCardBrush");
-        closeButton.SetResourceReference(Control.ForegroundProperty, "TextFillColorPrimaryBrush");
-        closeButton.Click += (_, _) => DialogResult = false;
-        System.Windows.Automation.AutomationProperties.SetName(closeButton, localizer.T("Close"));
-        Grid.SetColumn(closeButton, 1);
-        titleGrid.Children.Add(closeButton);
-        titleBar.Child = titleGrid;
-        shell.Children.Add(titleBar);
-
-        var root = new Grid { Margin = new Thickness(24, 22, 24, 22) };
-        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var form = new Grid { Margin = new Thickness(0, 0, 8, 0) };
         for (var row = 0; row < 6; row++)
             form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        var body = new ScrollViewer
-        {
-            Content = form,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Margin = new Thickness(0, 0, 0, 16),
-            Focusable = false
-        };
-        root.Children.Add(body);
+        Body.Content = form;
 
         var title = new TextBlock
         {
@@ -146,12 +80,7 @@ public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
         Grid.SetRow(hintPanel, 5);
         form.Children.Add(hintPanel);
 
-        var buttons = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Bottom
-        };
+        var buttons = Actions;
         var cancelButton = new Wpf.Ui.Controls.Button { Content = localizer.T("Cancel"), Width = 96, MinHeight = 38, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
         StyleButton(cancelButton, false);
         cancelButton.Click += (_, _) => DialogResult = false;
@@ -172,14 +101,8 @@ public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
 
             DialogResult = true;
         };
-        buttons.Children.Add(cancelButton);
         buttons.Children.Add(okButton);
-        Grid.SetRow(buttons, 1);
-        root.Children.Add(buttons);
-
-        Grid.SetRow(root, 1);
-        shell.Children.Add(root);
-        Content = shell;
+        buttons.Children.Add(cancelButton);
         Loaded += (_, _) => _ssidBox.Focus();
     }
 
@@ -187,13 +110,6 @@ public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
     public string Authentication => _authBox.Text;
     public string? Password => string.IsNullOrEmpty(_passwordBox.Password) ? null : _passwordBox.Password;
     public bool SaveToWindows => _saveToWindowsBox.IsChecked == true;
-
-    protected override void OnSourceInitialized(EventArgs e)
-    {
-        base.OnSourceInitialized(e);
-        // FluentWindow 移除背景特效时会重设 Background，随后恢复应用表面令牌。
-        SetResourceReference(BackgroundProperty, "SurfaceCardBrush");
-    }
 
     private static StackPanel AddLabeledControl(Grid root, int row, string label, Control control)
     {
@@ -225,8 +141,7 @@ public sealed class AddWifiDialog : Wpf.Ui.Controls.FluentWindow
     private static void StyleButton(Wpf.Ui.Controls.Button button, bool primary)
     {
         button.Appearance = primary ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
-        button.Padding = new Thickness(14, 7, 14, 7);
-        button.MinHeight = 38;
+        button.SetResourceReference(StyleProperty, "DialogButtonStyle");
     }
 
 }

@@ -954,14 +954,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var result = System.Windows.MessageBox.Show(
-            this,
-            _localizer.T("HighRiskConfirmText"),
-            _localizer.T("HighRiskConfirmTitle"),
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning,
-            MessageBoxResult.No);
-        if (result != MessageBoxResult.Yes)
+        var result = DialogPresentation.Show(this,
+            _localizer.T("HighRiskConfirmTitle"), _localizer.T("HighRiskConfirmText"),
+            DialogPresentation.YesButtonText, DialogPresentation.NoButtonText,
+            dangerous: true, defaultCancel: true);
+        if (result != Wpf.Ui.Controls.MessageBoxResult.Primary)
         {
             _isSyncingHighRiskToggle = true;
             HighRiskCheckBox.IsChecked = false;
@@ -2358,16 +2355,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task<bool> ConfirmActionAsync(string title, string message)
     {
-        var messageBox = new Wpf.Ui.Controls.MessageBox
-        {
-            Title = title,
-            Content = message,
-            PrimaryButtonText = _localizer.T("Continue"),
-            CloseButtonText = _localizer.T("Cancel"),
-            IsPrimaryButtonEnabled = true
-        };
-
-        var result = await messageBox.ShowDialogAsync();
+        var result = await DialogPresentation.ShowAsync(this, title, message,
+            _localizer.T("Continue"), _localizer.T("Cancel"));
         return result == Wpf.Ui.Controls.MessageBoxResult.Primary;
     }
 
@@ -3005,18 +2994,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         try
         {
-            var messageBox = new Wpf.Ui.Controls.MessageBox
-            {
-                Title = _localizer.T("ClosePromptTitle"),
-                Content = _localizer.T("ClosePrompt"),
-                PrimaryButtonText = _localizer.T("CloseTray"),
-                SecondaryButtonText = _localizer.T("CloseExit"),
-                CloseButtonText = _localizer.T("Cancel"),
-                IsPrimaryButtonEnabled = true,
-                IsSecondaryButtonEnabled = true
-            };
-
-            var result = await messageBox.ShowDialogAsync();
+            var result = await DialogPresentation.ShowAsync(this,
+                _localizer.T("ClosePromptTitle"), _localizer.T("ClosePrompt"),
+                _localizer.T("CloseTray"), _localizer.T("Cancel"), _localizer.T("CloseExit"));
 
             if (result == Wpf.Ui.Controls.MessageBoxResult.Primary)
             {

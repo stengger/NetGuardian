@@ -34,6 +34,13 @@
     <Duration x:Key="ExpansionAnimationDuration">0:0:0.15</Duration>
     <Thickness x:Key="StrokeControlThickness">1</Thickness>
     <Thickness x:Key="SpacingFocusInset">2</Thickness>
+    <sys:Double x:Key="DialogWidth">480</sys:Double>
+    <sys:Double x:Key="DialogMinWidth">440</sys:Double>
+    <sys:Double x:Key="DialogMinHeight">240</sys:Double>
+    <sys:Double x:Key="DialogActionMinWidth">96</sys:Double>
+    <Thickness x:Key="SpacingDialogBody">24</Thickness>
+    <Thickness x:Key="SpacingDialogActions">20,0,20,20</Thickness>
+    <Thickness x:Key="SpacingDialogActionGap">4,4,4,0</Thickness>
     <sys:Double x:Key="GridHeaderHeight">40</sys:Double>
     <sys:Double x:Key="GridRowHeight">40</sys:Double>
     <sys:Double x:Key="LatencyGatewayGood">20</sys:Double>

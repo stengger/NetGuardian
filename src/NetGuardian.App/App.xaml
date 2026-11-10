@@ -8,6 +8,7 @@
                 <ui:ThemesDictionary Theme="Dark" />
                 <ui:ControlsDictionary />
                 <ResourceDictionary Source="Themes/Tokens.Common.xaml" />
+                <ResourceDictionary Source="Themes/Buttons.xaml" />
                 <ResourceDictionary Source="Themes/Palette.Dark.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
