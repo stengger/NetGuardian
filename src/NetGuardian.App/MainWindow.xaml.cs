@@ -1080,7 +1080,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private async Task AddWifiProfileAsync(NearbyWifiRow? network, string? initialPassword = null)
     {
         if (_isNetworkActionRunning || _resourcesCleaned) return;
-        var dialog = new AddWifiDialog(_localizer, network is null ? null : ToWifiNetwork(network), initialPassword) { Owner = this };
+        var dialog = new AddWifiDialog(_localizer, network is null ? null : ToWifiNetwork(network), initialPassword,
+            _nearbyNetworks.Select(row => row.Authentication)) { Owner = this };
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.Ssid))
         {
             return;
@@ -1134,7 +1135,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             "",
             true,
             true);
-        var dialog = new AddWifiDialog(_localizer, network, initialPassword) { Owner = this };
+        var dialog = new AddWifiDialog(_localizer, network, initialPassword,
+            _nearbyNetworks.Select(row => row.Authentication)) { Owner = this };
         if (dialog.ShowDialog() != true || string.IsNullOrWhiteSpace(dialog.Ssid))
         {
             return;

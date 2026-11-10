@@ -1,10 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
+using System.Windows.Controls;
 using NetGuardian.App.Presentation;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Models;
@@ -13,96 +13,106 @@ namespace NetGuardian.App;
 
 public sealed class AddWifiDialog : FluentDialogWindow
 {
-    private readonly TextBox _ssidBox = new();
-    private readonly TextBox _authBox = new();
-    private readonly PasswordBox _passwordBox = new();
+    private readonly TextBox _ssidBox = new() { Name = "SsidInput" };
+    private readonly ComboBox _authBox = new() { Name = "AuthenticationInput", IsEditable = true, IsTextSearchEnabled = false };
+    private readonly Wpf.Ui.Controls.PasswordBox _passwordBox = new() { Name = "PasswordInput", RevealButtonEnabled = true };
     private readonly CheckBox _saveToWindowsBox = new();
     private readonly TextBlock _errorText = new();
 
-    public AddWifiDialog(Localizer localizer, WifiNetwork? network, string? initialPassword = null)
+    public AddWifiDialog(Localizer localizer, WifiNetwork? network, string? initialPassword = null,
+        IEnumerable<string>? authenticationOptions = null)
     {
         Title = localizer.T("AddWifi");
         Language = System.Windows.Markup.XmlLanguage.GetLanguage(localizer.Language);
-        var form = new Grid { Margin = new Thickness(0, 0, 8, 0) };
+        var form = new Grid();
         for (var row = 0; row < 6; row++)
             form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         Body.Content = form;
 
-        var title = new TextBlock
-        {
-            Text = localizer.T("AddWifi"),
-            FontSize = 20,
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 20)
-        };
+        var title = new TextBlock { Text = localizer.T("AddWifi"), FontWeight = FontWeights.SemiBold };
+        title.SetResourceReference(FontSizeProperty, "FontSubtitle");
+        title.SetResourceReference(MarginProperty, "SpacingSectionGap");
         form.Children.Add(title);
-
         var ssidPanel = AddLabeledControl(form, 1, localizer.T("Ssid"), _ssidBox);
         AddLabeledControl(form, 2, localizer.T("Authentication"), _authBox);
         AddLabeledControl(form, 3, localizer.T("Password"), _passwordBox);
-
+        _ssidBox.SetResourceReference(StyleProperty, "DialogTextBoxStyle");
+        _authBox.SetResourceReference(StyleProperty, "DialogComboBoxStyle");
+        _passwordBox.SetResourceReference(StyleProperty, "DialogPasswordBoxStyle");
         _ssidBox.Text = network?.Ssid ?? "";
+        // 只提供已有观测值供选择；未知字符串仍原样编辑、返回，不新增协议映射。
+        _authBox.ItemsSource = (authenticationOptions ?? Array.Empty<string>()).Append(network?.Authentication ?? "")
+            .Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.Ordinal).ToArray();
         _authBox.Text = network?.Authentication ?? "";
         _passwordBox.Password = initialPassword ?? "";
         _passwordBox.ToolTip = localizer.T("PasswordHint");
         AutomationProperties.SetHelpText(_passwordBox, localizer.T("PasswordHint"));
-        StyleInput(_ssidBox);
-        StyleInput(_authBox);
-        StyleInput(_passwordBox);
+        FormField.SetRevealLabel(_passwordBox, localizer.T("Password"));
         _saveToWindowsBox.Content = localizer.T("SaveToWindows");
         _saveToWindowsBox.IsChecked = true;
-        _saveToWindowsBox.Margin = new Thickness(0, 4, 0, 8);
+        _saveToWindowsBox.SetResourceReference(MarginProperty, "SpacingOptionGap");
         Grid.SetRow(_saveToWindowsBox, 4);
         form.Children.Add(_saveToWindowsBox);
 
         _errorText.SetResourceReference(TextBlock.ForegroundProperty, "StatusDangerBrush");
+        _errorText.SetResourceReference(MarginProperty, "SpacingValidationGap");
         _errorText.TextWrapping = TextWrapping.Wrap;
-        _errorText.Margin = new Thickness(0, 4, 0, 0);
+        _errorText.Text = localizer.T("SsidRequired");
         _errorText.Visibility = Visibility.Collapsed;
         AutomationProperties.SetLiveSetting(_errorText, AutomationLiveSetting.Polite);
         ssidPanel.Children.Add(_errorText);
-        _ssidBox.TextChanged += (_, _) =>
+        var hint = new TextBlock { Text = localizer.T("PasswordHint"), TextWrapping = TextWrapping.Wrap };
+        hint.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        Grid.SetRow(hint, 5);
+        form.Children.Add(hint);
+
+        var okButton = new Wpf.Ui.Controls.Button
         {
-            if (string.IsNullOrWhiteSpace(_ssidBox.Text)) return;
+            Content = localizer.T("Save"), Appearance = Wpf.Ui.Controls.ControlAppearance.Primary, IsDefault = true
+        };
+        var cancelButton = new Wpf.Ui.Controls.Button
+        {
+            Content = localizer.T("Cancel"), Appearance = Wpf.Ui.Controls.ControlAppearance.Secondary, IsCancel = true
+        };
+        foreach (var button in new[] { okButton, cancelButton })
+        {
+            button.SetResourceReference(StyleProperty, "DialogButtonStyle");
+            Actions.Children.Add(button);
+        }
+        void UpdateAvailability()
+        {
+            var invalid = string.IsNullOrWhiteSpace(_ssidBox.Text);
+            okButton.IsEnabled = !invalid;
+            okButton.ToolTip = invalid ? localizer.T("SsidRequired") : null;
+            AutomationProperties.SetHelpText(okButton, invalid ? localizer.T("SsidRequired") : "");
+            if (invalid) return;
             _errorText.Visibility = Visibility.Collapsed;
+            FormField.SetIsInvalid(_ssidBox, false);
             AutomationProperties.SetHelpText(_ssidBox, "");
-        };
-
-        var hint = new TextBlock
+        }
+        void ShowValidation()
         {
-            Text = localizer.T("PasswordHint"),
-            TextWrapping = TextWrapping.Wrap,
-            Margin = new Thickness(0, 0, 0, 18)
-        };
-        hint.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorTertiaryBrush");
-        var hintPanel = new StackPanel();
-        hintPanel.Children.Add(hint);
-        Grid.SetRow(hintPanel, 5);
-        form.Children.Add(hintPanel);
-
-        var buttons = Actions;
-        var cancelButton = new Wpf.Ui.Controls.Button { Content = localizer.T("Cancel"), Width = 96, MinHeight = 38, Margin = new Thickness(0, 0, 8, 0), IsCancel = true };
-        StyleButton(cancelButton, false);
-        cancelButton.Click += (_, _) => DialogResult = false;
-        var okButton = new Wpf.Ui.Controls.Button { Content = localizer.T("Save"), Width = 96, MinHeight = 38, IsDefault = true };
-        StyleButton(okButton, true);
+            if (!string.IsNullOrWhiteSpace(_ssidBox.Text)) return;
+            _errorText.Visibility = Visibility.Visible;
+            FormField.SetIsInvalid(_ssidBox, true);
+            AutomationProperties.SetHelpText(_ssidBox, _errorText.Text);
+            UIElementAutomationPeer.CreatePeerForElement(_errorText)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+        }
+        _ssidBox.TextChanged += (_, _) => UpdateAvailability();
+        _ssidBox.LostKeyboardFocus += (_, _) => ShowValidation();
         okButton.Click += (_, _) =>
         {
             if (string.IsNullOrWhiteSpace(_ssidBox.Text))
             {
-                _errorText.Text = localizer.T("SsidRequired");
-                _errorText.Visibility = Visibility.Visible;
-                AutomationProperties.SetHelpText(_ssidBox, _errorText.Text);
-                UIElementAutomationPeer.CreatePeerForElement(_errorText)?.RaiseAutomationEvent(AutomationEvents.LiveRegionChanged);
+                ShowValidation();
                 _ssidBox.Focus();
                 _ssidBox.BringIntoView();
                 return;
             }
-
             DialogResult = true;
         };
-        buttons.Children.Add(okButton);
-        buttons.Children.Add(cancelButton);
+        cancelButton.Click += (_, _) => DialogResult = false;
+        UpdateAvailability();
         Loaded += (_, _) => _ssidBox.Focus();
     }
 
@@ -113,35 +123,16 @@ public sealed class AddWifiDialog : FluentDialogWindow
 
     private static StackPanel AddLabeledControl(Grid root, int row, string label, Control control)
     {
-        var panel = new StackPanel { Margin = new Thickness(0, 0, 0, 14) };
-        var caption = new TextBlock
-        {
-            Text = label,
-            FontWeight = FontWeights.SemiBold,
-            Margin = new Thickness(0, 0, 0, 5)
-        };
+        var panel = new StackPanel();
+        panel.SetResourceReference(MarginProperty, "SpacingFieldGap");
+        var caption = new TextBlock { Text = label, FontWeight = FontWeights.SemiBold };
+        caption.SetResourceReference(MarginProperty, "SpacingFieldCaptionGap");
         caption.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
         panel.Children.Add(caption);
         AutomationProperties.SetLabeledBy(control, caption);
-        control.MinHeight = 36;
         panel.Children.Add(control);
         Grid.SetRow(panel, row);
         root.Children.Add(panel);
         return panel;
     }
-
-    private static void StyleInput(Control control)
-    {
-        control.SetResourceReference(Control.ForegroundProperty, "TextFillColorPrimaryBrush");
-        control.SetResourceReference(Control.BackgroundProperty, "ControlFillColorDefaultBrush");
-        control.SetResourceReference(Control.BorderBrushProperty, "StrokeInputBrush");
-        control.Padding = new Thickness(8, 4, 8, 4);
-    }
-
-    private static void StyleButton(Wpf.Ui.Controls.Button button, bool primary)
-    {
-        button.Appearance = primary ? Wpf.Ui.Controls.ControlAppearance.Primary : Wpf.Ui.Controls.ControlAppearance.Secondary;
-        button.SetResourceReference(StyleProperty, "DialogButtonStyle");
-    }
-
 }

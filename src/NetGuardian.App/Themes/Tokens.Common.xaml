@@ -41,6 +41,9 @@
     <Thickness x:Key="SpacingDialogBody">24</Thickness>
     <Thickness x:Key="SpacingDialogActions">20,0,20,20</Thickness>
     <Thickness x:Key="SpacingDialogActionGap">4,4,4,0</Thickness>
+    <Thickness x:Key="SpacingFieldCaptionGap">0,0,0,4</Thickness>
+    <Thickness x:Key="SpacingValidationGap">0,4,0,0</Thickness>
+    <Thickness x:Key="SpacingOptionGap">0,4,0,8</Thickness>
     <sys:Double x:Key="GridHeaderHeight">40</sys:Double>
     <sys:Double x:Key="GridRowHeight">40</sys:Double>
     <sys:Double x:Key="LatencyGatewayGood">20</sys:Double>

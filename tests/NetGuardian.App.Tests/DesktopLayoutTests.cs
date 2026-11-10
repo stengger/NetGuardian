@@ -472,6 +472,7 @@ internal static class DesktopFixture
                 window.Resources.MergedDictionaries.Insert(0, new Wpf.Ui.Markup.ThemesDictionary { Theme = theme });
                 window.Resources.MergedDictionaries.Insert(1, new Wpf.Ui.Markup.ControlsDictionary());
                 window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/NetGuardian;component/Themes/Tokens.Common.xaml") });
+                window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri("pack://application:,,,/NetGuardian;component/Themes/Dialogs.xaml") });
                 window.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = new Uri($"pack://application:,,,/NetGuardian;component/Themes/Palette.{(theme == Wpf.Ui.Appearance.ApplicationTheme.Light ? "Light" : "Dark")}.xaml") });
                 // 原窗口使用原生 Mica；离屏位图需以同主题实色衬底合成半透明控件。
                 ((Panel)window.Content).Background = (Brush)window.FindResource("ApplicationBackgroundBrush");

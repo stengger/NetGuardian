@@ -36,6 +36,7 @@ public sealed class DialogPresentationTests
                 Assert.True(titleBar.ShowClose);
                 var save = DesktopFixture.Descendants(dialog).OfType<Button>().Single(button => button.IsDefault);
                 var cancel = DesktopFixture.Descendants(dialog).OfType<Button>().Single(button => button.IsCancel);
+                Assert.Equal(ControlAppearance.Secondary, Assert.IsAssignableFrom<Wpf.Ui.Controls.Button>(cancel).Appearance);
                 Assert.Equal(((SolidColorBrush)owner.FindResource("PrimaryButtonBrush")).Color, ((SolidColorBrush)save.Background).Color);
                 Assert.True(save.TranslatePoint(new Point(), dialog).X < cancel.TranslatePoint(new Point(), dialog).X);
             }

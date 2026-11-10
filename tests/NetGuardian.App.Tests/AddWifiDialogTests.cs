@@ -5,6 +5,7 @@ using System.Windows.Interop;
 using System.Windows.Shell;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Threading;
 using System.Windows.Media;
 using NetGuardian.Core.Localization;
@@ -14,13 +15,46 @@ using Xunit;
 using Button = System.Windows.Controls.Button;
 using TextBox = System.Windows.Controls.TextBox;
 using TextBlock = System.Windows.Controls.TextBlock;
-using PasswordBox = System.Windows.Controls.PasswordBox;
+using PasswordBox = Wpf.Ui.Controls.PasswordBox;
 
 namespace NetGuardian.App.Tests;
 
 [Collection("WPF 桌面")]
 public sealed class AddWifiDialogTests
 {
+    [Fact]
+    public void 空名称禁用保存并说明原因且认证仍可保留未知原值()
+    {
+        DesktopFixture.Run(owner =>
+        {
+            var localizer = new Localizer();
+            var network = new WifiNetwork("", 80, "厂商原始认证值", "AES", true, true);
+            var dialog = new AddWifiDialog(localizer, network) { Owner = owner, WindowStartupLocation = WindowStartupLocation.Manual, Left = -20000 };
+            foreach (var dictionary in owner.Resources.MergedDictionaries) dialog.Resources.MergedDictionaries.Add(dictionary);
+            try
+            {
+                dialog.Show();
+                dialog.UpdateLayout();
+                var save = DesktopFixture.Descendants(dialog).OfType<Button>().Single(button => button.IsDefault);
+                Assert.False(save.IsEnabled);
+                Assert.Equal(localizer.T("SsidRequired"), save.ToolTip);
+                Assert.True(ToolTipService.GetShowOnDisabled(save));
+                var authentication = Assert.Single(DesktopFixture.Descendants(dialog).OfType<ComboBox>());
+                Assert.True(authentication.IsEditable);
+                Assert.Equal("厂商原始认证值", dialog.Authentication);
+                authentication.Text = "原样输入值";
+                Assert.Equal("原样输入值", dialog.Authentication);
+                var ssid = DesktopFixture.Descendants(dialog).OfType<TextBox>().First();
+                ssid.Text = "测试网络";
+                Assert.True(save.IsEnabled);
+                Assert.Null(save.ToolTip);
+                ssid.Text = "  ";
+                Assert.False(save.IsEnabled);
+            }
+            finally { dialog.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData("zh-CN", 14)]
     [InlineData("en-US", 14)]
@@ -43,7 +77,8 @@ public sealed class AddWifiDialogTests
                 var body = Assert.Single(DesktopFixture.Descendants(dialog).OfType<ScrollViewer>(),
                     viewer => viewer.Content is Panel panel && DesktopFixture.Descendants(panel).OfType<PasswordBox>().Any());
                 var password = Assert.Single(DesktopFixture.Descendants(dialog).OfType<PasswordBox>());
-                var inputs = DesktopFixture.Descendants(dialog).OfType<TextBox>().Cast<Control>().Append(password).ToArray();
+                var inputs = DesktopFixture.Descendants(dialog).OfType<Control>()
+                    .Where(input => input.Name is "SsidInput" or "AuthenticationInput" or "PasswordInput").ToArray();
                 Assert.Equal(3, inputs.Length);
                 foreach (var input in inputs)
                     Assert.False(string.IsNullOrWhiteSpace((AutomationProperties.GetLabeledBy(input) as TextBlock)?.Text));
@@ -62,6 +97,50 @@ public sealed class AddWifiDialogTests
                 var saveContent = DesktopFixture.Descendants(save).OfType<ContentPresenter>().First();
                 Assert.True(saveContent.ActualHeight >= saveContent.DesiredSize.Height, "操作按钮文字高度不足。");
                 DesktopFixture.Save(dialog, $"add-wifi-compact-{language}-{fontSize}.png");
+            }
+            finally { dialog.Close(); }
+        });
+    }
+
+    [Fact]
+    public void 密码显隐不改变返回值且认证候选仅使用已有观测值()
+    {
+        DesktopFixture.Run(owner =>
+        {
+            var localizer = new Localizer();
+            var network = new WifiNetwork("测试网络", 80, "原有认证", "AES", true, true);
+            var dialog = new AddWifiDialog(localizer, network, "Test-only-password", new[] { "观测认证", "观测认证", "" })
+            {
+                Owner = owner, WindowStartupLocation = WindowStartupLocation.Manual, Left = -20000
+            };
+            foreach (var dictionary in owner.Resources.MergedDictionaries) dialog.Resources.MergedDictionaries.Add(dictionary);
+            try
+            {
+                dialog.Show();
+                dialog.UpdateLayout();
+                var password = Assert.Single(DesktopFixture.Descendants(dialog).OfType<PasswordBox>());
+                Assert.True(password.RevealButtonEnabled);
+                Assert.False(password.IsPasswordRevealed);
+                password.Focus();
+                dialog.UpdateLayout();
+                var reveal = DesktopFixture.Descendants(password).OfType<Button>().Single(button => button.Name == "RevealButton");
+                Assert.True(reveal.IsTabStop);
+                Assert.Equal(localizer.T("Password"), AutomationProperties.GetName(reveal));
+                var invoke = (IInvokeProvider)UIElementAutomationPeer.CreatePeerForElement(reveal)!.GetPattern(PatternInterface.Invoke)!;
+                invoke.Invoke();
+                dialog.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Assert.True(password.IsPasswordRevealed);
+                Assert.Equal("Test-only-password", dialog.Password);
+                invoke.Invoke();
+                dialog.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+                Assert.False(password.IsPasswordRevealed);
+                Assert.Equal("Test-only-password", dialog.Password);
+                password.Password = "";
+                Assert.Null(dialog.Password);
+                var authentication = Assert.Single(DesktopFixture.Descendants(dialog).OfType<ComboBox>());
+                Assert.Equal(new[] { "观测认证", "原有认证" }, authentication.Items.Cast<string>());
+                authentication.SelectedItem = "观测认证";
+                Assert.Equal("观测认证", dialog.Authentication);
             }
             finally { dialog.Close(); }
         });

@@ -1,0 +1,51 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+                    xmlns:presentation="clr-namespace:NetGuardian.App.Presentation">
+    <ResourceDictionary.MergedDictionaries>
+        <!-- 显式声明 BasedOn 的库依赖，独立窗口和无 Application 的桌面夹具使用同一模板。 -->
+        <ResourceDictionary Source="pack://application:,,,/Wpf.Ui;component/Controls/TextBox/TextBox.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/Wpf.Ui;component/Controls/ComboBox/ComboBox.xaml" />
+        <ResourceDictionary Source="pack://application:,,,/Wpf.Ui;component/Controls/PasswordBox/PasswordBox.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+    <!-- 保留库各控件模板和箭头，只在共享样式中补齐应用尺寸与校验状态。 -->
+    <Style x:Key="DialogTextBoxStyle" TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+        <Setter Property="MinHeight" Value="{DynamicResource ControlMinHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingControlPadding}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusRingBrush}" /></Trigger>
+            <Trigger Property="presentation:FormField.IsInvalid" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource StatusDangerBrush}" /></Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                <Setter Property="Background" Value="{DynamicResource DisabledControlBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="DialogComboBoxStyle" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+        <Setter Property="MinHeight" Value="{DynamicResource ControlMinHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingControlPadding}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusRingBrush}" /></Trigger>
+            <Trigger Property="presentation:FormField.IsInvalid" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource StatusDangerBrush}" /></Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                <Setter Property="Background" Value="{DynamicResource DisabledControlBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+    <Style x:Key="DialogPasswordBoxStyle" TargetType="ui:PasswordBox" BasedOn="{StaticResource DefaultUiPasswordBoxStyle}">
+        <Setter Property="MinHeight" Value="{DynamicResource ControlMinHeight}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingControlPadding}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
+        <Style.Triggers>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource FocusRingBrush}" /></Trigger>
+            <Trigger Property="presentation:FormField.IsInvalid" Value="True"><Setter Property="BorderBrush" Value="{DynamicResource StatusDangerBrush}" /></Trigger>
+            <Trigger Property="IsEnabled" Value="False">
+                <Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" />
+                <Setter Property="Background" Value="{DynamicResource DisabledControlBrush}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+</ResourceDictionary>
