@@ -69,3 +69,49 @@
 - [ ] 最小窗口下无横向溢出；Tab 顺序可达全部更新操作，确认框 Esc/Enter 正常。
 
 发布 v1.1.0 后，从 1.1.0 升级到下一正式版本的真实端到端路径仍需后续版本或专用测试环境验证，不能以本轮替身测试宣称已经完成。
+
+## 正式发布与本机交付
+
+- 正式 Release：[v1.1.0](https://github.com/stengger/NetGuardian/releases/tag/v1.1.0)，公开匿名可访问，已设为 latest；安装包和同名 `.sha256` 均已上传并核对 GitHub 附件摘要。
+- 功能提交和标签目标：`653c7cf93b1a77d2fcb8cf0f5ee980918a393894`。本任务初建的未发布标签先指向 `d417dd9`，发现真实安装包版本空格后，以精确旧标签对象的 `force-with-lease` 校正到最终修复；正式发布后没有改写标签。
+- 安装包：`NetGuardian-1.1.0-win-x64-Setup.exe`，77,437,633 字节，SHA256 为 `6902a85155d01be138c77707f714f29a9e485903532b024a15c23f58329abdc6`。
+- 最终自包含安装包从干净提交 `653c7cf` 构建；Release 模式 Core 303、WPF 249，共 552 项通过。App、Core、Guardian 的 ProductVersion 均为 `1.1.0+653c7cf93b1a77d2fcb8cf0f5ee980918a393894`。暂存目录未混入用户配置和日志。
+- 使用生产 `GitHubUpdateService` 匿名检查从 1.0.1 到 1.1.0，完整下载正式安装包并验证上述 SHA256，通过；以当前 1.1.0 再检查返回无更新。未启动安装包。
+- 本机更新目录为 `C:\Program Files\NetGuardian` 和项目的 `dist\NetGuardian`。界面和 Core 使用已验证的 `d417dd9` 构建，后续只更新 `653c7cf` 的协调脚本，避免为脚本补丁再次退出已确认正常的界面；正式安装包包含最终提交的全部组件。
+- 本机界面 PID 91084、路径来自 Program Files、响应正常，用户已确认设置页 1.1.0 和检查更新正常。后台保持 PID 84392 与原启动时间；没有重启后台、切网或重置网络，配置未被部署覆盖，启动后崩溃日志未新增。
+- 协调脚本在两处目录的 SHA256 均为 `c2a10167ca95c651ab5a147cd99561917d6c39cd0208fcec2f14f0faf6fdb3c0`；真实下载缓存 ACL、停止脚本保护链及 Inno 版本读取已核验。临时补丁文件已清理，备份保留。
+
+本机临时部署助手曾因 PowerShell 5.1 将空备份参数转换为空路径而中止，并因混用 UTC 与本地 DateTime 产生守护时间误报；两次均回退并核对哈希，分别用显式备份路径和统一 UTC 修正。最终核验为成功，这些助手兼容问题没有改动产品的恢复算法。
+
+完整构建日志和机器核验记录保存在工作区 `.dotnet-home/validation/release-1.1.0-final-build.log`、`update-1.1.0-deployment/final.json`、`update-public-verification.json` 和 `release-1.1.0-published.json`。这些本机记录及构建产物被 Git 忽略，没有提交用户配置、令牌或凭据。
+
+## 完整改动文件
+
+```text
+Directory.Build.props
+README.md
+docs/2026-11-10-in-app-update-validation.md
+docs/superpowers/plans/2026-11-10-in-app-update.md
+docs/superpowers/specs/2026-11-10-in-app-update-design.md
+scripts/build-installer.ps1
+scripts/package-support.ps1
+scripts/update-netguardian.ps1
+src/NetGuardian.App/App.xaml.cs
+src/NetGuardian.App/MainWindow.Updates.cs
+src/NetGuardian.App/MainWindow.xaml
+src/NetGuardian.App/MainWindow.xaml.cs
+src/NetGuardian.App/Presentation/UpdatePresentation.cs
+src/NetGuardian.App/Updates/UpdateInstallLauncher.cs
+src/NetGuardian.App/Updates/UpdateMaintenanceGate.cs
+src/NetGuardian.App/Updates/UpdateSession.cs
+src/NetGuardian.App/Updates/UpdateStorage.cs
+src/NetGuardian.Core/Localization/Localizer.cs
+src/NetGuardian.Core/Updates/GitHubUpdateService.cs
+src/NetGuardian.Core/Updates/UpdateRelease.cs
+tests/NetGuardian.App.Tests/UpdateLayoutTests.cs
+tests/NetGuardian.App.Tests/UpdateMaintenanceTests.cs
+tests/NetGuardian.App.Tests/UpdateSessionTests.cs
+tests/NetGuardian.Tests/UpdateServiceTests.cs
+tests/Test-InstallerScripts.ps1
+tests/Test-UpdateScripts.ps1
+```
