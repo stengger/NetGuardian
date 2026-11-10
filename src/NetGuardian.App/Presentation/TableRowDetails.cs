@@ -17,6 +17,7 @@ public sealed class TableRowDetails : Grid
     private DataGrid? owner;
     private readonly List<(DataGridColumn Column, TextBlock Label, TextBox Value)> fields = new();
     private bool arranging;
+    private bool rebuildPending;
     private DispatcherOperation? pendingArrange;
     private static readonly DependencyPropertyDescriptor ColumnWidth = DependencyPropertyDescriptor.FromProperty(
         DataGridColumn.ActualWidthProperty, typeof(DataGridColumn));
@@ -38,7 +39,7 @@ public sealed class TableRowDetails : Grid
                 ColumnWidth.AddValueChanged(column, QueueArrange);
                 ColumnVisibility.AddValueChanged(column, QueueArrange);
             }
-            Build();
+            rebuildPending = true;
             Resize(this, null!);
         };
         Unloaded += (_, _) =>
@@ -53,9 +54,14 @@ public sealed class TableRowDetails : Grid
                 }
             }
             pendingArrange?.Abort();
+            pendingArrange = null;
             owner = null;
         };
-        DataContextChanged += (_, _) => { if (IsLoaded) Build(); };
+        DataContextChanged += (_, _) =>
+        {
+            rebuildPending = true;
+            QueueArrange(this, EventArgs.Empty);
+        };
     }
 
     private void Resize(object sender, SizeChangedEventArgs args)
@@ -64,14 +70,24 @@ public sealed class TableRowDetails : Grid
         // 为行头、边框和可能出现的纵向滚动条预留空间，长文本不参与列宽扩张。
         Width = Math.Max(0, owner.ActualWidth - owner.RowHeaderWidth - SystemParameters.VerticalScrollBarWidth - Margin.Left - Margin.Right
             - (double)FindResource("DetailMeasureReserve"));
-        ArrangeFields();
         QueueArrange(this, EventArgs.Empty);
     }
 
     private void QueueArrange(object? sender, EventArgs args)
     {
-        if (pendingArrange?.Status == DispatcherOperationStatus.Pending) return;
-        pendingArrange = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(ArrangeFields));
+        if (!IsLoaded || owner is null || pendingArrange?.Status == DispatcherOperationStatus.Pending) return;
+        // 绑定更新可能发生在 WPF 正遍历逻辑树时；此时不能修改子元素或行定义。
+        pendingArrange = Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            pendingArrange = null;
+            if (!IsLoaded || owner is null) return;
+            if (rebuildPending)
+            {
+                rebuildPending = false;
+                Build();
+            }
+            else ArrangeFields();
+        }));
     }
 
     private void Build()
@@ -102,7 +118,7 @@ public sealed class TableRowDetails : Grid
                 TargetNullValue = original.TargetNullValue, FallbackValue = original.FallbackValue
             });
             value.SetBinding(AutomationProperties.NameProperty, new Binding(nameof(column.Header)) { Source = column });
-            value.TextChanged += (_, _) => ArrangeFields();
+            value.TextChanged += QueueArrange;
             fields.Add((column, label, value));
             Children.Add(label); Children.Add(value);
         }
