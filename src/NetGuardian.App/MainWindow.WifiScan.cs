@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using System.Linq;
 using System.Windows;
 using NetGuardian.App.Presentation;
 
@@ -22,6 +23,7 @@ public partial class MainWindow
             _nearbyNetworks.Clear();
             if (_wifiScan.Networks is { } networks)
                 foreach (var network in networks) _nearbyNetworks.Add(CreateNearbyWifiRow(network));
+            _nearbySavedWifi.Update(_nearbyNetworks.Select(network => network.Ssid));
             RefreshWifiScanUi();
             SetToolOutput(WifiScanStatusText.Text);
             RefreshNearbyPriorityMarkers();

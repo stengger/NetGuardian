@@ -55,6 +55,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly Wpf.Ui.ISnackbarService _snackbar;
     private readonly ObservableCollection<NearbyWifiRow> _nearbyNetworks = [];
     private readonly ObservableCollection<WifiProfile> _profiles = [];
+    private readonly NearbySavedWifiView _nearbySavedWifi;
     private readonly ObservableCollection<string> _recentEvents = [];
     private readonly ObservableCollection<DnsServerRow> _dnsRows = [];
     private readonly ObservableCollection<DnsAdapterOption> _dnsAdapterOptions = [];
@@ -149,7 +150,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         NearbyGrid.ItemsSource = _nearbyNetworks;
-        ProfileGrid.ItemsSource = _profiles;
+        _nearbySavedWifi = new(_profiles);
+        ProfileGrid.ItemsSource = _nearbySavedWifi.View;
         RecentEventsList.ItemsSource = _recentEvents;
         DnsGrid.ItemsSource = _dnsRows;
         DnsAdapterComboBox.ItemsSource = _dnsAdapterOptions;
@@ -1372,15 +1374,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             return;
         }
 
-        var oldIndex = _profiles.IndexOf(profile);
-        var newIndex = oldIndex + direction;
-        if (newIndex < 0 || newIndex >= _profiles.Count)
+        var visible = ProfileGrid.Items.Cast<WifiProfile>().ToList();
+        var visibleIndex = visible.IndexOf(profile) + direction;
+        if (visibleIndex < 0 || visibleIndex >= visible.Count)
         {
             SetWifiSelectionMessage(direction < 0 ? _localizer.T("AlreadyFirstProfile") : _localizer.T("AlreadyLastProfile"));
             return;
         }
 
-        _profiles.Move(oldIndex, newIndex);
+        _profiles.Move(_profiles.IndexOf(profile), _profiles.IndexOf(visible[visibleIndex]));
         RenumberProfiles();
         ProfileGrid.SelectedItem = profile;
         SaveSettings();
@@ -1549,9 +1551,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (_isNetworkActionRunning && _networkActionStatusKey is not null)
             CurrentWifiSelectionText.Text = _localizer.T(_networkActionStatusKey);
 
-        var profileIndex = hasProfile ? _profiles.IndexOf(profile!) : -1;
+        var profileIndex = hasProfile ? ProfileGrid.Items.IndexOf(profile!) : -1;
         MoveUpButton.IsEnabled = !_isNetworkActionRunning && profileIndex > 0;
-        MoveDownButton.IsEnabled = !_isNetworkActionRunning && profileIndex >= 0 && profileIndex < _profiles.Count - 1;
+        MoveDownButton.IsEnabled = !_isNetworkActionRunning && profileIndex >= 0 && profileIndex < ProfileGrid.Items.Count - 1;
     }
 
     private void SetWifiSelectionMessage(string message)
@@ -2093,7 +2095,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private void UpdateEmptyStates()
     {
         NearbyEmptyText.Visibility = _nearbyNetworks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-        ProfileEmptyText.Visibility = _profiles.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        ProfileEmptyText.Visibility = ProfileGrid.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         RecentEventsEmptyText.Visibility = _recentEvents.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         WebsiteEmptyText.Visibility = _websiteRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         IpInfoEmptyText.Visibility = _ipInfoRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

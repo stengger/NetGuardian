@@ -3,6 +3,7 @@ using System.Net.NetworkInformation;
 using System.Security;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
 using NetGuardian.Core.Models;
 
 namespace NetGuardian.Core.Wifi;
@@ -14,8 +15,20 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     public NetshWifiClient(ISystemCommandRunner? commands = null)
     {
-        _commands = commands ?? new ProcessCommandRunner(outputEncoding: Encoding.UTF8);
+        _commands = commands ?? CreateCommandRunner();
     }
+
+    private static ProcessCommandRunner CreateCommandRunner()
+    {
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        // netsh 在不同 Windows 版本上可能输出 UTF-8 或系统 OEM 编码。
+        var codePage = OperatingSystem.IsWindows() ? (int)GetOEMCP() : 65001;
+        return new ProcessCommandRunner(outputEncoding: Encoding.UTF8,
+            fallbackOutputEncoding: Encoding.GetEncoding(codePage));
+    }
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetOEMCP();
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
     {
@@ -528,7 +541,7 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     private async Task<(int ExitCode, string Output)> RunNetshAsync(string[] arguments, CancellationToken cancellationToken)
     {
-        // 无控制台后台进程不能依赖系统默认代码页来解码 netsh 的 UTF-8 输出。
+        // 读取器兼容 UTF-8 与系统 OEM 编码，不修改用户的控制台代码页。
         var result = await _commands.RunAsync("netsh.exe", arguments, cancellationToken);
         return (result.ExitCode, result.Output);
     }
