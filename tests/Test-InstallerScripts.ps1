@@ -46,7 +46,7 @@ try {
 
     Copy-NetGuardianPackageSupport -SourceRoot $root -OutputDirectory $install
     foreach ($relative in @('README.md', 'Start-NetGuardian.vbs', 'scripts\start-netguardian.ps1', 'scripts\watch-netguardian.ps1',
-        'scripts\register-netguardian-task.ps1', 'scripts\unregister-netguardian-task.ps1', 'scripts\installer-maintenance.ps1')) {
+        'scripts\register-netguardian-task.ps1', 'scripts\unregister-netguardian-task.ps1', 'scripts\installer-maintenance.ps1', 'scripts\update-netguardian.ps1')) {
         if (-not (Test-Path -LiteralPath (Join-Path $install $relative))) { throw "缺少发布入口：$relative" }
     }
     foreach ($script in Get-ChildItem (Join-Path $install 'scripts') -Filter '*.ps1') {

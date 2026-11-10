@@ -15,6 +15,7 @@ using NetGuardian.Core.Settings;
 using NetGuardian.Core.SystemCommands;
 using NetGuardian.Core.Wifi;
 using NetGuardian.App.Presentation;
+using NetGuardian.App.Updates;
 
 namespace NetGuardian.App;
 
@@ -27,6 +28,12 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        using var maintenance = UpdateMaintenanceGate.TryEnter();
+        if (maintenance is null)
+        {
+            Shutdown();
+            return;
+        }
         _singleInstanceMutex = new Mutex(true, @"Global\NetGuardian.UI", out var createdNew);
         if (!createdNew)
         {
