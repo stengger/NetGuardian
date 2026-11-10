@@ -1022,6 +1022,24 @@
                         <ui:ToggleSwitch x:Name="StartMinimizedToTrayCheckBox" Margin="0,9" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="ScheduledStartupCheckBox" Margin="0,9" Checked="ScheduledStartup_Changed" Unchecked="ScheduledStartup_Changed" />
                         <TextBlock x:Name="ScheduledStartupStatusText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                        <Border x:Name="UpdateCard" Style="{StaticResource SectionBorderStyle}" Margin="{DynamicResource SpacingOptionGap}">
+                            <StackPanel>
+                                <TextBlock x:Name="UpdateTitleText" Style="{StaticResource SectionTitleStyle}" />
+                                <TextBlock x:Name="UpdateVersionText" TextWrapping="Wrap" Margin="{DynamicResource SpacingFieldGap}" />
+                                <TextBlock x:Name="UpdateStatusText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingFieldGap}" AutomationProperties.LiveSetting="Polite" />
+                                <ProgressBar x:Name="UpdateProgressBar" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="{DynamicResource SpacingFieldGap}" AutomationProperties.LabeledBy="{Binding ElementName=UpdateStatusText}" />
+                                <WrapPanel>
+                                    <Button x:Name="UpdateCheckButton" Style="{StaticResource PrimaryButtonStyle}" Click="UpdateCheck_Click" Margin="{DynamicResource SpacingItemGap}" />
+                                    <Button x:Name="UpdateDownloadButton" Style="{StaticResource PrimaryButtonStyle}" Click="UpdateDownload_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
+                                    <Button x:Name="UpdateCancelButton" Style="{StaticResource SecondaryButtonStyle}" Click="UpdateCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
+                                    <Button x:Name="UpdateInstallButton" Style="{StaticResource PrimaryButtonStyle}" Click="UpdateInstall_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
+                                </WrapPanel>
+                                <Expander x:Name="UpdateNotesExpander" Visibility="Collapsed">
+                                    <TextBlock x:Name="UpdateNotesText" TextWrapping="Wrap" Margin="{DynamicResource SpacingOptionGap}" />
+                                </Expander>
+                                <TextBlock x:Name="UpdatePreviousResultText" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingOptionGap}" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                     </ScrollViewer>
                 </Border>

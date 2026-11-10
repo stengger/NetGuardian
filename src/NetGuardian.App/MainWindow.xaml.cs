@@ -172,6 +172,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         _notifyIcon = CreateNotifyIcon();
         ApplySettingsToUi();
+        InitializeUpdates();
         ApplyLanguage();
         _policyFeedback = new PolicyEditFeedback(PolicyPanel, PolicyStatusText, _localizer, CapturePolicyInputs);
         InitializeDnsControls();
@@ -2140,6 +2141,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SetTooltip(StartMonitoringOnLaunchCheckBox, "StartMonitoringOnLaunchTip");
         SetTooltip(StartMinimizedToTrayCheckBox, "StartMinimizedToTrayTip");
         SetTooltip(ScheduledStartupCheckBox, "ScheduledStartupTip");
+        ApplyUpdateText();
     }
 
     private void SetTooltip(FrameworkElement element, string key)
@@ -2961,6 +2963,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void Window_Closing(object? sender, CancelEventArgs e)
     {
+        if (_isUpdatePreparing && !_forceExit) { e.Cancel = true; return; }
         if (_forceExit)
         {
             CleanupResources();
@@ -3027,6 +3030,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         _resourcesCleaned = true;
+        _updateSession?.Dispose();
+        _updateHttp.Dispose();
         _currentWifiLifetime.Cancel();
         _networkActionCancellation?.Cancel();
         _windowWorkArea.Dispose();

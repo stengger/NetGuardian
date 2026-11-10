@@ -1,4 +1,5 @@
 using System.Net;
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -77,6 +78,7 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
                 throw Verification("下载长度与发布信息不一致。");
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             long received = 0;
+            var notifications = Stopwatch.StartNew();
             await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
             await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
             {
@@ -88,7 +90,11 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
                     if (received > release.Installer.Size) throw Verification("下载内容超出预期长度。");
                     hash.AppendData(buffer, 0, count);
                     await output.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
-                    progress?.Report(new UpdateProgress(received, release.Installer.Size));
+                    if (notifications.ElapsedMilliseconds >= 100 || received == release.Installer.Size)
+                    {
+                        progress?.Report(new UpdateProgress(received, release.Installer.Size));
+                        notifications.Restart();
+                    }
                 }
                 await output.FlushAsync(cancellationToken);
             }

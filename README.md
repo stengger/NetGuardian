@@ -85,17 +85,25 @@ dist\NetGuardian\guardian\NetGuardian.Guardian.exe  后台守护
 ```powershell
 $env:NETGUARDIAN_DOTNET = '你的 dotnet.exe 完整路径'
 $env:NETGUARDIAN_ISCC = '你的 Inno Setup 7\ISCC.exe 完整路径'
-.\scripts\build-installer.ps1 -Version 1.0.0
+.\scripts\build-installer.ps1 -Version 1.1.0
 ```
 
 脚本先运行 Release 完整测试，再将管理界面和 Guardian 以 `win-x64` 自包含模式发布到新的暂存目录，加入 README、启动入口与后台维护脚本，最后编译：
 
 ```text
-dist\releases\NetGuardian-1.0.0-win-x64-Setup.exe
-dist\releases\NetGuardian-1.0.0-win-x64-Setup.exe.sha256
+dist\releases\NetGuardian-1.1.0-win-x64-Setup.exe
+dist\releases\NetGuardian-1.1.0-win-x64-Setup.exe.sha256
 ```
 
 将这两个文件上传为 GitHub Release 附件；GitHub 自动生成的源码 ZIP 不能替代安装包。安装包默认未做代码签名，公开分发时可另配置发行者证书签名。构建安装包不会在开发机安装、切网或启动后台。
+
+## 应用内更新
+
+从 v1.1.0 起，在“设置 → 软件更新”手动检查正式版本，查看发布说明并下载。安装包通过 SHA256 校验后，才能选择“安装并重启”；检查和下载期间可取消。更新使用公开 GitHub Releases，无需登录，连接遵循 Windows 系统代理。
+
+确认安装后，程序先备份，再正常退出界面、安全停止本安装目录的后台与监督任务，安装后恢复原任务状态并重新打开界面。配置和日志保留；失败时尝试恢复旧程序，恢复失败则记录原因并停止启动。更新记录和备份位于 `%ProgramData%\NetGuardian\updates`，设置页显示上次更新结果及日志位置。请保留这些记录供排查。
+
+只有 Program Files 下的正式安装支持原地更新；开发目录可检查和下载。v1.0.x 需先手动安装一次 v1.1.0，之后可通过应用内更新升级。
 
 ## 安装无人值守后台
 
