@@ -31,7 +31,10 @@ public sealed class ExpansionInteractionTests
             var provider = (IToggleProvider)peer.GetPattern(PatternInterface.Toggle)!;
             provider.Toggle();
             Settle(window);
-            var glyph = DesktopFixture.Descendants(toggle).OfType<TextBlock>().Single(text => text.Name == "ExpansionGlyph");
+            var glyph = Glyph(toggle);
+            Assert.Equal(new Point(0.5, 0.5), glyph.RenderTransformOrigin);
+            Assert.Equal(glyph.ActualWidth, glyph.ActualHeight);
+            Assert.True(glyph.ActualWidth > 0);
             Assert.InRange(((RotateTransform)glyph.RenderTransform).Angle, 89.9, 90.1);
             Assert.Equal(ToggleState.On, provider.ToggleState);
             Assert.InRange(toggle.TranslatePoint(new Point(), row).Y, top - 1, top + 1);
@@ -57,7 +60,7 @@ public sealed class ExpansionInteractionTests
             var provider = (IExpandCollapseProvider)peer.GetPattern(PatternInterface.ExpandCollapse)!;
             provider.Expand();
             Settle(window);
-            var glyph = DesktopFixture.Descendants(expander).OfType<TextBlock>().Single(text => text.Name == "ExpansionGlyph");
+            var glyph = Glyph(expander);
             Assert.InRange(((RotateTransform)glyph.RenderTransform).Angle, 89.9, 90.1);
             Assert.Equal(ExpandCollapseState.Expanded, provider.ExpandCollapseState);
             provider.Collapse();
@@ -81,13 +84,46 @@ public sealed class ExpansionInteractionTests
             DesktopFixture.Layout(window, 1040, 660);
             expander.IsExpanded = true;
             Settle(window);
-            var glyph = DesktopFixture.Descendants(expander).OfType<TextBlock>().Single(text => text.Name == "ExpansionGlyph");
+            var glyph = Glyph(expander);
             Assert.InRange(((RotateTransform)glyph.RenderTransform).Angle, 89.9, 90.1);
             expander.IsExpanded = false;
             Settle(window);
             Assert.InRange(((RotateTransform)glyph.RenderTransform).Angle, -0.1, 0.1);
         });
     }
+    [Fact]
+    public void 展开图标初始加载和重新挂载后保持状态且旋转中心固定()
+    {
+        DesktopFixture.Run(window =>
+        {
+            var host = new StackPanel();
+            var toggle = new ToggleButton { Style = (Style)window.FindResource("ExpansionToggleStyle"), IsChecked = true };
+            host.Children.Add(toggle);
+            ((Panel)window.Content).Children.Add(host);
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            window.UpdateLayout();
+            var glyph = Glyph(toggle);
+            Assert.Equal(90, ((RotateTransform)glyph.RenderTransform).Angle);
+            var center = glyph.TranslatePoint(new Point(glyph.ActualWidth / 2, glyph.ActualHeight / 2), toggle);
+            toggle.IsChecked = false;
+            toggle.IsChecked = true;
+            toggle.IsChecked = false;
+            Settle(window);
+            var collapsedCenter = glyph.TranslatePoint(new Point(glyph.ActualWidth / 2, glyph.ActualHeight / 2), toggle);
+            Assert.InRange((center - collapsedCenter).Length, 0, 0.01);
+            Assert.InRange(((RotateTransform)glyph.RenderTransform).Angle, -0.1, 0.1);
+            host.Children.Remove(toggle);
+            toggle.IsChecked = true;
+            host.Children.Add(toggle);
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            window.UpdateLayout();
+            Assert.Equal(90, ((RotateTransform)glyph.RenderTransform).Angle);
+        });
+    }
+
+    private static FrameworkElement Glyph(DependencyObject root) => DesktopFixture.Descendants(root)
+        .OfType<FrameworkElement>().Single(element => element.Name == "ExpansionGlyph");
+
     internal static void Settle(Window window)
     {
         var frame = new DispatcherFrame();

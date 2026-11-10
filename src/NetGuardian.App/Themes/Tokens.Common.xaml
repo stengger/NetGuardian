@@ -27,6 +27,13 @@
     <Thickness x:Key="SpacingFieldGap">0,0,0,12</Thickness>
     <Thickness x:Key="SpacingInlineGap">0,0,8,0</Thickness>
     <sys:Double x:Key="ControlMinHeight">36</sys:Double>
+    <sys:Double x:Key="ExpansionGlyphSize">16</sys:Double>
+    <sys:Double x:Key="ExpansionHitSize">32</sys:Double>
+    <sys:Double x:Key="ExpansionStrokeThickness">1.5</sys:Double>
+    <GridLength x:Key="ExpansionColumnWidth">32</GridLength>
+    <Duration x:Key="ExpansionAnimationDuration">0:0:0.15</Duration>
+    <Thickness x:Key="StrokeControlThickness">1</Thickness>
+    <Thickness x:Key="SpacingFocusInset">2</Thickness>
     <sys:Double x:Key="GridHeaderHeight">40</sys:Double>
     <sys:Double x:Key="GridRowHeight">40</sys:Double>
     <sys:Double x:Key="LatencyGatewayGood">20</sys:Double>
