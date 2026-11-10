@@ -53,7 +53,8 @@ function Write-NetGuardianUpdateJson([string]$Path, $Value) {
     Move-Item -LiteralPath $temporary -Destination $Path -Force
 }
 
-function Get-NetGuardianUpdateVersion([string]$Path) { ([Diagnostics.FileVersionInfo]::GetVersionInfo($Path).ProductVersion -split '\+')[0] }
+function ConvertTo-NetGuardianUpdateVersion([string]$Version) { (($Version -split '\+')[0]).Trim() }
+function Get-NetGuardianUpdateVersion([string]$Path) { ConvertTo-NetGuardianUpdateVersion ([Diagnostics.FileVersionInfo]::GetVersionInfo($Path).ProductVersion) }
 function Get-NetGuardianUpdateParent([int]$ProcessId) {
     $process = Get-Process -Id $ProcessId -ErrorAction SilentlyContinue
     if ($null -ne $process) { [pscustomobject]@{ Id = $process.Id; Path = $process.Path; StartedAt = $process.StartTime.ToUniversalTime() } }

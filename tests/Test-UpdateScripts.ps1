@@ -13,6 +13,10 @@ function Assert-UpdateThrows([scriptblock]$Action, [string]$Expected) {
     try { & $Action } catch { if ($_.Exception.Message -notlike "*$Expected*") { throw }; return }
     throw "预期拒绝操作：$Expected"
 }
+foreach ($rawVersion in @('1.1.0                                             ', '1.1.0+hash', ' 1.1.0+hash  ')) {
+    Assert-Update ((ConvertTo-NetGuardianUpdateVersion $rawVersion) -eq '1.1.0') '安装包空格和构建元数据必须归一为目标版本。'
+}
+Assert-Update ((ConvertTo-NetGuardianUpdateVersion '1.2.0     ') -ne '1.1.0') '版本归一化不得掩盖真实版本不匹配。'
 $fixture = Join-Path $root ('.dotnet-home\update-test-' + [guid]::NewGuid().ToString('N'))
 $script:TestInstall = Join-Path $fixture 'Program Files\NetGuardian'
 $script:TestUpdates = Join-Path $fixture 'ProgramData\NetGuardian\updates'
