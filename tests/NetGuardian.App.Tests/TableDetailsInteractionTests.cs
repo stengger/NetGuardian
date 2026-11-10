@@ -9,6 +9,49 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class TableDetailsInteractionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void 长详情减少短字段重复且标签在窄区域上下排列(bool compact)
+    {
+        DesktopFixture.Run(window =>
+        {
+            DesktopFixture.ShowPage(window, "NetworkPanel");
+            var grid = (DataGrid)window.FindName("AdapterGrid");
+            grid.Columns[5].Header = "DNS（IPv4 / IPv6）";
+            grid.ItemsSource = new[] { new { Name = "接口名称", Type = "无线", Status = "已连接", Ipv4 = "192.0.2.1", Gateway = "192.0.2.254", DnsServers = string.Join("\n", Enumerable.Repeat("2001:4860:4860::8888", 10)) } };
+            if (compact)
+            {
+                grid.Width = 420; grid.MinWidth = 0; grid.HorizontalAlignment = HorizontalAlignment.Left;
+                foreach (var column in grid.Columns) { column.MinWidth = 0; column.Width = new DataGridLength(1, DataGridLengthUnitType.Star); }
+            }
+            DesktopFixture.Layout(window, 1040, 660);
+            var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0);
+            DesktopFixture.Descendants(row).OfType<ToggleButton>().First().IsChecked = true;
+            ExpansionInteractionTests.Settle(window);
+            var value = DesktopFixture.Descendants(row).OfType<TextBox>().Single(text => text.Text.Contains("2001:4860:4860::8888"));
+            var host = (Grid)value.Parent;
+            var label = host.Children.OfType<TextBlock>().Single(text => text.Text == "DNS（IPv4 / IPv6）");
+            Assert.InRange(host.Children.OfType<TextBox>().Count(text => text.IsVisible), 2, 5);
+            Assert.DoesNotContain(host.Children.OfType<TextBox>(), text => text.IsVisible && text.Text == "已连接");
+            if (grid.Columns[1].Visibility != Visibility.Visible)
+                Assert.Contains(host.Children.OfType<TextBox>(), text => text.IsVisible && text.Text == "无线");
+            if (compact)
+            {
+                Assert.Equal(0, Grid.GetColumn(value));
+                Assert.Equal(Grid.GetRow(label) + 1, Grid.GetRow(value));
+            }
+            else
+            {
+                Assert.Equal(1, Grid.GetColumn(value));
+                Assert.True(label.ActualHeight <= label.FontSize * 1.8, $"标签被强制换行：{label.RenderSize}");
+            }
+            var scroll = DesktopFixture.Descendants(grid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
+            Assert.Equal(0, scroll.ScrollableWidth);
+            DesktopFixture.Save(window, compact ? "details-label-compact.png" : "details-label-natural.png");
+        });
+    }
+
     [Fact]
     public void 详情分列显示全部字段且长值完整参与行高()
     {
@@ -31,7 +74,7 @@ public sealed class TableDetailsInteractionTests
             Assert.Equal(ScrollBarVisibility.Disabled, value.VerticalScrollBarVisibility);
             var host = (Grid)value.Parent;
             Assert.Equal(1, Grid.GetColumn(value));
-            var label = host.Children.OfType<TextBlock>().Single(text => Grid.GetRow(text) == Grid.GetRow(value));
+            var label = host.Children.OfType<TextBlock>().Single(text => text.IsVisible && Grid.GetRow(text) == Grid.GetRow(value));
             Assert.Equal(0, Grid.GetColumn(label));
             var scroll = DesktopFixture.Descendants(grid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
             Assert.Equal(0, scroll.ScrollableWidth);
@@ -107,7 +150,8 @@ public sealed class TableDetailsInteractionTests
             Assert.True(DependencyPropertyHelper.GetValueSource(presenter, FrameworkElement.HeightProperty).IsAnimated);
             ExpansionInteractionTests.Settle(window);
             Assert.True(double.IsNaN(presenter.Height));
-            Assert.True(presenter.ActualHeight > 100);
+            var details = DesktopFixture.Descendants(presenter).OfType<NetGuardian.App.Presentation.TableRowDetails>().Single();
+            Assert.True(presenter.ActualHeight >= details.ActualHeight && details.ActualHeight > 0, "详情实际内容被裁切。");
             toggle.IsChecked = false;
             window.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
             Assert.True(presenter.IsVisible);

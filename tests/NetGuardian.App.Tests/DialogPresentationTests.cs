@@ -13,6 +13,49 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class DialogPresentationTests
 {
+    [Theory]
+    [InlineData("Dark")]
+    [InlineData("Light")]
+    [InlineData("HighContrast")]
+    public void 表单和确认框在三种主题下共用外壳与禁用语义(string theme)
+    {
+        DesktopFixture.Run(owner =>
+        {
+            var mode = Enum.Parse<Wpf.Ui.Appearance.ApplicationTheme>(theme);
+            if (mode == Wpf.Ui.Appearance.ApplicationTheme.HighContrast)
+                owner.Resources.MergedDictionaries[0] = new ResourceDictionary
+                {
+                    Source = new Uri("pack://application:,,,/Wpf.Ui;component/Resources/Theme/HCBlack.xaml")
+                };
+            else owner.Resources.MergedDictionaries[0] = new Wpf.Ui.Markup.ThemesDictionary { Theme = mode };
+            owner.Resources.MergedDictionaries.Add(AppThemePolicy.CreatePalette(mode));
+            var localizer = new Localizer();
+            var confirmation = DialogPresentation.Create(owner, localizer.T("ConfirmDhcpTitle"), localizer.T("ConfirmDhcpMessage"),
+                localizer.T("Continue"), localizer.T("Cancel"));
+            var form = new AddWifiDialog(localizer, null) { Owner = owner };
+            foreach (var dialog in new FluentDialogWindow[] { confirmation, form })
+            {
+                foreach (var dictionary in owner.Resources.MergedDictionaries) dialog.Resources.MergedDictionaries.Add(dictionary);
+                dialog.WindowStartupLocation = WindowStartupLocation.Manual;
+                dialog.Left = -20000;
+                try
+                {
+                    dialog.Show();
+                    dialog.UpdateLayout();
+                    Assert.Equal(((SolidColorBrush)owner.FindResource("SurfaceCardBrush")).Color, ((SolidColorBrush)dialog.Background).Color);
+                    var primary = DesktopFixture.Descendants(dialog).OfType<Wpf.Ui.Controls.Button>().Single(button => button.IsDefault);
+                    primary.IsEnabled = false;
+                    dialog.UpdateLayout();
+                    Assert.Equal(((SolidColorBrush)owner.FindResource("DisabledTextBrush")).Color, ((SolidColorBrush)primary.Foreground).Color);
+                    var chrome = (Border)primary.Template.FindName("Chrome", primary);
+                    Assert.Equal(((SolidColorBrush)owner.FindResource("DisabledControlBrush")).Color, ((SolidColorBrush)chrome.Background).Color);
+                    DesktopFixture.Save(dialog, $"{(dialog == form ? "form" : "confirmation")}-{theme}-disabled.png");
+                }
+                finally { dialog.Close(); }
+            }
+        });
+    }
+
     [Fact]
     public void 添加无线使用库标题栏并与主窗口共用主按钮颜色()
     {

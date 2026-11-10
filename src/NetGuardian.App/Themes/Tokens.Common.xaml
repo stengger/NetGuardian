@@ -34,6 +34,10 @@
     <Duration x:Key="ExpansionAnimationDuration">0:0:0.15</Duration>
     <Thickness x:Key="StrokeControlThickness">1</Thickness>
     <Thickness x:Key="SpacingFocusInset">2</Thickness>
+    <Thickness x:Key="SpacingFocusOutset">-3</Thickness>
+    <Thickness x:Key="StrokeFocusThickness">2</Thickness>
+    <sys:Double x:Key="OpacityButtonHover">0.98</sys:Double>
+    <sys:Double x:Key="OpacityButtonPressed">0.96</sys:Double>
     <sys:Double x:Key="DialogWidth">480</sys:Double>
     <sys:Double x:Key="DialogMinWidth">440</sys:Double>
     <sys:Double x:Key="DialogMinHeight">240</sys:Double>
@@ -44,6 +48,14 @@
     <Thickness x:Key="SpacingFieldCaptionGap">0,0,0,4</Thickness>
     <Thickness x:Key="SpacingValidationGap">0,4,0,0</Thickness>
     <Thickness x:Key="SpacingOptionGap">0,4,0,8</Thickness>
+    <sys:Double x:Key="DetailLabelMaxWidth">200</sys:Double>
+    <sys:Double x:Key="DetailStackBreakpoint">480</sys:Double>
+    <sys:Double x:Key="DetailMeasureReserve">4</sys:Double>
+    <Thickness x:Key="SpacingDetailsOuter">12,8,12,12</Thickness>
+    <Thickness x:Key="SpacingDetailLabel">0,8,16,8</Thickness>
+    <Thickness x:Key="SpacingDetailValue">0,8,0,8</Thickness>
+    <Thickness x:Key="SpacingDetailStackLabel">0,8,0,4</Thickness>
+    <Thickness x:Key="SpacingDetailStackValue">0,0,0,8</Thickness>
     <sys:Double x:Key="GridHeaderHeight">40</sys:Double>
     <sys:Double x:Key="GridRowHeight">40</sys:Double>
     <sys:Double x:Key="LatencyGatewayGood">20</sys:Double>
