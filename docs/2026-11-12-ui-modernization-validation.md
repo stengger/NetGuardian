@@ -89,7 +89,7 @@ git diff --check
 - [ ] 三条长提示、第四条排队、重复合并、不同网络撤销不混淆；悬停与键盘暂停计时。
 - [ ] 多行错误详情、关闭提示后键盘焦点可达；系统关闭动画时无滑动/淡入淡出。
 - [ ] 真实连接成功、失败、异常后按钮内容恢复；不为视觉验收执行高风险网络操作。
-- [ ] 安装后确认界面启动路径、文件哈希和构建标识，配置保留，后台进程与文件未变化。
+- [x] 安装后确认界面启动路径、文件哈希和构建标识，配置保留，后台进程与文件未变化。
 
 ## 截图对照
 
@@ -105,6 +105,15 @@ git diff --check
 
 已通过正常 UAC 只读核实 UI 进程来自 `C:/Program Files/NetGuardian/NetGuardian.exe`，安装构建为 `1.1.0+14080021529c048d1e4f3360a2238b92e35c00fa`。
 
-最终源码提交 `bc34a0d` 单独导出后，Release 测试 305+277=582 项通过，UI 发布退出码 0，构建标识 `1.1.1+bc34a0d6c964f4d00d150cfcca556584c03eaf04`。发布记录在 `.dotnet-home/validation/ui-modernization/release-bc34a0d/`。正常 UAC 的安装预检通过：两个目标目录存在、外部依赖哈希一致、进程路径已核实；拟替换清单为每目录 6 个差异 UI 文件及安装清单，运行时配置哈希一致，无需替换。只替换 UI 根目录必要组件，同步 `dist/NetGuardian`，不更新 guardian 子目录。界面仍运行，尚未替换安装文件；按项目规则等待用户从托盘手动退出后继续。
+最终源码提交 `bc34a0d` 单独导出后，Release 测试 305+277=582 项通过，UI 发布退出码 0，构建标识 `1.1.1+bc34a0d6c964f4d00d150cfcca556584c03eaf04`。发布记录在 `.dotnet-home/validation/ui-modernization/release-bc34a0d/`。正常 UAC 的安装预检通过：两个目标目录存在、外部依赖哈希一致、进程路径已核实；拟替换清单为每目录 6 个差异 UI 文件及安装清单，运行时配置哈希一致，无需替换。只替换 UI 根目录必要组件，同步 `dist/NetGuardian`，不更新 guardian 子目录。用户确认已从托盘退出后，完成备份、替换、校验与重新启动。
 
-安装前对原文件和配置备份并校验，安装后核对文件哈希、构建标识、启动进程路径、后台进程/文件和配置保留情况；失败回滚。具体安装结果在完成后补记。
+安装前对原文件和配置备份并校验，安装后核对文件哈希、构建标识、启动进程路径、后台进程/文件和配置保留情况；失败回滚。安装结果（2026-11-12）：
+
+- 更新 `C:/Program Files/NetGuardian` 和 `C:/Users/Qiu/Documents/Net/dist/NetGuardian`，每目录校验 7 个 UI 文件；实际共替换 12 个差异组件文件和 2 份安装清单，运行时配置无需替换。
+- 两目录 `NetGuardian.dll` 的产品版本均为 `1.1.1+bc34a0d6c964f4d00d150cfcca556584c03eaf04`。
+- 更新前备份：`.dotnet-home/validation/ui-modernization/ui-backup-20261112-202524/`，包含待替换文件、配置、SHA256 清单和回滚所需信息。
+- 重新启动 UI PID `102432`，路径 `C:/Program Files/NetGuardian/NetGuardian.exe`，响应正常，没有新增崩溃日志。
+- 57 个原网络配置与恢复策略保留，配置文件字节一致；后台 PID `116040`、启动时间、文件哈希未变，状态 Healthy、心跳有效。
+- `ui-deployment-result.json`、`ui-installed-verification.json` 均为 Success=true；补充的普通沙箱 `Get-CimInstance Win32_Process` 查询曾报 `拒绝访问`（退出码 1），以正常 UAC 验证得到的实际路径和进程记录为准，未绕过权限检查。
+
+剩余手动验收项保持未勾选，不把离屏测试和启动检查等同于真实 DPI、系统主题切换或网络连接测试。
