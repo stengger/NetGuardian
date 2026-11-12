@@ -338,12 +338,12 @@
                             <Expander x:Name="NearbyNetworksExpander" IsExpanded="True" Style="{DynamicResource ContentExpanderStyle}">
                                 <Expander.Header><StackPanel Orientation="Horizontal">
                                     <TextBlock x:Name="NearbyNetworksTitle" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="{DynamicResource CornerControl}" Padding="{DynamicResource SpacingCountBadge}" Margin="{DynamicResource SpacingCountGap}">
+                                    <Border Style="{StaticResource SectionCountBadgeStyle}">
                                         <TextBlock Text="{Binding Items.Count, ElementName=NearbyGrid}" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                     </Border>
-                                    <ui:TextBox x:Name="NearbySearchTextBox" PlaceholderText="{Binding ToolTip, RelativeSource={RelativeSource Self}}" Width="{DynamicResource WifiSearchWidth}" MinHeight="{DynamicResource WifiFilterControlHeight}" Height="{DynamicResource WifiFilterControlHeight}" Padding="{DynamicResource WifiFilterPadding}" VerticalAlignment="Center" Margin="{DynamicResource SpacingCountGap}" TextChanged="NearbyFilter_Changed" />
+                                    <ui:TextBox x:Name="NearbySearchTextBox" PlaceholderText="{Binding ToolTip, RelativeSource={RelativeSource Self}}" Width="{DynamicResource WifiSearchWidth}" Style="{StaticResource CompactFilterTextBoxStyle}" Margin="{DynamicResource SpacingCountGap}" TextChanged="NearbyFilter_Changed" />
                                     <CheckBox x:Name="NearbyOnlyNewCheckBox" VerticalAlignment="Center" Margin="{DynamicResource SpacingCountGap}" Checked="NearbyFilter_Changed" Unchecked="NearbyFilter_Changed" />
-                                    <ComboBox x:Name="NearbySortComboBox" MinWidth="{DynamicResource WifiSortWidth}" MinHeight="{DynamicResource WifiFilterControlHeight}" Height="{DynamicResource WifiFilterControlHeight}" Padding="{DynamicResource WifiFilterPadding}" VerticalAlignment="Center" Margin="{DynamicResource SpacingCountGap}" SelectedIndex="0" SelectionChanged="NearbyFilter_Changed">
+                                    <ComboBox x:Name="NearbySortComboBox" MinWidth="{DynamicResource WifiSortWidth}" Style="{StaticResource CompactFilterComboBoxStyle}" Margin="{DynamicResource SpacingCountGap}" SelectedIndex="0" SelectionChanged="NearbyFilter_Changed">
                                         <ComboBoxItem x:Name="NearbySortSignalItem" /><ComboBoxItem x:Name="NearbySortNameItem" />
                                     </ComboBox>
                                 </StackPanel></Expander.Header>
@@ -389,7 +389,7 @@
                             <Expander x:Name="PriorityNetworksExpander" IsExpanded="True" Style="{DynamicResource ContentExpanderStyle}">
                                 <Expander.Header><StackPanel Orientation="Horizontal">
                                     <TextBlock x:Name="PriorityListTitle" FontWeight="SemiBold" VerticalAlignment="Center" />
-                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="{DynamicResource CornerControl}" Padding="{DynamicResource SpacingCountBadge}" Margin="{DynamicResource SpacingCountGap}">
+                                    <Border Style="{StaticResource SectionCountBadgeStyle}">
                                         <TextBlock Text="{Binding Items.Count, ElementName=ProfileGrid}" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                     </Border>
                                 </StackPanel></Expander.Header>

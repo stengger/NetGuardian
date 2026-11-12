@@ -2,7 +2,7 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
  xmlns:sys="clr-namespace:System;assembly=mscorlib" xmlns:presentation="clr-namespace:NetGuardian.App.Presentation">
 
-        <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Buttons.xaml" /></ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Buttons.xaml" /><ResourceDictionary Source="Filters.xaml" /></ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <presentation:WifiSignalIconConverter x:Key="WifiSignalIconConverter" />
         <presentation:WifiCurrentRowConverter x:Key="WifiCurrentRowConverter" />
