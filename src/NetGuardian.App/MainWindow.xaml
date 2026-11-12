@@ -211,12 +211,18 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Title="NetGuardian" Icon="Assets/app-icon-256.png" />
 
-        <ui:SnackbarPresenter x:Name="RootSnackbar" Grid.Row="0" Grid.RowSpan="2" Panel.ZIndex="1000"
-                              HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,24" />
+        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                      MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ViewportFractionConverter}, ConverterParameter=0.4}"
+                      Visibility="{Binding Visibility, ElementName=RootSnackbar}">
+            <presentation:FeedbackPresenter x:Name="RootSnackbar" HorizontalAlignment="Right"
+                                            Width="{DynamicResource FeedbackWidth}" MaxWidth="{DynamicResource FeedbackMaxWidth}"
+                                            Margin="{DynamicResource SpacingFeedbackArea}" />
+        </ScrollViewer>
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>

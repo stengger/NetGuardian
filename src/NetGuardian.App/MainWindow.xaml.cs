@@ -52,7 +52,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private PolicyEditFeedback? _policyFeedback;
     private readonly ILogSink _fileLog;
     private readonly EventJournal _journal;
-    private readonly Wpf.Ui.ISnackbarService _snackbar;
     private readonly ObservableCollection<NearbyWifiRow> _nearbyNetworks = [];
     private readonly ObservableCollection<WifiProfile> _profiles = [];
     private readonly NearbySavedWifiView _nearbySavedWifi;
@@ -106,7 +105,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _store = store;
         _fileLog = logSink;
         _journal = journal;
-        _snackbar = snackbarService;
         _localizer = localizer;
         _eventLogStore = new EventLogStore(localizer, MaxLogLines);
         _wifi = wifi;
@@ -163,7 +161,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ReportGrid.ItemsSource = _reportRows;
         InitializeLogView();
 
-        _snackbar.SetSnackbarPresenter(RootSnackbar);
+        RootSnackbar.Configure(_localizer);
 
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
         _countdownTimer.Tick += (_, _) => { UpdateMonitorStatus(); RefreshCurrentWifiIfDue(); };
@@ -333,23 +331,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// <summary>Shows a Snackbar offering to restore a just-deleted Wi-Fi profile at its original position.</summary>
     private void ShowUndoDeleteSnackbar(WifiProfile removed, int originalIndex)
     {
-        var snackbar = new Wpf.Ui.Controls.Snackbar(RootSnackbar)
-        {
-            Title = _localizer.T("WifiProfileDeletedTitle"),
-            Content = string.Format(_localizer.T("WifiProfileDeletedMessage"), DisplaySsid(removed.Ssid)),
-            Appearance = Wpf.Ui.Controls.ControlAppearance.Caution,
-            Icon = new Wpf.Ui.Controls.SymbolIcon(Wpf.Ui.Controls.SymbolRegular.Delete24),
-            Timeout = TimeSpan.FromSeconds(5)
-        };
-
-        var undoButton = new Wpf.Ui.Controls.Button
-        {
-            Content = _localizer.T("Undo"),
-            Icon = new Wpf.Ui.Controls.SymbolIcon(Wpf.Ui.Controls.SymbolRegular.ArrowUndo24),
-            Margin = new Thickness(0, 8, 0, 0),
-            HorizontalAlignment = HorizontalAlignment.Left
-        };
-        undoButton.Click += (_, _) =>
+        RootSnackbar.ShowMessage(_localizer.T("WifiProfileDeletedTitle"),
+            string.Format(_localizer.T("WifiProfileDeletedMessage"), DisplaySsid(removed.Ssid)),
+            "Warning", _localizer.T("Undo"), () =>
         {
             if (!_profiles.Contains(removed))
             {
@@ -364,19 +348,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 UpdateWifiSelectionUi();
             }
 
-            undoButton.IsEnabled = false;
-        };
-
-        var layout = new StackPanel();
-        layout.Children.Add(new TextBlock
-        {
-            Text = string.Format(_localizer.T("WifiProfileDeletedMessage"), DisplaySsid(removed.Ssid)),
-            TextWrapping = TextWrapping.Wrap
-        });
-        layout.Children.Add(undoButton);
-        snackbar.Content = layout;
-
-        snackbar.Show();
+        }, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(removed).ToString());
     }
 
     private async void Connect_Click(object sender, RoutedEventArgs e)
@@ -1581,19 +1553,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     /// <summary>Shows a transient Snackbar with severity-mapped appearance and icon.</summary>
     private void ShowFeedback(string title, string message, FeedbackSeverity severity)
     {
-        var (appearance, symbol) = severity switch
-        {
-            FeedbackSeverity.Success => (Wpf.Ui.Controls.ControlAppearance.Success, Wpf.Ui.Controls.SymbolRegular.CheckmarkCircle24),
-            FeedbackSeverity.Warning => (Wpf.Ui.Controls.ControlAppearance.Caution, Wpf.Ui.Controls.SymbolRegular.Warning24),
-            FeedbackSeverity.Danger => (Wpf.Ui.Controls.ControlAppearance.Danger, Wpf.Ui.Controls.SymbolRegular.DismissCircle24),
-            _ => (Wpf.Ui.Controls.ControlAppearance.Info, Wpf.Ui.Controls.SymbolRegular.Info24)
-        };
-
-        var timeout = severity == FeedbackSeverity.Success
-            ? TimeSpan.FromSeconds(2)
-            : TimeSpan.FromSeconds(5);
-
-        _snackbar.Show(title, message, appearance, new Wpf.Ui.Controls.SymbolIcon(symbol), timeout);
+        RootSnackbar.ShowMessage(title, message, severity.ToString());
     }
 
     /// <summary>Called by the global exception handler to surface an unhandled error to the user.</summary>

@@ -8,6 +8,14 @@
 
     <!-- Type scale: 6 steps. -->
     <sys:Double x:Key="FontCaption">12</sys:Double>
+    <sys:Double x:Key="FontFeedbackBody">13</sys:Double>
+    <sys:Double x:Key="FeedbackIconSize">20</sys:Double>
+    <sys:Double x:Key="FeedbackWidth">360</sys:Double>
+    <sys:Double x:Key="FeedbackMaxWidth">420</sys:Double>
+    <Thickness x:Key="SpacingFeedbackGap">0,0,0,8</Thickness>
+    <Thickness x:Key="SpacingFeedbackAction">0,8,0,0</Thickness>
+    <Thickness x:Key="SpacingFeedbackArea">16,8,16,8</Thickness>
+    <Thickness x:Key="SpacingIconPadding">4</Thickness>
     <sys:Double x:Key="FontBody">14</sys:Double>
     <sys:Double x:Key="FontSubtitle">20</sys:Double>
     <sys:Double x:Key="FontSection">16</sys:Double>

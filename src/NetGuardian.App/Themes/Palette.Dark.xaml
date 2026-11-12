@@ -29,4 +29,5 @@
     <SolidColorBrush x:Key="DisabledTextBrush" Color="#8D98A5" />
     <SolidColorBrush x:Key="FocusRingBrush" Color="#99C2FF" />
     <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#383025" />
+    <DropShadowEffect x:Key="FeedbackShadow" Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.18" />
 </ResourceDictionary>

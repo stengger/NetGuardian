@@ -186,4 +186,5 @@
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOnPressed" Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
     <SolidColorBrush x:Key="CheckBoxCheckGlyphForeground" Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
     <SolidColorBrush x:Key="ListBoxItemSelectedForegroundThemeBrush" Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
+    <DropShadowEffect x:Key="FeedbackShadow" Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0" />
 </ResourceDictionary>

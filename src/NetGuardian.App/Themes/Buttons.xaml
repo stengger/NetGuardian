@@ -57,6 +57,16 @@
             </Setter>
         </Style>
 
+        <Style x:Key="IconButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="MinWidth" Value="{DynamicResource ExpansionHitSize}" />
+            <Setter Property="MinHeight" Value="{DynamicResource ExpansionHitSize}" />
+            <Setter Property="Padding" Value="{DynamicResource SpacingIconPadding}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Style.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource SurfaceHoverBrush}" /></Trigger></Style.Triggers>
+        </Style>
         <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource PrimaryButtonBrush}" />
             <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonTextBrush}" />
