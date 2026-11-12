@@ -1,6 +1,6 @@
 # NetGuardian 界面整改与复查结果
 
-日期：2026-11-12。审查依据：[根因报告](2026-11-12-ui-audit.md)。用户回复“继续”后实施。当前产品代码提交：`d6a8a9a`；本机安装尚待用户手动托盘退出后更新，不能把源码完成等同于安装完成。
+日期：2026-11-12。审查依据：[根因报告](2026-11-12-ui-audit.md)。用户回复“继续”后实施。当前产品代码提交：`d6a8a9a`；用户确认手动托盘退出后，已于 2026-11-12 23:13 完成本机两个目录的界面更新，23:14 完成启动与安装核验。
 
 ## 改动与原因
 
@@ -96,6 +96,18 @@
 
 ## 本机更新
 
-发布目标为正式配置的界面文件，版本沿用项目 `1.1.1`，以提交与 SHA256 区分本轮界面构建。待更新目录：`C:\Program Files\NetGuardian` 和项目 `dist\NetGuardian`。核心与后台源码自当前安装记录 `bc34a0d` 起无变化，本轮更新只计划替换必要界面文件，保留现有核心、后台、配置及运行状态。
+发布目标为正式配置的界面文件，版本沿用项目 `1.1.1`，构建标识为 `1.1.1+d6a8a9af384c1f1210105ba6dfa08208b6adb61a`。用户确认从托盘退出后，于 2026-11-12 23:13 完成以下两个目录更新：
 
-管理员只读预检已通过（`artifacts/ui-audit/ui-deployment-preflight.json`）：界面 PID 102432 来自 `C:\Program Files\NetGuardian\NetGuardian.exe`，后台 PID 116040 来自该目录 guardian 子目录。每目录只需替换 NetGuardian.exe、NetGuardian.dll、NetGuardian.pdb 和 UIInstalledBuild.json；依赖与运行时配置哈希一致，不替换核心／后台文件。普通进程查询无法读取其路径、CIM 查询拒绝访问的限制已通过正常 UAC 核验解决。按项目规则，必须请用户从托盘手动退出后才能替换，不能自动关闭或强制结束。备份、哈希校验、启动路径与后台未重启核验须在安装步骤完成后补记。
+- `C:\Program Files\NetGuardian`
+- `C:\Users\Qiu\Documents\Net\dist\NetGuardian`
+
+每目录替换 NetGuardian.exe、NetGuardian.dll、NetGuardian.pdb 和 UIInstalledBuild.json，共 8 个文件；依赖与运行时配置哈希一致，无需替换。备份目录：`artifacts/ui-audit/ui-backup-20261112-231300/`。部署脚本退出码 0，结果 `ui-deployment-result.json` 中 `Success=true`，配置与后台文件保持不变。
+
+23:14 安装后核验报告 `artifacts/ui-audit/ui-installed-verification.json` 返回 `Success=true`：
+
+- 界面 PID 102928，路径 `C:\Program Files\NetGuardian\NetGuardian.exe`，响应正常，检测到 NetGuardian 主窗口。
+- 两个目标目录各 5 个发布文件 SHA256 均与正式发布目录一致，安装标识提交为 `d6a8a9af384c1f1210105ba6dfa08208b6adb61a`。
+- 后台仍为部署前 PID 116040，路径为安装目录 guardian 子目录，启动时间未变化；状态 Healthy，心跳有效。
+- 恢复策略和 57 条原网络配置保持，配置文件字节一致；启动未新增崩溃日志。
+
+安装核验使用管理员脚本完成；外层 PowerShell 的 Start-Process -Wait 同时等待其启动的常驻界面进程，故外层会话未立即返回。以上成功依据是核验脚本写入的结构化结果及文件校验，不把外层等待当作程序启动失败。真实系统 DPI、跨屏和读屏器等覆盖边界仍按前文保留。
