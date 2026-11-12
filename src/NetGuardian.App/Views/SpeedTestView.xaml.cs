@@ -136,20 +136,18 @@ public partial class SpeedTestView : UserControl
 
     private void ContentPanel_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        var stacked = e.NewSize.Width < 480;
-        var compact = e.NewSize.Width < 680;
+        var stacked = e.NewSize.Width < (double)FindResource("SpeedStackBreakpoint");
+        var compact = e.NewSize.Width < (double)FindResource("SpeedCompactBreakpoint");
         var cards = new[] { DownloadCard, UploadCard, ResponseCard };
-        foreach (var value in new[] { DownloadValue, UploadValue, ResponseValue }) value.FontSize = compact ? 24 : 32;
+        foreach (var value in new[] { DownloadValue, UploadValue, ResponseValue }) value.SetResourceReference(System.Windows.Controls.TextBlock.FontSizeProperty, compact ? "FontMetric" : "FontSpeedMetric");
         foreach (var hint in new[] { DownloadHint, UploadHint, ResponseHint }) hint.Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
         for (var index = 0; index < cards.Length; index++)
         {
-            cards[index].Padding = new Thickness(compact ? 12 : 20);
+            cards[index].SetResourceReference(Border.PaddingProperty, compact ? "SpacingSpeedCompactPadding" : "SpacingSpeedPadding");
             Grid.SetColumn(cards[index], stacked ? 0 : index);
             Grid.SetRow(cards[index], stacked ? index : 0);
             Grid.SetColumnSpan(cards[index], stacked ? 3 : 1);
-            cards[index].Margin = stacked
-                ? new Thickness(0, 0, 0, index == 2 ? 0 : 10)
-                : new Thickness(0, 0, index == 2 ? 0 : 10, 0);
+            cards[index].SetResourceReference(MarginProperty, index == 2 ? "SpacingNone" : stacked ? "SpacingMetricStackGap" : "SpacingMetricGap");
         }
     }
 

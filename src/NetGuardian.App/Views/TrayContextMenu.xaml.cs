@@ -18,8 +18,8 @@ public partial class TrayContextMenu : ContextMenu
         _commands = Items.OfType<MenuItem>().ToDictionary(item => (string)item.Tag);
         foreach (var (key, item) in _commands)
         {
-            item.MinHeight = 36;
-            item.Padding = new Thickness(10, 8, 10, 8);
+            item.SetResourceReference(MinHeightProperty, "ControlMinHeight");
+            item.SetResourceReference(MenuItem.PaddingProperty, "SpacingTrayItemPadding");
             ToolTipService.SetShowOnDisabled(item, true);
             item.Click += (_, _) =>
             {

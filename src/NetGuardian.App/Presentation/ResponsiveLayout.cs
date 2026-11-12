@@ -42,7 +42,7 @@ internal static class ResponsiveLayout
         ((ScrollViewer)root.FindName("DnsEditorScroller")).MaxHeight = (double)root.FindResource(compact ? "DnsEditorCompactMaxHeight" : "DnsEditorMaxHeight");
         // 短窗口单行滚动操作栏，避免英文按钮换行挤掉列表数据行。
         ((ScrollViewer)root.FindName("WifiPageActions")).HorizontalScrollBarVisibility =
-            compact ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
+            shortWindow ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled;
         // 说明保留在可滚动区域内，不再因紧凑模式直接隐藏。
         ((FrameworkElement)root.FindName("DragHintText")).Visibility = Visibility.Visible;
         ((Border)root.FindName("WifiSelectionBar")).SetResourceReference(Border.PaddingProperty,

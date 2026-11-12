@@ -1,0 +1,204 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+ xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+ xmlns:sys="clr-namespace:System;assembly=mscorlib" xmlns:presentation="clr-namespace:NetGuardian.App.Presentation">
+
+        <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Buttons.xaml" /></ResourceDictionary.MergedDictionaries>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <presentation:WifiSignalIconConverter x:Key="WifiSignalIconConverter" />
+        <presentation:WifiCurrentRowConverter x:Key="WifiCurrentRowConverter" />
+        <presentation:AddressLinesConverter x:Key="AddressLinesConverter" />
+        <presentation:RowDetailsToggleConverter x:Key="RowDetailsToggleConverter" />
+        <presentation:ViewportFractionConverter x:Key="ViewportFractionConverter" />
+        <presentation:FeedbackViewportConverter x:Key="FeedbackViewportConverter" />
+        <sys:String x:Key="TableDetailLabel">详情</sys:String>
+        <sys:String x:Key="TableCopyLabel">复制结果</sys:String>
+        <sys:String x:Key="TableDragLabel">拖动右侧列表行可调整恢复优先级</sys:String>
+        <presentation:CredentialStatusConverter x:Key="CredentialStatusConverter" />
+
+
+
+        <Style x:Key="GridHeaderStyle" TargetType="DataGridColumnHeader">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="{DynamicResource StrokeTableCellDivider}" />
+            <Setter Property="Height" Value="{DynamicResource GridHeaderHeight}" />
+            <Setter Property="Padding" Value="{DynamicResource SpacingTableHorizontal}" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="GridCenteredHeaderStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource GridHeaderStyle}">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="GridTextStyle" TargetType="TextBlock">
+            <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="ToolTip" Value="{Binding Text, RelativeSource={RelativeSource Self}}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Margin" Value="{DynamicResource SpacingTableHorizontal}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="DragHandleTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+            <Setter Property="TextAlignment" Value="Center" />
+            <Setter Property="Cursor" Value="SizeAll" />
+            <Setter Property="ToolTip" Value="{DynamicResource TableDragLabel}" />
+            <Setter Property="Foreground" Value="{DynamicResource StatusInfoBrush}" />
+        </Style>
+        <Style x:Key="AddressTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="Margin" Value="{DynamicResource SpacingTableCell}" />
+        </Style>
+        <Style x:Key="AdapterNameTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+            <Style.Triggers><DataTrigger Binding="{Binding LinkState}" Value="Up">
+                <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                <Setter Property="FontWeight" Value="SemiBold" />
+            </DataTrigger></Style.Triggers>
+        </Style>
+        <DataTemplate x:Key="AdapterStatusBadgeTemplate">
+            <Border Padding="{DynamicResource SpacingCompactInset}" CornerRadius="{DynamicResource CornerControl}" BorderThickness="{DynamicResource StrokeControlThickness}" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="{DynamicResource SpacingCompactInset}">
+                <Border.Style><Style TargetType="Border">
+                    <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+                    <Setter Property="TextElement.Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+                    <Style.Triggers><DataTrigger Binding="{Binding LinkState}" Value="Up">
+                        <Setter Property="BorderBrush" Value="{DynamicResource StatusHealthyBrush}" />
+                        <Setter Property="TextElement.Foreground" Value="{DynamicResource StatusHealthyBrush}" />
+                    </DataTrigger></Style.Triggers>
+                </Style></Border.Style>
+                <StackPanel Orientation="Horizontal"><TextBlock Text="●" Margin="{DynamicResource SpacingIconGap}"/><TextBlock Text="{Binding Status}" ToolTip="{Binding Status}" /></StackPanel>
+            </Border>
+        </DataTemplate>
+        <Style x:Key="GridCenteredTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
+            <Setter Property="TextAlignment" Value="Center" />
+        </Style>
+        <Style TargetType="DataGrid">
+            <Setter Property="presentation:ResultTableInteraction.IsEnabled" Value="True" />
+            <Setter Property="AreRowDetailsFrozen" Value="True" />
+            <Setter Property="VirtualizingPanel.ScrollUnit" Value="Pixel" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CanUserResizeRows" Value="False" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Setter Property="GridLinesVisibility" Value="None" />
+            <Setter Property="HeadersVisibility" Value="All" />
+            <Setter Property="CanUserResizeColumns" Value="True" />
+            <Setter Property="ClipboardCopyMode" Value="IncludeHeader" />
+            <Setter Property="RowDetailsVisibilityMode" Value="Collapsed" />
+            <Setter Property="RowBackground" Value="Transparent" />
+            <Setter Property="RowHeaderWidth" Value="36" />
+            <Setter Property="ContextMenu">
+                <Setter.Value><ContextMenu><MenuItem Header="{DynamicResource TableCopyLabel}" Command="ApplicationCommands.Copy" CommandTarget="{Binding PlacementTarget, RelativeSource={RelativeSource AncestorType=ContextMenu}}" /></ContextMenu></Setter.Value>
+            </Setter>
+            <Setter Property="RowHeaderStyle">
+                <Setter.Value>
+                    <Style TargetType="DataGridRowHeader">
+                        <Setter Property="Template">
+                            <Setter.Value><ControlTemplate TargetType="DataGridRowHeader">
+                                <ToggleButton Style="{DynamicResource ExpansionToggleStyle}" Height="40" VerticalAlignment="Top" ToolTip="{DynamicResource TableDetailLabel}" AutomationProperties.Name="{DynamicResource TableDetailLabel}" IsChecked="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource RowDetailsToggleConverter}, Mode=TwoWay}" />
+                            </ControlTemplate></Setter.Value>
+                        </Setter>
+                    </Style>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="RowDetailsTemplate">
+                <Setter.Value><DataTemplate>
+                    <presentation:TableRowDetails />
+                </DataTemplate></Setter.Value>
+            </Setter>
+            <Setter Property="SelectionUnit" Value="FullRow" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+        </Style>
+        <Style x:Key="WifiListStyle" TargetType="DataGrid" BasedOn="{StaticResource {x:Type DataGrid}}">
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="ScrollViewer.CanContentScroll" Value="True" />
+            <Setter Property="EnableRowVirtualization" Value="True" />
+            <Setter Property="EnableColumnVirtualization" Value="True" />
+            <Setter Property="VirtualizingPanel.IsVirtualizing" Value="True" />
+            <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
+        </Style>
+        <Style x:Key="GridRowStyle" TargetType="DataGridRow">
+            <!-- 选中边框绘制在内容之上，避免挤动单元格或扩张滚动范围。 -->
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridRow">
+                <Grid Background="{TemplateBinding Background}">
+                    <SelectiveScrollingGrid>
+                        <SelectiveScrollingGrid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></SelectiveScrollingGrid.ColumnDefinitions>
+                        <SelectiveScrollingGrid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></SelectiveScrollingGrid.RowDefinitions>
+                        <DataGridCellsPresenter Grid.Column="1" ItemsPanel="{TemplateBinding ItemsPanel}" MinHeight="{TemplateBinding MinHeight}" SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}" />
+                        <DataGridDetailsPresenter Grid.Column="1" Grid.Row="1" Visibility="{TemplateBinding DetailsVisibility}" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical" />
+                        <DataGridRowHeader Grid.RowSpan="2" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical"
+                                           Visibility="{Binding HeadersVisibility, RelativeSource={RelativeSource AncestorType=DataGrid}, Converter={x:Static DataGrid.HeadersVisibilityConverter}, ConverterParameter={x:Static DataGridHeadersVisibility.Row}}" />
+                    </SelectiveScrollingGrid>
+                    <Border BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" IsHitTestVisible="False" />
+                </Grid>
+            </ControlTemplate></Setter.Value></Setter>
+            <Setter Property="MinHeight" Value="{DynamicResource GridRowHeight}" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="{DynamicResource StrokeControlThickness}" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}" />
+                    <Setter Property="BorderBrush" Value="{DynamicResource RowSelectionStrokeBrush}" />
+                    <Setter Property="BorderThickness" Value="{DynamicResource StrokeControlThickness}" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="WifiRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource GridRowStyle}">
+            <Style.Triggers>
+                <DataTrigger Value="True"><DataTrigger.Binding><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}">
+                    <Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" />
+                </MultiBinding></DataTrigger.Binding><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                <MultiDataTrigger><MultiDataTrigger.Conditions>
+                    <Condition Value="True"><Condition.Binding><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}"><Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" /></MultiBinding></Condition.Binding></Condition>
+                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                </MultiDataTrigger.Conditions><Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" /></MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+        <sys:String x:Key="WifiCurrentConnectionLabel">当前连接</sys:String>
+        <DataTemplate x:Key="WifiSsidTemplate"><DockPanel ToolTip="{Binding Ssid}">
+                                                <ui:SymbolIcon Symbol="Wifi124" DockPanel.Dock="Right" FontSize="{DynamicResource ActivityIconSize}" Margin="{DynamicResource SpacingCountGap}" ToolTip="{DynamicResource WifiCurrentConnectionLabel}" AutomationProperties.Name="{DynamicResource WifiCurrentConnectionLabel}">
+                                                    <ui:SymbolIcon.Visibility><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}"><Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" /></MultiBinding></ui:SymbolIcon.Visibility>
+                                                </ui:SymbolIcon>
+                                                <TextBlock Text="{Binding Ssid}" Style="{StaticResource GridTextStyle}" />
+                                            </DockPanel></DataTemplate>
+        <Style TargetType="DataGridCell">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+            <Style.Triggers>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="Transparent" />
+                    <Setter Property="BorderBrush" Value="Transparent" />
+                    <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}" />
+        <Style x:Key="EmptyStateStyle" TargetType="Border">
+            <Setter Property="Padding" Value="{DynamicResource SpacingCardPadding}" />
+            <Setter Property="MaxWidth" Value="{DynamicResource EmptyStateMaxWidth}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+
+    <Style x:Key="OptionalStatusTextStyle" TargetType="TextBlock">
+        <Style.Triggers><Trigger Property="Text" Value=""><Setter Property="Visibility" Value="Collapsed" /></Trigger></Style.Triggers>
+    </Style>
+</ResourceDictionary>

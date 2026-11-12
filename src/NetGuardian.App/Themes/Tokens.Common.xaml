@@ -1,7 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=mscorlib">
-    <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Expansion.xaml" /></ResourceDictionary.MergedDictionaries>
+    <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Expansion.xaml" /><ResourceDictionary Source="Surfaces.xaml" /></ResourceDictionary.MergedDictionaries>
     <!-- Theme-independent design tokens (U2 §3.5). -->
     <!-- 中文明确采用简体 UI 字体，英文及数字保留 Segoe UI。 -->
     <FontFamily x:Key="AppFontFamily">Segoe UI, Microsoft YaHei UI, Microsoft YaHei</FontFamily>
@@ -10,7 +10,7 @@
     <sys:Double x:Key="FontCaption">12</sys:Double>
     <sys:Double x:Key="FontFeedbackBody">13</sys:Double>
     <sys:Double x:Key="FeedbackIconSize">20</sys:Double>
-    <sys:Double x:Key="WifiContextBreakpoint">500</sys:Double>
+    <sys:Double x:Key="WifiContextBreakpoint">640</sys:Double>
     <sys:Double x:Key="ShortWindowBreakpoint">600</sys:Double>
     <sys:Double x:Key="DnsEditorCompactMaxHeight">140</sys:Double>
     <sys:Double x:Key="DnsEditorMaxHeight">290</sys:Double>
@@ -55,8 +55,8 @@
     <sys:Double x:Key="ExpansionHitSize">32</sys:Double>
     <sys:Double x:Key="ExpansionStrokeThickness">1.5</sys:Double>
     <GridLength x:Key="ExpansionColumnWidth">32</GridLength>
-    <GridLength x:Key="WifiNearbyRowWeight">2*</GridLength>
-    <GridLength x:Key="WifiPriorityRowWeight">3*</GridLength>
+    <GridLength x:Key="WifiNearbyRowWeight">1*</GridLength>
+    <GridLength x:Key="WifiPriorityRowWeight">1*</GridLength>
     <sys:Double x:Key="ActivityIconSize">16</sys:Double>
     <sys:Double x:Key="WifiConnectButtonMinWidth">112</sys:Double>
     <Thickness x:Key="WifiFilterPadding">8,0</Thickness>
@@ -105,4 +105,67 @@
     <sys:Double x:Key="LatencyHttpsWarning">1000</sys:Double>
     <sys:Double x:Key="TrafficChartWidth">158</sys:Double>
     <sys:Double x:Key="TrafficChartHeight">56</sys:Double>
+    <Thickness x:Key="StrokeGroupDivider">0,0,0,1</Thickness>
+    <Thickness x:Key="SpacingGroupBody">0,0,0,16</Thickness>
+    <sys:Double x:Key="FormMaxWidth">720</sys:Double>
+    <GridLength x:Key="FormLabelColumnWidth">180</GridLength>
+    <sys:Double x:Key="FontSpeedMetric">32</sys:Double>
+    <sys:Double x:Key="SpeedCompactBreakpoint">680</sys:Double>
+    <sys:Double x:Key="SpeedStackBreakpoint">480</sys:Double>
+    <Thickness x:Key="SpacingSpeedCompactPadding">12</Thickness>
+    <Thickness x:Key="SpacingSpeedPadding">20</Thickness>
+    <Thickness x:Key="SpacingMetricGap">0,0,10,0</Thickness>
+    <Thickness x:Key="SpacingMetricStackGap">0,0,0,10</Thickness>
+    <Thickness x:Key="SpacingTrayItemPadding">10,8</Thickness>
+    <Thickness x:Key="SpacingBlockGap">0,0,0,8</Thickness>
+    <Thickness x:Key="SpacingGroupGap">0,0,0,16</Thickness>
+    <Thickness x:Key="SpacingEmptyCaption">0,8,0,12</Thickness>
+    <Thickness x:Key="SpacingChartGap">0,8,0,8</Thickness>
+    <Thickness x:Key="SpacingPageBody">20,12,24,24</Thickness>
+    <Thickness x:Key="SpacingInlineGroupGap">0,0,16,0</Thickness>
+    <Thickness x:Key="SpacingLeadingGap">8,0,0,0</Thickness>
+    <Thickness x:Key="SpacingActionGap">0,0,6,6</Thickness>
+    <Thickness x:Key="SpacingWideInlineGap">0,0,24,0</Thickness>
+    <Thickness x:Key="SpacingStatusValue">0,4,0,8</Thickness>
+    <Thickness x:Key="SpacingBlockStart">0,8,0,0</Thickness>
+    <Thickness x:Key="SpacingSectionStart">0,12,0,0</Thickness>
+    <Thickness x:Key="SpacingMetricValue">0,8,0,4</Thickness>
+    <Thickness x:Key="SpacingInlineSides">8,0,8,0</Thickness>
+    <Thickness x:Key="SpacingSmallLeadingGap">4,0,0,0</Thickness>
+    <Thickness x:Key="SpacingGaugeCaption">2,6,0,0</Thickness>
+    <Thickness x:Key="SpacingLeadingGroupGap">12,0,0,0</Thickness>
+    <Thickness x:Key="SpacingToggleRow">0,8</Thickness>
+    <Thickness x:Key="SpacingFormCaption">0,12,0,4</Thickness>
+    <Thickness x:Key="SpacingStatusBody">0,4,0,12</Thickness>
+    <Thickness x:Key="SpacingTrailingGroupGap">0,0,12,0</Thickness>
+    <Thickness x:Key="SpacingVerticalCompact">0,4,0,4</Thickness>
+    <Thickness x:Key="SpacingSectionBody">0,12,0,12</Thickness>
+    <Thickness x:Key="SpacingHorizontalGroup">12,0</Thickness>
+    <Thickness x:Key="SpacingFormHeader">0,12,0,16</Thickness>
+    <Thickness x:Key="SpacingCompactCardPadding">12</Thickness>
+    <Thickness x:Key="SpacingScrollViewport">0,0,12,8</Thickness>
+    <Thickness x:Key="SpacingCompactInset">8,4</Thickness>
+    <Thickness x:Key="SpacingSideGroup">12,0,12,12</Thickness>
+    <Thickness x:Key="SpacingThinHorizontal">2,0</Thickness>
+    <Thickness x:Key="SpacingActionDivider">0,0,2,0</Thickness>
+    <Thickness x:Key="SpacingIconGap">0,0,6,0</Thickness>
+    <Thickness x:Key="SpacingMetricsArea">0,0,8,16</Thickness>
+    <Thickness x:Key="SpacingMetricLine">0,12,0,2</Thickness>
+    <Thickness x:Key="SpacingGroupStart">0,16,0,0</Thickness>
+    <Thickness x:Key="SpacingHairlineStart">0,2,0,0</Thickness>
+    <Thickness x:Key="SpacingElapsedTime">16,2,0,0</Thickness>
+    <Thickness x:Key="SpacingProcessHint">0,8,0,16</Thickness>
+    <Thickness x:Key="SpacingMetricUnit">8,0,0,8</Thickness>
+    <Thickness x:Key="SpacingTrayStatus">12,4,12,8</Thickness>
+    <Thickness x:Key="SpacingTraySeparator">4,0,4,4</Thickness>
+    <Thickness x:Key="SpacingTraySeparatorSides">4,4</Thickness>
+    <Thickness x:Key="SpacingTraySurface">6</Thickness>
+    <sys:Double x:Key="FontStatus">22</sys:Double>
+    <Thickness x:Key="StrokeInlineDivider">0,0,1,0</Thickness>
+    <Thickness x:Key="StrokeTopDivider">0,1,0,0</Thickness>
+    <Thickness x:Key="StrokeSelectedIndicator">2,0,0,0</Thickness>
+    <Thickness x:Key="StrokeTableCellDivider">0,0,1,1</Thickness>
+    <Thickness x:Key="SpacingTableHorizontal">10,0</Thickness>
+    <Thickness x:Key="SpacingTableCell">10,8</Thickness>
+    <sys:Double x:Key="EmptyStateMaxWidth">400</sys:Double>
 </ResourceDictionary>

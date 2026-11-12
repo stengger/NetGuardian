@@ -1,0 +1,30 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+        <Style x:Key="SectionBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness" Value="{DynamicResource StrokeControlThickness}" />
+            <Setter Property="CornerRadius" Value="{DynamicResource CornerCard}" />
+            <Setter Property="Padding" Value="{DynamicResource SpacingCardPadding}" />
+        </Style>
+        <Style x:Key="StatusHeroCardStyle" TargetType="Border" BasedOn="{StaticResource SectionBorderStyle}">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        </Style>
+        <Style x:Key="StatusMetricCardStyle" TargetType="Border" BasedOn="{StaticResource SectionBorderStyle}">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        </Style>
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="{DynamicResource FontSection}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Margin" Value="{DynamicResource SpacingFieldGap}" />
+        </Style>
+    <!-- 页级表面内用轻分隔表达分组，不再叠加同底色卡片。 -->
+    <Style x:Key="FormGroupStyle" TargetType="Border">
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="{DynamicResource StrokeGroupDivider}" />
+        <Setter Property="Padding" Value="{DynamicResource SpacingGroupBody}" />
+        <Setter Property="Margin" Value="{DynamicResource SpacingFieldGap}" />
+    </Style>
+</ResourceDictionary>
