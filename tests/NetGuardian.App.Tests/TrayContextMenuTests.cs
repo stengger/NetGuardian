@@ -60,6 +60,28 @@ public sealed class TrayContextMenuTests
         }, theme);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Esc从菜单根节点或子项均关闭且可以重新打开(bool fromChild)
+    {
+        DesktopFixture.Run(window =>
+        {
+            var menu = new TrayContextMenu();
+            foreach (var dictionary in window.Resources.MergedDictionaries) menu.Resources.MergedDictionaries.Add(dictionary);
+            using var host = new TrayMenuHost(window, menu);
+            window.Hide();
+            host.ShowAtCursor();
+            window.Dispatcher.Invoke(() => { }, DispatcherPriority.ContextIdle);
+            UIElement target = fromChild ? menu.GetCommand("ShowWindow") : menu;
+            target.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(menu)!, Environment.TickCount, Key.Escape)
+                { RoutedEvent = Keyboard.KeyDownEvent });
+            Assert.False(menu.IsOpen);
+            host.ShowAtCursor();
+            Assert.True(menu.IsOpen);
+        });
+    }
+
     [Fact]
     public void 菜单点击只分发可用命令且先关闭菜单()
     {

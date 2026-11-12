@@ -30,6 +30,18 @@ public partial class TrayContextMenu : ContextMenu
         }
     }
 
+    protected override void OnKeyDown(System.Windows.Input.KeyEventArgs e)
+    {
+        // 自定义弹出外壳可能仅聚焦 PopupRoot，Esc 仍应关闭当前菜单。
+        if (e.Key == System.Windows.Input.Key.Escape)
+        {
+            IsOpen = false;
+            e.Handled = true;
+            return;
+        }
+        base.OnKeyDown(e);
+    }
+
     public string StatusText { get => (string)GetValue(StatusTextProperty); set => SetValue(StatusTextProperty, value); }
     public event Action<string>? CommandRequested;
     public MenuItem GetCommand(string key) => _commands[key];
