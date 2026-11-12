@@ -10,6 +10,14 @@
     <sys:Double x:Key="FontCaption">12</sys:Double>
     <sys:Double x:Key="FontFeedbackBody">13</sys:Double>
     <sys:Double x:Key="FeedbackIconSize">20</sys:Double>
+    <sys:Double x:Key="WifiContextBreakpoint">500</sys:Double>
+    <sys:Double x:Key="ShortWindowBreakpoint">600</sys:Double>
+    <sys:Double x:Key="DnsEditorCompactMaxHeight">140</sys:Double>
+    <sys:Double x:Key="DnsEditorMaxHeight">290</sys:Double>
+    <Thickness x:Key="WifiSelectionCompactPadding">12,4</Thickness>
+    <sys:Double x:Key="FeedbackBodyReserve">580</sys:Double>
+    <sys:Double x:Key="FeedbackViewportMinimum">64</sys:Double>
+    <sys:Double x:Key="FeedbackViewportFraction">0.25</sys:Double>
     <sys:Double x:Key="FeedbackWidth">360</sys:Double>
     <sys:Double x:Key="FeedbackMaxWidth">420</sys:Double>
     <sys:Double x:Key="FeedbackVisibleLimit">3</sys:Double>
@@ -67,8 +75,8 @@
     <Thickness x:Key="SpacingFocusInset">2</Thickness>
     <Thickness x:Key="SpacingFocusOutset">-3</Thickness>
     <Thickness x:Key="StrokeFocusThickness">2</Thickness>
-    <sys:Double x:Key="OpacityButtonHover">0.98</sys:Double>
-    <sys:Double x:Key="OpacityButtonPressed">0.96</sys:Double>
+    <sys:Double x:Key="OpacityButtonHover">0.08</sys:Double>
+    <sys:Double x:Key="OpacityButtonPressed">0.16</sys:Double>
     <sys:Double x:Key="DialogWidth">480</sys:Double>
     <sys:Double x:Key="DialogMinWidth">440</sys:Double>
     <sys:Double x:Key="DialogMinHeight">240</sys:Double>

@@ -48,4 +48,5 @@
     <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#101820" />
     <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#101820" />
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#101820" />
+    <SolidColorBrush x:Key="ButtonInteractionBrush" Color="#FFFFFF" />
 </ResourceDictionary>

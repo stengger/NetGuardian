@@ -54,3 +54,18 @@ public sealed class ViewportFractionConverter : IValueConverter
             ? Math.Max(0, height * fraction) : double.PositiveInfinity;
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotSupportedException();
 }
+
+// 先为正文保留可用空间，再限制底部提示；详情始终可在提示区内滚动到达。
+public sealed class FeedbackViewportConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (values.Length < 2 || values[0] is not double height || values[1] is not FrameworkElement root)
+            return double.PositiveInfinity;
+        var reserve = (double)root.FindResource("FeedbackBodyReserve");
+        var minimum = (double)root.FindResource("FeedbackViewportMinimum");
+        var fraction = (double)root.FindResource("FeedbackViewportFraction");
+        return Math.Min(height * fraction, Math.Max(minimum, height - reserve));
+    }
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, CultureInfo culture) => throw new NotSupportedException();
+}

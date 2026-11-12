@@ -197,6 +197,6 @@ internal sealed class FeedbackCard : Border
         layout.Children.Add(close);
         Child = layout;
         AutomationProperties.SetName(this, $"{title}：{message}");
-        AutomationProperties.SetLiveSetting(this, severity == "Danger" ? AutomationLiveSetting.Assertive : AutomationLiveSetting.Polite);
+        AutomationProperties.SetLiveSetting(this, severity is "Danger" or "Error" ? AutomationLiveSetting.Assertive : AutomationLiveSetting.Polite);
     }
 }

@@ -28,6 +28,7 @@
         <presentation:AddressLinesConverter x:Key="AddressLinesConverter" />
         <presentation:RowDetailsToggleConverter x:Key="RowDetailsToggleConverter" />
         <presentation:ViewportFractionConverter x:Key="ViewportFractionConverter" />
+        <presentation:FeedbackViewportConverter x:Key="FeedbackViewportConverter" />
         <sys:String x:Key="TableDetailLabel">详情</sys:String>
         <sys:String x:Key="TableCopyLabel">复制结果</sys:String>
         <sys:String x:Key="TableDragLabel">拖动右侧列表行可调整恢复优先级</sys:String>
@@ -245,8 +246,11 @@
         <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Title="NetGuardian" Icon="Assets/app-icon-256.png" />
 
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      MaxHeight="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource ViewportFractionConverter}, ConverterParameter=0.4}"
                       Visibility="{Binding Visibility, ElementName=RootSnackbar}">
+            <ScrollViewer.MaxHeight><MultiBinding Converter="{StaticResource FeedbackViewportConverter}">
+                <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                <Binding RelativeSource="{RelativeSource AncestorType=Window}" />
+            </MultiBinding></ScrollViewer.MaxHeight>
             <presentation:FeedbackPresenter x:Name="RootSnackbar" HorizontalAlignment="Right"
                                             Width="{DynamicResource FeedbackWidth}" MaxWidth="{DynamicResource FeedbackMaxWidth}"
                                             Margin="{DynamicResource SpacingFeedbackArea}" />
@@ -520,16 +524,15 @@
                             <Expander.Header><DockPanel>
                                 <ProgressBar x:Name="CurrentWifiSignalBar" DockPanel.Dock="Right" Width="64" Height="4" Minimum="0" Maximum="100" Visibility="Collapsed" Margin="12,0,0,0" Foreground="{DynamicResource StatusHealthyBrush}" VerticalAlignment="Center" AutomationProperties.Name="{Binding Text, ElementName=CurrentWifiDetailsText}" />
                                 <TextBlock x:Name="CurrentWifiTitle" DockPanel.Dock="Left" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="0,0,10,0" />
-                                <TextBlock x:Name="CurrentWifiNameText" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
+                                <TextBlock x:Name="CurrentWifiNameText" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" AutomationProperties.LiveSetting="Polite" />
                             </DockPanel></Expander.Header>
-                            <TextBlock x:Name="CurrentWifiDetailsText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" />
+                            <StackPanel><TextBlock x:Name="CurrentWifiDetailsText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,3,0,0" /><TextBlock x:Name="DragHintText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" /></StackPanel>
                         </Expander>
                     </Border>
                     <Border x:Name="WifiSelectionBar" Grid.Row="1" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,8">
-                        <TextBlock x:Name="CurrentWifiSelectionText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                        <TextBlock x:Name="CurrentWifiSelectionText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                     </Border>
                     <ScrollViewer Grid.Row="2" MaxHeight="{DynamicResource WifiScanStatusMaxHeight}" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel x:Name="WifiScanStatusPanel" Margin="{DynamicResource SpacingFieldGap}">
-                        <TextBlock x:Name="DragHintText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
                         <TextBlock x:Name="WifiScanStatusText" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"  Margin="0,4,0,0" />
                         <ProgressBar x:Name="WifiScanActivity" IsIndeterminate="True" Height="3" Margin="0,4,0,0" Visibility="Collapsed" />
                     </StackPanel></ScrollViewer>
@@ -660,7 +663,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="IntervalLabel" VerticalAlignment="Center" />
                             <ui:NumberBox x:Name="IntervalTextBox" Grid.Column="1" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=IntervalLabel}" />
-                            <ComboBox x:Name="IntervalUnitComboBox" Grid.Column="2" Margin="8,0,0,0">
+                            <ComboBox x:Name="IntervalUnitComboBox" AutomationProperties.LabeledBy="{Binding ElementName=IntervalLabel}" Grid.Column="2" Margin="8,0,0,0">
                                 <ComboBoxItem Tag="1" />
                                 <ComboBoxItem Tag="60" />
                                 <ComboBoxItem Tag="3600" />
@@ -682,7 +685,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock x:Name="CooldownLabel" VerticalAlignment="Center" />
                             <ui:NumberBox x:Name="CooldownTextBox" Grid.Column="1" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=CooldownLabel}" />
-                            <ComboBox x:Name="CooldownUnitComboBox" Grid.Column="2" Margin="8,0,0,0">
+                            <ComboBox x:Name="CooldownUnitComboBox" AutomationProperties.LabeledBy="{Binding ElementName=CooldownLabel}" Grid.Column="2" Margin="8,0,0,0">
                                 <ComboBoxItem Tag="1" />
                                 <ComboBoxItem Tag="60" />
                                 <ComboBoxItem Tag="3600" />
@@ -1094,7 +1097,7 @@
                                     <Button x:Name="UpdateCancelButton" Style="{StaticResource SecondaryButtonStyle}" Click="UpdateCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
                                     <Button x:Name="UpdateInstallButton" Style="{StaticResource PrimaryButtonStyle}" Click="UpdateInstall_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
                                 </WrapPanel>
-                                <Expander x:Name="UpdateNotesExpander" Visibility="Collapsed">
+                                <Expander x:Name="UpdateNotesExpander" Style="{DynamicResource ContentExpanderStyle}" Visibility="Collapsed">
                                     <TextBlock x:Name="UpdateNotesText" TextWrapping="Wrap" Margin="{DynamicResource SpacingOptionGap}" />
                                 </Expander>
                                 <TextBlock x:Name="UpdatePreviousResultText" Visibility="Collapsed" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingOptionGap}" />
