@@ -55,6 +55,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ObservableCollection<NearbyWifiRow> _nearbyNetworks = [];
     private readonly ObservableCollection<WifiProfile> _profiles = [];
     private readonly NearbySavedWifiView _nearbySavedWifi;
+    private readonly WifiListView _nearbyView;
     private readonly ObservableCollection<string> _recentEvents = [];
     private readonly ObservableCollection<DnsServerRow> _dnsRows = [];
     private readonly ObservableCollection<DnsAdapterOption> _dnsAdapterOptions = [];
@@ -147,7 +148,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _profiles.Add(profile);
         }
 
-        NearbyGrid.ItemsSource = _nearbyNetworks;
+        _nearbyView = new(_nearbyNetworks, item => ((NearbyWifiRow)item).Ssid,
+            item => ((NearbyWifiRow)item).SignalPercent, item => ((NearbyWifiRow)item).IsInPriorityList);
+        NearbyGrid.ItemsSource = _nearbyView.View;
         _nearbySavedWifi = new(_profiles);
         ProfileGrid.ItemsSource = _nearbySavedWifi.View;
         RecentEventsList.ItemsSource = _recentEvents;
@@ -372,6 +375,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             await RunExclusiveNetworkActionAsync(async token =>
             {
+                using var activity = new ButtonActivityPresentation(ConnectButton, _localizer.T("WifiConnecting"));
                 var connecting = string.Format(_localizer.T("ConnectingTo"), profile.Ssid);
                 SetWifiSelectionMessage(connecting);
                 Log(connecting);
@@ -1467,6 +1471,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         NearbyGrid.Items.Refresh();
+        UpdateEmptyStates();
     }
 
     private void ApplyNearbyPriorityMarker(NearbyWifiRow row)
@@ -1879,7 +1884,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ImportPasswordButton.Content = _localizer.T("ImportPassword");
         ConnectButton.Content = _localizer.T("Connect");
         DragHintText.Text = _localizer.T("DoubleClickWifiHint");
+        Resources["WifiCurrentConnectionLabel"] = _localizer.T("WifiCurrentConnection");
         NearbyNetworksTitle.Text = _localizer.T("NearbyNetworks");
+        NearbySearchTextBox.ToolTip = _localizer.T("WifiSearch");
+        System.Windows.Automation.AutomationProperties.SetName(NearbySearchTextBox, _localizer.T("WifiSearch"));
+        NearbyOnlyNewCheckBox.Content = _localizer.T("WifiOnlyNew");
+        NearbySortSignalItem.Content = _localizer.T("WifiSortSignal");
+        NearbySortNameItem.Content = _localizer.T("WifiSortName");
+        System.Windows.Automation.AutomationProperties.SetName(NearbySortComboBox, _localizer.T("WifiSortSignal"));
+        NearbyClearFilterButton.Content = _localizer.T("WifiClearFilter");
         PriorityListTitle.Text = _localizer.T("PriorityList");
         NearbyEmptyText.Text = _localizer.T("NoNearbyWifiRows");
         ProfileEmptyText.Text = _localizer.T("NoPriorityWifiRows");
@@ -2054,7 +2067,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void UpdateEmptyStates()
     {
-        NearbyEmptyText.Visibility = _nearbyNetworks.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        NearbyEmptyText.Visibility = NearbyGrid.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        var filteredEmpty = _nearbyNetworks.Count > 0 && NearbyGrid.Items.Count == 0;
+        if (filteredEmpty) NearbyEmptyText.Text = _localizer.T("WifiNoMatches");
+        else NearbyEmptyText.Text = _localizer.T(_wifiScan.Phase == WifiScanPhase.Complete ? "WifiScanNone" : "WifiScanNoCurrentResults");
+        NearbyClearFilterButton.Visibility = filteredEmpty ? Visibility.Visible : Visibility.Collapsed;
+        NearbyEmptyAction.Visibility = filteredEmpty ? Visibility.Collapsed : Visibility.Visible;
         ProfileEmptyText.Visibility = ProfileGrid.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         RecentEventsEmptyText.Visibility = _recentEvents.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         WebsiteEmptyText.Visibility = _websiteRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;

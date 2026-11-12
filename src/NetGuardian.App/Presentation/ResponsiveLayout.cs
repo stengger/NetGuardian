@@ -16,8 +16,12 @@ internal static class ResponsiveLayout
             table.HeadersVisibility = compact ? DataGridHeadersVisibility.Row : DataGridHeadersVisibility.All;
             table.ColumnHeaderHeight = headerHeight;
         }
-        var readableSection = (double)root.FindResource("ExpansionHitSize") + headerHeight + (double)root.FindResource("GridRowHeight");
-        sections.Resources["WifiNearbyMinimumHeight"] = readableSection + ((Thickness)root.FindResource("SpacingFieldGap")).Bottom;
+        var filterHeight = (double)root.FindResource(compact ? "ExpansionHitSize" : "ControlMinHeight");
+        root.Resources["WifiFilterControlHeight"] = filterHeight;
+        var readableSection = filterHeight + headerHeight + (double)root.FindResource("GridRowHeight");
+        // 筛选控件位于展开按钮的描边内，标题最小高度包含上下描边。
+        var headerStroke = (Thickness)root.FindResource("StrokeControlThickness");
+        sections.Resources["WifiNearbyMinimumHeight"] = readableSection + headerStroke.Top + headerStroke.Bottom + ((Thickness)root.FindResource("SpacingFieldGap")).Bottom;
         sections.Resources["WifiPriorityMinimumHeight"] = readableSection;
         var context = (Expander)root.FindName("CurrentWifiDetailsExpander");
         // 只在跨越紧凑断点时调整默认展开状态，日常刷新保留用户的选择。

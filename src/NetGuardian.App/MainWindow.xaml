@@ -23,6 +23,8 @@
         <ResourceDictionary>
         <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Themes/Buttons.xaml" /></ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+        <presentation:WifiSignalIconConverter x:Key="WifiSignalIconConverter" />
+        <presentation:WifiCurrentRowConverter x:Key="WifiCurrentRowConverter" />
         <presentation:AddressLinesConverter x:Key="AddressLinesConverter" />
         <presentation:RowDetailsToggleConverter x:Key="RowDetailsToggleConverter" />
         <presentation:ViewportFractionConverter x:Key="ViewportFractionConverter" />
@@ -187,6 +189,24 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <Style x:Key="WifiRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource GridRowStyle}">
+            <Style.Triggers>
+                <DataTrigger Value="True"><DataTrigger.Binding><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}">
+                    <Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" />
+                </MultiBinding></DataTrigger.Binding><Setter Property="FontWeight" Value="SemiBold" /></DataTrigger>
+                <MultiDataTrigger><MultiDataTrigger.Conditions>
+                    <Condition Value="True"><Condition.Binding><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}"><Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" /></MultiBinding></Condition.Binding></Condition>
+                    <Condition Binding="{Binding IsSelected, RelativeSource={RelativeSource Self}}" Value="False" />
+                </MultiDataTrigger.Conditions><Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" /><Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" /></MultiDataTrigger>
+            </Style.Triggers>
+        </Style>
+        <sys:String x:Key="WifiCurrentConnectionLabel">当前连接</sys:String>
+        <DataTemplate x:Key="WifiSsidTemplate"><DockPanel ToolTip="{Binding Ssid}">
+                                                <ui:SymbolIcon Symbol="Wifi124" DockPanel.Dock="Right" FontSize="{DynamicResource ActivityIconSize}" Margin="{DynamicResource SpacingCountGap}" ToolTip="{DynamicResource WifiCurrentConnectionLabel}" AutomationProperties.Name="{DynamicResource WifiCurrentConnectionLabel}">
+                                                    <ui:SymbolIcon.Visibility><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}"><Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" /></MultiBinding></ui:SymbolIcon.Visibility>
+                                                </ui:SymbolIcon>
+                                                <TextBlock Text="{Binding Ssid}" Style="{StaticResource GridTextStyle}" />
+                                            </DockPanel></DataTemplate>
         <Style TargetType="DataGridCell">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -363,7 +383,7 @@
 </WrapPanel></Border>
 <Border><WrapPanel>
                     <Button x:Name="RemoveButton" Style="{StaticResource DangerButtonStyle}" Click="Remove_Click" Margin="0,0,6,6" />
-                    <Button x:Name="ConnectButton" Style="{StaticResource PrimaryButtonStyle}" Click="Connect_Click" Margin="0,0,6,6" />
+                    <Button x:Name="ConnectButton" MinWidth="{DynamicResource WifiConnectButtonMinWidth}" Style="{StaticResource PrimaryButtonStyle}" Click="Connect_Click" Margin="0,0,6,6" />
 </WrapPanel></Border>
 </WrapPanel>
 </ScrollViewer>
@@ -531,13 +551,23 @@
                                     <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="{DynamicResource CornerControl}" Padding="{DynamicResource SpacingCountBadge}" Margin="{DynamicResource SpacingCountGap}">
                                         <TextBlock Text="{Binding Items.Count, ElementName=NearbyGrid}" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                     </Border>
+                                    <ui:TextBox x:Name="NearbySearchTextBox" PlaceholderText="{Binding ToolTip, RelativeSource={RelativeSource Self}}" Width="{DynamicResource WifiSearchWidth}" MinHeight="{DynamicResource WifiFilterControlHeight}" Height="{DynamicResource WifiFilterControlHeight}" Padding="{DynamicResource WifiFilterPadding}" VerticalAlignment="Center" Margin="{DynamicResource SpacingCountGap}" TextChanged="NearbyFilter_Changed" />
+                                    <CheckBox x:Name="NearbyOnlyNewCheckBox" VerticalAlignment="Center" Margin="{DynamicResource SpacingCountGap}" Checked="NearbyFilter_Changed" Unchecked="NearbyFilter_Changed" />
+                                    <ComboBox x:Name="NearbySortComboBox" MinWidth="{DynamicResource WifiSortWidth}" MinHeight="{DynamicResource WifiFilterControlHeight}" Height="{DynamicResource WifiFilterControlHeight}" Padding="{DynamicResource WifiFilterPadding}" VerticalAlignment="Center" Margin="{DynamicResource SpacingCountGap}" SelectedIndex="0" SelectionChanged="NearbyFilter_Changed">
+                                        <ComboBoxItem x:Name="NearbySortSignalItem" /><ComboBoxItem x:Name="NearbySortNameItem" />
+                                    </ComboBox>
                                 </StackPanel></Expander.Header>
                             <DockPanel>
-                                <Border DockPanel.Dock="Bottom" Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=NearbyEmptyText}"><StackPanel><TextBlock Text="◎" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" /><TextBlock x:Name="NearbyEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" TextAlignment="Center" Margin="0,8,0,12" /><Button x:Name="NearbyEmptyAction" Content="{Binding Content, ElementName=ScanButton}" IsEnabled="{Binding IsEnabled, ElementName=ScanButton}" ToolTip="{Binding ToolTip, ElementName=ScanButton}" Click="Scan_Click" HorizontalAlignment="Center" /></StackPanel></Border>
-                                <DataGrid x:Name="NearbyGrid" presentation:ResultTablePresentation.CompactColumns="2,3" Style="{StaticResource WifiListStyle}" presentation:ResultTableInteraction.DeferSingleClick="True" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
+                                <Border DockPanel.Dock="Bottom" Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=NearbyEmptyText}"><StackPanel><TextBlock Text="◎" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" /><TextBlock x:Name="NearbyEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" TextAlignment="Center" Margin="0,8,0,12" /><Button x:Name="NearbyClearFilterButton" Click="ClearNearbyFilter_Click" HorizontalAlignment="Center" Visibility="Collapsed" /><Button x:Name="NearbyEmptyAction" Content="{Binding Content, ElementName=ScanButton}" IsEnabled="{Binding IsEnabled, ElementName=ScanButton}" ToolTip="{Binding ToolTip, ElementName=ScanButton}" Click="Scan_Click" HorizontalAlignment="Center" /></StackPanel></Border>
+                                <DataGrid x:Name="NearbyGrid" presentation:ResultTablePresentation.CompactColumns="2,3" Style="{StaticResource WifiListStyle}" presentation:ResultTableInteraction.DeferSingleClick="True" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource WifiRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn x:Name="NearbySsidColumn" Binding="{Binding Ssid}" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
-                                        <DataGridTextColumn x:Name="NearbySignalColumn" Binding="{Binding SignalPercent}" Width="82" MinWidth="82" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
+                                        <DataGridTemplateColumn x:Name="NearbySsidColumn" ClipboardContentBinding="{Binding Ssid}" SortMemberPath="Ssid" Width="*" MinWidth="180"  CellTemplate="{StaticResource WifiSsidTemplate}" />
+                                        <DataGridTemplateColumn x:Name="NearbySignalColumn" ClipboardContentBinding="{Binding SignalPercent}" SortMemberPath="SignalPercent" Width="82" MinWidth="82" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
+                                            <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <ui:SymbolIcon Symbol="{Binding SignalPercent, Converter={StaticResource WifiSignalIconConverter}}" FontSize="{DynamicResource ActivityIconSize}" Width="{DynamicResource ActivityIconSize}" Height="{DynamicResource ActivityIconSize}" Margin="{DynamicResource SpacingInlineGap}" />
+                                                <TextBlock Text="{Binding SignalPercent}" VerticalAlignment="Center" />
+                                            </StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                                        </DataGridTemplateColumn>
                                         <DataGridTextColumn x:Name="NearbySecurityColumn" Binding="{Binding Authentication}" Width="140" MinWidth="140" ElementStyle="{StaticResource GridTextStyle}" />
                                         <DataGridTemplateColumn x:Name="NearbyPriorityColumn" ClipboardContentBinding="{Binding PriorityBadge}" Width="108" MinWidth="108" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
@@ -575,10 +605,10 @@
                                 </StackPanel></Expander.Header>
                             <DockPanel>
                                 <Border DockPanel.Dock="Bottom" Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=ProfileEmptyText}"><StackPanel><TextBlock Text="◎" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" /><TextBlock x:Name="ProfileEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" TextAlignment="Center" Margin="0,8,0,12" /><Button x:Name="ProfileEmptyAction" Content="{Binding Content, ElementName=AddManualButton}" IsEnabled="{Binding IsEnabled, ElementName=AddManualButton}" ToolTip="{Binding ToolTip, ElementName=AddManualButton}" Click="AddManual_Click" HorizontalAlignment="Center" /></StackPanel></Border>
-                                <DataGrid x:Name="ProfileGrid" presentation:ResultTablePresentation.CompactColumns="3,5" Style="{StaticResource WifiListStyle}" presentation:ResultTableInteraction.DeferSingleClick="True" AutomationProperties.Name="{Binding Text, ElementName=PriorityListTitle}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
+                                <DataGrid x:Name="ProfileGrid" presentation:ResultTablePresentation.CompactColumns="3,5" Style="{StaticResource WifiListStyle}" presentation:ResultTableInteraction.DeferSingleClick="True" AutomationProperties.Name="{Binding Text, ElementName=PriorityListTitle}" AutoGenerateColumns="False" IsReadOnly="False" CanUserAddRows="False" RowStyle="{StaticResource WifiRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}" SelectionChanged="ProfileGrid_SelectionChanged" MouseDoubleClick="ProfileGrid_MouseDoubleClick" AllowDrop="True" PreviewMouseLeftButtonDown="ProfileGrid_PreviewMouseLeftButtonDown" MouseMove="ProfileGrid_MouseMove" Drop="ProfileGrid_Drop">
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="42" MinWidth="42" IsReadOnly="True" ElementStyle="{StaticResource DragHandleTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
-                                        <DataGridTextColumn x:Name="ProfileSsidColumn" Binding="{Binding Ssid}" IsReadOnly="True" Width="*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
+                                        <DataGridTemplateColumn x:Name="ProfileSsidColumn" ClipboardContentBinding="{Binding Ssid}" SortMemberPath="Ssid" Width="*" MinWidth="180"  IsReadOnly="True" CellTemplate="{StaticResource WifiSsidTemplate}" />
                                         <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="74" MinWidth="74" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource GridCenteredHeaderStyle}" />
                                         <DataGridTemplateColumn x:Name="ProfileCredentialColumn" ClipboardContentBinding="{Binding CredentialSaved, Converter={StaticResource CredentialStatusConverter}}" IsReadOnly="True" Width="88" MinWidth="88" HeaderStyle="{StaticResource GridCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>

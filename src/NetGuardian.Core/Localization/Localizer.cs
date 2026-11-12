@@ -7,6 +7,13 @@ public sealed class Localizer
         ["zh-CN"] = new()
         {
             ["FeedbackDetails"] = "查看详情",
+            ["WifiSearch"] = "搜索网络",
+            ["WifiOnlyNew"] = "仅显示未添加",
+            ["WifiSortSignal"] = "按信号排序",
+            ["WifiSortName"] = "按名称排序",
+            ["WifiNoMatches"] = "没有符合条件的网络",
+            ["WifiClearFilter"] = "清除筛选",
+            ["WifiConnecting"] = "连接中…",
             ["UpdateTitle"] = "软件更新",
             ["UpdateCurrentVersion"] = "当前版本：{0}",
             ["UpdateCheck"] = "检查更新",
@@ -579,6 +586,13 @@ public sealed class Localizer
         ["en-US"] = new()
         {
             ["FeedbackDetails"] = "View details",
+            ["WifiSearch"] = "Search networks",
+            ["WifiOnlyNew"] = "Only unadded",
+            ["WifiSortSignal"] = "Sort by signal",
+            ["WifiSortName"] = "Sort by name",
+            ["WifiNoMatches"] = "No matching networks",
+            ["WifiClearFilter"] = "Clear filters",
+            ["WifiConnecting"] = "Connecting…",
             ["UpdateTitle"] = "Software updates",
             ["UpdateCurrentVersion"] = "Current version: {0}",
             ["UpdateCheck"] = "Check for updates",

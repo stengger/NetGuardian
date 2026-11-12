@@ -53,6 +53,8 @@ public partial class MainWindow
 
     private void RenderCurrentWifi()
     {
+        WifiRowPresentation.SetCurrentSsid(NearbyGrid, _currentWifiInfo is { ReadSucceeded: true, Connected: true } ? _currentWifiInfo.Ssid : null);
+        WifiRowPresentation.SetCurrentSsid(ProfileGrid, WifiRowPresentation.GetCurrentSsid(NearbyGrid));
         var view = CurrentWifiPresentation.Create(_currentWifiInfo, _localizer);
         CurrentWifiTitle.Text = _localizer.T("WifiCurrentConnection");
         CurrentWifiNameText.Text = view.Name;

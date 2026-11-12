@@ -31,7 +31,10 @@ public sealed class NaturalResultsLayoutTests
             var page = Assert.IsType<ScrollViewer>(window.FindName("WifiContentScrollViewer"));
             Assert.True(first.ActualHeight > 100);
             Assert.Equal(Visibility.Visible, first.DetailsVisibility);
-            Assert.Contains("含空格", nearby.Columns[0].GetCellContent(first).ToolTip?.ToString());
+            // 模板列的 GetCellContent 返回 ContentPresenter，检查实际承载 SSID 的文本及其完整提示。
+            var ssidText = DesktopFixture.Descendants(nearby.Columns[0].GetCellContent(first))
+                .OfType<TextBlock>().Single(text => text.Text.Contains("含空格"));
+            Assert.Contains("含空格", ssidText.ToolTip?.ToString());
             foreach (var grid in new[] { nearby, profiles })
             {
                 var inner = WifiSectionLayoutTests.Scroll(grid);

@@ -559,6 +559,8 @@ internal static class DesktopFixture
             ["HighRiskCheckBox"] = "HighRiskRecovery", ["HighRiskTipText"] = "HighRiskTip",
             ["DnsProbeHostsLabel"] = "DnsProbeHostsLabel", ["HttpsProbeHostsLabel"] = "HttpsProbeHostsLabel",
             ["ProbeTargetsTipText"] = "ProbeTargetsTip", ["NearbyNetworksTitle"] = "NearbyNetworks",
+            ["NearbyOnlyNewCheckBox"] = "WifiOnlyNew", ["NearbySortSignalItem"] = "WifiSortSignal",
+            ["NearbySortNameItem"] = "WifiSortName", ["NearbyClearFilterButton"] = "WifiClearFilter",
             ["PriorityListTitle"] = "PriorityList", ["PageTitleText"] = "AppTitle", ["HeaderStateText"] = "Ready",
             ["ScanButton"] = "Scan", ["AddSelectedButton"] = "AddSelected", ["SetPasswordButton"] = "SetPassword",
             ["ImportPasswordButton"] = "ImportPassword", ["AddManualButton"] = "AddManual", ["MoveUpButton"] = "MoveUp",
@@ -580,6 +582,8 @@ internal static class DesktopFixture
             if (element is TextBlock text) text.Text = localizer.T(key);
             else if (element is ContentControl content) content.Content = localizer.T(key);
         }
+        window.Resources["WifiCurrentConnectionLabel"] = localizer.T("WifiCurrentConnection");
+        ((Wpf.Ui.Controls.TextBox)window.FindName("NearbySearchTextBox")).ToolTip = localizer.T("WifiSearch");
         ((ComboBoxItem)((ComboBox)window.FindName("DnsPresetComboBox")).Items[0]).Content = localizer.T("SelectDnsPlan");
         foreach (var (name, key) in new[] { ("DnsAdapterColumn", "Adapter"), ("DnsServersColumn", "DnsServersAll"), ("DnsSourceColumn", "Source"), ("DnsStatusColumn", "StatusColumn"), ("AdapterNameColumn", "Adapter"), ("AdapterTypeColumn", "Type"), ("AdapterStatusColumn", "StatusColumn"), ("AdapterIpv4Column", "IPv4"), ("AdapterGatewayColumn", "Gateway"), ("AdapterDnsColumn", "DnsServersAll") })
             ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);

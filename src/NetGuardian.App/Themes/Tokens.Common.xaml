@@ -49,6 +49,12 @@
     <GridLength x:Key="ExpansionColumnWidth">32</GridLength>
     <GridLength x:Key="WifiNearbyRowWeight">2*</GridLength>
     <GridLength x:Key="WifiPriorityRowWeight">3*</GridLength>
+    <sys:Double x:Key="ActivityIconSize">16</sys:Double>
+    <sys:Double x:Key="WifiConnectButtonMinWidth">112</sys:Double>
+    <Thickness x:Key="WifiFilterPadding">8,0</Thickness>
+    <sys:Double x:Key="WifiSearchWidth">128</sys:Double>
+    <sys:Double x:Key="WifiSortWidth">112</sys:Double>
+    <sys:Double x:Key="WifiFilterControlHeight">36</sys:Double>
     <sys:Double x:Key="WifiScanStatusMaxHeight">40</sys:Double>
     <Thickness x:Key="WifiContextCompactPadding">8,0</Thickness>
     <Thickness x:Key="SpacingNone">0</Thickness>
