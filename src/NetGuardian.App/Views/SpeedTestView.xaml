@@ -29,45 +29,6 @@
             <Setter Property="VerticalAlignment" Value="Bottom" />
             <Setter Property="Margin" Value="7,0,0,7" />
         </Style>
-        <Style x:Key="Action" TargetType="Button">
-            <Setter Property="Padding" Value="16,9" />
-            <Setter Property="MinHeight" Value="38" />
-            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource StrokeInputBrush}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Chrome" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="{DynamicResource CornerControl}" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.98" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused" Value="True">
-                                <Setter TargetName="Chrome" Property="BorderThickness" Value="2" />
-                                <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.96" />
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="Chrome" Property="Opacity" Value="0.5" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-        <Style x:Key="PrimaryAction" TargetType="Button" BasedOn="{StaticResource Action}">
-            <Setter Property="Background" Value="{DynamicResource SpeedDownloadBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource SpeedDownloadBrush}" />
-            <Setter Property="Foreground" Value="{DynamicResource SurfaceCardBrush}" />
-        </Style>
     </UserControl.Resources>
     <Grid>
         <Grid.RowDefinitions>
@@ -78,9 +39,9 @@
         </Grid.RowDefinitions>
         <ContentControl x:Name="InlineActionsHost" HorizontalContentAlignment="Stretch">
             <WrapPanel>
-                <Button x:Name="RunButton" Style="{StaticResource PrimaryAction}" Click="Run_Click" FontWeight="SemiBold" Margin="0,0,8,8" />
-                <Button x:Name="CancelButton" Style="{StaticResource Action}" Click="Cancel_Click" Margin="0,0,8,8" Visibility="Collapsed" />
-                <Button x:Name="CopyButton" Style="{StaticResource Action}" Click="Copy_Click" IsEnabled="False" Margin="0,0,8,8" />
+                <Button x:Name="RunButton" Style="{DynamicResource PrimaryButtonStyle}" Click="Run_Click" FontWeight="SemiBold" Margin="0,0,8,8" />
+                <Button x:Name="CancelButton" Style="{DynamicResource SecondaryButtonStyle}" Click="Cancel_Click" Margin="0,0,8,8" Visibility="Collapsed" />
+                <Button x:Name="CopyButton" Style="{DynamicResource SecondaryButtonStyle}" Click="Copy_Click" IsEnabled="False" Margin="0,0,8,8" />
             </WrapPanel>
         </ContentControl>
         <Grid Grid.Row="1" Margin="0,0,0,18">
