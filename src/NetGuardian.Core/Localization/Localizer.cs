@@ -6,6 +6,7 @@ public sealed class Localizer
     {
         ["zh-CN"] = new()
         {
+            ["FeedbackDetails"] = "查看详情",
             ["UpdateTitle"] = "软件更新",
             ["UpdateCurrentVersion"] = "当前版本：{0}",
             ["UpdateCheck"] = "检查更新",
@@ -577,6 +578,7 @@ public sealed class Localizer
         },
         ["en-US"] = new()
         {
+            ["FeedbackDetails"] = "View details",
             ["UpdateTitle"] = "Software updates",
             ["UpdateCurrentVersion"] = "Current version: {0}",
             ["UpdateCheck"] = "Check for updates",

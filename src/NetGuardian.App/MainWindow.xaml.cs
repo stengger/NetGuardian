@@ -348,7 +348,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 UpdateWifiSelectionUi();
             }
 
-        }, System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(removed).ToString());
+        }, Guid.NewGuid().ToString());
     }
 
     private async void Connect_Click(object sender, RoutedEventArgs e)

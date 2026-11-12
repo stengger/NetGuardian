@@ -12,6 +12,14 @@
     <sys:Double x:Key="FeedbackIconSize">20</sys:Double>
     <sys:Double x:Key="FeedbackWidth">360</sys:Double>
     <sys:Double x:Key="FeedbackMaxWidth">420</sys:Double>
+    <sys:Double x:Key="FeedbackVisibleLimit">3</sys:Double>
+    <sys:Double x:Key="FeedbackSlideOffset">8</sys:Double>
+    <sys:Double x:Key="FeedbackDetailsMaxHeight">120</sys:Double>
+    <sys:TimeSpan x:Key="FeedbackNormalTimeout">0:0:4</sys:TimeSpan>
+    <sys:TimeSpan x:Key="FeedbackWarningTimeout">0:0:6</sys:TimeSpan>
+    <sys:TimeSpan x:Key="FeedbackTickInterval">0:0:0.1</sys:TimeSpan>
+    <Duration x:Key="FeedbackEnterDuration">0:0:0.2</Duration>
+    <Duration x:Key="FeedbackExitDuration">0:0:0.15</Duration>
     <Thickness x:Key="SpacingFeedbackGap">0,0,0,8</Thickness>
     <Thickness x:Key="SpacingFeedbackAction">0,8,0,0</Thickness>
     <Thickness x:Key="SpacingFeedbackArea">16,8,16,8</Thickness>

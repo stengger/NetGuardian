@@ -9,10 +9,19 @@ namespace NetGuardian.App.Tests;
 public sealed class FeedbackPresentationTests
 {
     [Theory]
-    [InlineData("Dark")]
-    [InlineData("Light")]
-    [InlineData("HighContrast")]
-    public void 提示使用中性卡片并且不覆盖页面操作(string theme)
+    [InlineData("Dark", "Success")]
+    [InlineData("Dark", "Info")]
+    [InlineData("Dark", "Warning")]
+    [InlineData("Dark", "Danger")]
+    [InlineData("Light", "Success")]
+    [InlineData("Light", "Info")]
+    [InlineData("Light", "Warning")]
+    [InlineData("Light", "Danger")]
+    [InlineData("HighContrast", "Success")]
+    [InlineData("HighContrast", "Info")]
+    [InlineData("HighContrast", "Warning")]
+    [InlineData("HighContrast", "Danger")]
+    public void 提示使用中性卡片并且不覆盖页面操作(string theme, string severity)
     {
         DesktopFixture.Run(window =>
         {
@@ -21,7 +30,7 @@ public sealed class FeedbackPresentationTests
             var host = (FrameworkElement)window.FindName("RootSnackbar");
             var show = host.GetType().GetMethod("ShowMessage");
             Assert.NotNull(show);
-            show.Invoke(host, new object?[] { "连接", "没有找到可连接的接入点。" + new string('长', 120), "Warning", null, null, null });
+            show.Invoke(host, new object?[] { "连接", "没有找到可连接的接入点。" + new string('长', 120), severity, null, null, null });
             DesktopFixture.ShowPage(window, "WifiPanel");
             DesktopFixture.Layout(window, 1040, 660);
             var card = DesktopFixture.Descendants(host).OfType<Border>().Single(b => b.Name == "FeedbackCard");
@@ -35,7 +44,7 @@ public sealed class FeedbackPresentationTests
             Assert.Equal(TextWrapping.Wrap, body.TextWrapping);
             var close = DesktopFixture.Descendants(card).OfType<Button>().Single(b => b.Name == "FeedbackClose");
             Assert.True(close.MinWidth >= 32);
-            DesktopFixture.Save(window, $"feedback-{theme}.png");
+            DesktopFixture.Save(window, $"feedback-{theme}-{severity}.png");
             close.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         });
     }
