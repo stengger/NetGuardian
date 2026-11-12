@@ -58,8 +58,17 @@ def parse_hex(value: str) -> tuple[int, int, int]:
 def load_palette(path: Path) -> dict[str, str]:
     """Extract {resourceKey: '#hex'} from a SolidColorBrush palette dictionary."""
     text = path.read_text(encoding="utf-8")
-    pattern = re.compile(r'x:Key="([^"]+)"\s+Color="(#[0-9A-Fa-f]+)"')
-    palette = {key: color for key, color in pattern.findall(text)}
+    color_tokens = dict(re.findall(r'<Color x:Key="([^"]+)">(#[0-9A-Fa-f]+)</Color>', text))
+    pattern = re.compile(r'x:Key="([^"]+)"\s+Color="([^"]+)"')
+    palette = {}
+    for key, value in pattern.findall(text):
+        reference = re.fullmatch(r"\{DynamicResource ([^}]+)\}", value)
+        if reference:
+            if reference[1] not in color_tokens:
+                raise ValueError(f"颜色令牌未定义：{reference[1]}（{path} / {key}）")
+            value = color_tokens[reference[1]]
+        if value.startswith("#"):
+            palette[key] = value
     if not palette:
         raise ValueError(f"No SolidColorBrush entries found in {path}")
     return palette

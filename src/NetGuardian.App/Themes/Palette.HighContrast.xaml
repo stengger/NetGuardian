@@ -1,5 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <x:Static x:Key="AppAccentColor" Member="SystemColors.HighlightColor" />
     <!-- 系统色动态绑定保留用户自定义的对比度主题；状态同时通过文字表达。 -->
     <SolidColorBrush x:Key="StatusInfoBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
     <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{DynamicResource {x:Static SystemColors.WindowColorKey}}" />

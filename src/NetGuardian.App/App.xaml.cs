@@ -92,6 +92,8 @@ public partial class App : Application
     private static void OnApplicationThemeChanged(ApplicationTheme currentTheme, System.Windows.Media.Color systemAccent)
     {
         var palette = AppThemePolicy.CreatePalette(currentTheme);
+        AppThemePolicy.SynchronizeAccent(currentTheme, palette,
+            accent => ApplicationAccentColorManager.Apply(accent, accent, accent, accent));
         var dictionaries = Current.Resources.MergedDictionaries;
         for (var index = 0; index < dictionaries.Count; index++)
         {

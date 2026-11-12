@@ -26,6 +26,14 @@ internal static class AppThemePolicy
         else apply(theme);
     }
 
+    internal static void SynchronizeAccent(ApplicationTheme theme, ResourceDictionary palette,
+        Action<System.Windows.Media.Color> apply)
+    {
+        // 库也维护运行时强调色，不能只覆盖合并字典中的同名画刷。
+        if (theme == ApplicationTheme.HighContrast) return;
+        apply((System.Windows.Media.Color)palette["AppAccentColor"]);
+    }
+
     internal static ResourceDictionary CreatePalette(ApplicationTheme theme)
     {
         var name = theme switch

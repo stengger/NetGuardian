@@ -10,6 +10,18 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class HighContrastThemeTests
 {
+    [Fact]
+    public void 运行时库强调同步跳过系统高对比()
+    {
+        DesktopFixture.Run(_ =>
+        {
+            var colors = new List<Color>();
+            foreach (var theme in new[] { ApplicationTheme.Dark, ApplicationTheme.HighContrast, ApplicationTheme.Light })
+                AppThemePolicy.SynchronizeAccent(theme, AppThemePolicy.CreatePalette(theme), colors.Add);
+            Assert.Equal(new[] { (Color)ColorConverter.ConvertFromString("#6EA8FF"), (Color)ColorConverter.ConvertFromString("#2563EB") }, colors);
+        });
+    }
+
     [Theory]
     [InlineData("HCBlack", "#000000", "#FFFFFF")]
     [InlineData("HCWhite", "#FFFFFF", "#000000")]
