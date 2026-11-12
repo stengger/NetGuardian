@@ -187,4 +187,13 @@
     <SolidColorBrush x:Key="CheckBoxCheckGlyphForeground" Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
     <SolidColorBrush x:Key="ListBoxItemSelectedForegroundThemeBrush" Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
     <DropShadowEffect x:Key="FeedbackShadow" Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0" />
+
+    <!-- 应用与库控件共用强调色，高对比保留系统选择色。 -->
+    <SolidColorBrush x:Key="PrimaryButtonBorderBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="DangerButtonBorderBrush" Color="{DynamicResource {x:Static SystemColors.WindowTextColorKey}}" />
+    <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="SystemAccentColorPrimaryBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="SystemAccentColorSecondaryBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="SystemAccentColorTertiaryBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
 </ResourceDictionary>

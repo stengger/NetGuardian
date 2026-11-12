@@ -10,6 +10,52 @@ namespace NetGuardian.App.Tests;
 [Collection("WPF 桌面")]
 public sealed class HighContrastThemeTests
 {
+    [Theory]
+    [InlineData("HCBlack", "#000000", "#FFFFFF")]
+    [InlineData("HCWhite", "#FFFFFF", "#000000")]
+    public void 高对比标签页和主要按钮保持可见边界(string preset, string background, string foreground)
+    {
+        DesktopFixture.Run(window =>
+        {
+            window.Resources.MergedDictionaries[0] = new ResourceDictionary
+            { Source = new Uri($"pack://application:,,,/Wpf.Ui;component/Resources/Theme/{preset}.xaml") };
+            var palette = AppThemePolicy.CreatePalette(ApplicationTheme.HighContrast);
+            palette[SystemColors.WindowColorKey] = (Color)ColorConverter.ConvertFromString(background);
+            palette[SystemColors.WindowTextColorKey] = (Color)ColorConverter.ConvertFromString(foreground);
+            window.Resources.MergedDictionaries.Add(palette);
+            DesktopFixture.ShowPage(window, "ToolsPanel");
+            DesktopFixture.Layout(window, 1180, 758);
+            var tabs = (TabControl)window.FindName("ToolsTabControl");
+            foreach (TabItem tab in tabs.Items)
+            {
+                Assert.Equal((Color)ColorConverter.ConvertFromString(foreground), Assert.IsType<SolidColorBrush>(tab.Foreground).Color);
+                Assert.NotNull(tab.FocusVisualStyle);
+            }
+            foreach (var style in new[] { "PrimaryButtonStyle", "DangerButtonStyle" })
+            {
+                var button = new Button { Style = (Style)window.FindResource(style) };
+                ((Panel)window.Content).Children.Add(button);
+                window.UpdateLayout();
+                Assert.NotEqual(Assert.IsType<SolidColorBrush>(button.Background).Color,
+                    Assert.IsType<SolidColorBrush>(button.BorderBrush).Color);
+                ((Panel)window.Content).Children.Remove(button);
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(ApplicationTheme.Dark)]
+    [InlineData(ApplicationTheme.Light)]
+    public void 库强调画刷与主操作共用蓝色令牌(ApplicationTheme theme)
+    {
+        DesktopFixture.Run(window =>
+        {
+            var expected = Assert.IsType<SolidColorBrush>(window.FindResource("PrimaryButtonBrush")).Color;
+            foreach (var key in new[] { "AccentFillColorDefaultBrush", "SystemAccentColorPrimaryBrush", "NavigationViewSelectionIndicatorForeground" })
+                Assert.Equal(expected, Assert.IsType<SolidColorBrush>(window.FindResource(key)).Color);
+        }, theme);
+    }
+
     [Fact]
     public void 已显示的状态画刷在主题更换后立即重解析()
     {

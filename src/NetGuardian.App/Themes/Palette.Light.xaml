@@ -26,4 +26,22 @@
     <SolidColorBrush x:Key="FocusRingBrush" Color="#2563EB" />
     <SolidColorBrush x:Key="WarningSurfaceBrush" Color="#FFF4DF" />
     <DropShadowEffect x:Key="FeedbackShadow" Color="#000000" BlurRadius="12" ShadowDepth="2" Opacity="0.10" />
+
+    <!-- 应用与库控件共用强调色，高对比保留系统选择色。 -->
+    <SolidColorBrush x:Key="PrimaryButtonBorderBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="DangerButtonBorderBrush" Color="#B3294D" />
+    <SolidColorBrush x:Key="AccentFillColorDefaultBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="AccentFillColorSecondaryBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="AccentFillColorTertiaryBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="SystemAccentColorPrimaryBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="SystemAccentColorSecondaryBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="SystemAccentColorTertiaryBrush" Color="#2563EB" />
+    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="#2563EB" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOn" Color="#2563EB" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPointerOver" Color="#2563EB" />
+    <SolidColorBrush x:Key="ToggleSwitchFillOnPressed" Color="#2563EB" />
+    <SolidColorBrush x:Key="TextOnAccentFillColorPrimaryBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FFFFFF" />
+    <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFF" />
 </ResourceDictionary>
