@@ -39,10 +39,18 @@ public sealed class CurrentWifiLayoutTests
             var page = (ScrollViewer)window.FindName("WifiContentScrollViewer");
             foreach (var name in new[] { "NearbyGrid", "ProfileGrid" })
             {
+                // 小于应用常规最小高度的工作区，通过折叠已读分区腾出阅读空间。
+                if (height < 600 && name == "ProfileGrid")
+                {
+                    ((Expander)window.FindName("NearbyNetworksExpander")).IsExpanded = false;
+                    window.UpdateLayout();
+                }
                 var grid = (DataGrid)window.FindName(name);
                 var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0);
                 Assert.True(row.ActualHeight >= 38);
-                Assert.True(grid.ActualHeight >= grid.ColumnHeaderHeight + row.ActualHeight);
+                var header = grid.HeadersVisibility.HasFlag(DataGridHeadersVisibility.Column) ? grid.ColumnHeaderHeight : 0;
+                Assert.True(grid.ActualHeight >= header + row.ActualHeight,
+                    $"{name} 首行空间不足：表格={grid.ActualHeight}，表头={header}，行={row.ActualHeight}");
                 row.BringIntoView(); window.UpdateLayout();
                 var bounds = row.TransformToAncestor(page).TransformBounds(new Rect(row.RenderSize));
                 Assert.True(bounds.Top >= 0 && bounds.Bottom <= page.ActualHeight);

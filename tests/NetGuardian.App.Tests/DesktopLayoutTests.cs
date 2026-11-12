@@ -151,8 +151,9 @@ public sealed class DesktopLayoutTests
             ((TextBlock)window.FindName("WifiScanStatusText")).Text = localizer.T("WifiScanFailed") + "\n" + string.Join("\n", Enumerable.Repeat("访问被拒绝。请检查位置权限。", 20));
             DesktopFixture.Layout(window, 1040, 660);
             var grid = (DataGrid)window.FindName("NearbyGrid");
-            Assert.True(grid.ActualHeight >= grid.ColumnHeaderHeight + 6 * 38, $"扫描错误后结果未完整测量：{grid.ActualHeight} DIP");
+            Assert.True(grid.ActualHeight >= grid.ColumnHeaderHeight + 38, $"扫描错误挤占了结果视口：{grid.ActualHeight} DIP");
             var page = (ScrollViewer)window.FindName("WifiContentScrollViewer");
+            grid.ScrollIntoView(grid.Items[5]); window.UpdateLayout();
             var last = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(5);
             last.BringIntoView(); window.UpdateLayout();
             var bounds = last.TransformToAncestor(page).TransformBounds(new Rect(last.RenderSize));

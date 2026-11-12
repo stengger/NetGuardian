@@ -43,6 +43,7 @@
         </Setter>
     </Style>
     <Style x:Key="ContentExpanderStyle" TargetType="Expander">
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
         <Setter Property="HorizontalContentAlignment" Value="Stretch" />
         <Setter Property="Template">
             <Setter.Value>
@@ -50,7 +51,7 @@
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                         <ToggleButton Style="{StaticResource ExpansionToggleStyle}" Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"
-                                      Foreground="{TemplateBinding Foreground}" AutomationProperties.Name="{Binding Header, RelativeSource={RelativeSource TemplatedParent}}"
+                                      Foreground="{TemplateBinding Foreground}"
                                       IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
                         <ContentPresenter x:Name="ExpandedContent" Grid.Row="1" Visibility="Collapsed" ContentSource="Content"
                                           HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />

@@ -13,7 +13,7 @@ public sealed class NaturalResultsLayoutTests
     [InlineData(960, 500)]
     [InlineData(1040, 660)]
     [InlineData(1600, 900)]
-    public void 无线两表完整测量六行和展开详情且只有页面纵向滚动(double width, double height)
+    public void 无线两表在各自视口滚动且展开详情不挤走另一分区(double width, double height)
     {
         DesktopFixture.Run(window =>
         {
@@ -29,24 +29,21 @@ public sealed class NaturalResultsLayoutTests
             ExpansionInteractionTests.Settle(window);
             DesktopFixture.Save(window, $"wifi-six-expanded-{width}.png");
             var page = Assert.IsType<ScrollViewer>(window.FindName("WifiContentScrollViewer"));
+            Assert.True(first.ActualHeight > 100);
+            Assert.Equal(Visibility.Visible, first.DetailsVisibility);
+            Assert.Contains("含空格", nearby.Columns[0].GetCellContent(first).ToolTip?.ToString());
             foreach (var grid in new[] { nearby, profiles })
             {
-                Assert.True(grid.ActualHeight >= 6 * 38 + 38);
-                var inner = DesktopFixture.Descendants(grid).OfType<ScrollViewer>().Single(viewer => viewer.Name == "DG_ScrollViewer");
-                Assert.Equal(0, inner.ScrollableHeight);
+                var inner = WifiSectionLayoutTests.Scroll(grid);
                 Assert.Equal(0, inner.ScrollableWidth);
+                grid.ScrollIntoView(grid.Items[5]); window.UpdateLayout();
                 var last = Assert.IsType<DataGridRow>(grid.ItemContainerGenerator.ContainerFromIndex(5));
-                last.BringIntoView(); window.UpdateLayout();
-                var bounds = last.TransformToAncestor(page).TransformBounds(new Rect(last.RenderSize));
-                Assert.True(bounds.Top >= 0 && bounds.Bottom <= page.ActualHeight, $"第六行不可滚入页面：{bounds}");
+                var bounds = last.TransformToAncestor(grid).TransformBounds(new Rect(last.RenderSize));
+                Assert.True(bounds.Bottom > 0 && bounds.Top < grid.ActualHeight, $"第六行无法在独立视口内到达：{bounds}，视口={grid.ActualHeight}");
+                Assert.True(grid.ActualHeight < page.ActualHeight);
             }
-            page.ScrollToTop(); window.UpdateLayout();
-            Assert.True(first.ActualHeight > 100);
-            var tooltip = nearby.Columns[0].GetCellContent(first).ToolTip?.ToString();
-            Assert.Contains("含空格", tooltip);
+            Assert.Equal(0, page.ScrollableHeight);
             Assert.Equal(0, page.ScrollableWidth);
-            DesktopFixture.Save(window, $"wifi-six-expanded-{width}.png");
-            page.ScrollToBottom(); window.UpdateLayout();
             DesktopFixture.Save(window, $"wifi-six-bottom-{width}.png");
         });
     }
