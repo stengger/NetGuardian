@@ -307,16 +307,16 @@
                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                         <Border x:Name="CurrentWifiCard" Grid.Row="0" Style="{StaticResource WifiSummaryCardStyle}">
                             <Grid>
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                 <Expander x:Name="CurrentWifiDetailsExpander" IsExpanded="True" Style="{StaticResource WifiSummaryExpanderStyle}">
                                     <Expander.Header><DockPanel>
-                                        <Border x:Name="CurrentWifiConnectedBadge" DockPanel.Dock="Right" Style="{StaticResource WifiConnectedBadgeStyle}" Visibility="Collapsed"><TextBlock x:Name="CurrentWifiConnectedText" Text="已连接" VerticalAlignment="Center" /></Border>
                                         <TextBlock x:Name="CurrentWifiTitle" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" Margin="{DynamicResource SpacingMetricGap}" />
                                         <TextBlock x:Name="CurrentWifiNameText" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite" />
                                     </DockPanel></Expander.Header>
                                     <TextBlock x:Name="CurrentWifiDetailsText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                 </Expander>
-                                <TextBlock x:Name="WifiRecoverySummaryText" Grid.Column="1" Text="恢复优先级：已启用 0/0" FontSize="{DynamicResource FontCaption}" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingLeadingGap}" />
+                                <Border x:Name="CurrentWifiConnectedBadge" Grid.Column="1" Style="{StaticResource WifiConnectedBadgeStyle}" Margin="{DynamicResource SpacingLeadingGap}" Visibility="Collapsed"><TextBlock x:Name="CurrentWifiConnectedText" Text="已连接" VerticalAlignment="Center" /></Border>
+                                <TextBlock x:Name="WifiRecoverySummaryText" Grid.Column="2" Text="恢复优先级：已启用 0/0" FontSize="{DynamicResource FontCaption}" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingLeadingGap}" />
                                 <ProgressBar x:Name="CurrentWifiSignalBar" Visibility="Collapsed" />
                                 <TextBlock x:Name="DragHintText" Visibility="Collapsed" />
 

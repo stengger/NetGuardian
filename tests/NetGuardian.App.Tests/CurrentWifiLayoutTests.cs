@@ -9,6 +9,46 @@ namespace NetGuardian.App.Tests;
 public sealed class CurrentWifiLayoutTests
 {
     [Theory]
+    [InlineData(960, 500, "Dark")]
+    [InlineData(1040, 660, "Dark")]
+    [InlineData(1180, 760, "Dark")]
+    [InlineData(960, 500, "Light")]
+    [InlineData(1040, 660, "Light")]
+    [InlineData(1180, 760, "Light")]
+    [InlineData(960, 500, "HighContrast")]
+    [InlineData(1040, 660, "HighContrast")]
+    [InlineData(1180, 760, "HighContrast")]
+    public void 摘要连接徽标与恢复统计在整张卡片垂直居中(double width, double height, string theme)
+    {
+        DesktopFixture.Run(window =>
+        {
+            window.MinWidth = 960;
+            window.MinHeight = 500;
+            window.Resources.MergedDictionaries.Add(NetGuardian.App.Presentation.AppThemePolicy.CreatePalette(
+                Enum.Parse<Wpf.Ui.Appearance.ApplicationTheme>(theme)));
+            DesktopFixture.ShowPage(window, "WifiPanel");
+            ((TextBlock)window.FindName("CurrentWifiNameText")).Text = "Redmi_9F56_8B311 5g";
+            ((TextBlock)window.FindName("CurrentWifiDetailsText")).Text = "已连接 · 信号89% · WPA2 · IPv4 192.168.31.89";
+            var badge = (Border)window.FindName("CurrentWifiConnectedBadge");
+            badge.Visibility = Visibility.Visible;
+            var summary = (TextBlock)window.FindName("WifiRecoverySummaryText");
+            summary.Text = "恢复优先级：已启用54/57";
+            DesktopFixture.Layout(window, width, height);
+            var card = (Border)window.FindName("CurrentWifiCard");
+            var badgeBounds = badge.TransformToAncestor(card).TransformBounds(new Rect(badge.RenderSize));
+            var summaryBounds = summary.TransformToAncestor(card).TransformBounds(new Rect(summary.RenderSize));
+            var badgeCenter = badgeBounds.Top + badgeBounds.Height / 2;
+            var summaryCenter = summaryBounds.Top + summaryBounds.Height / 2;
+            Assert.InRange(Math.Abs(badgeCenter - summaryCenter), 0, 1);
+            Assert.InRange(Math.Abs(badgeCenter - card.ActualHeight / 2), 0, 1);
+            Assert.True(badgeBounds.Right <= summaryBounds.Left, "徽标不能覆盖恢复统计。");
+            Assert.Equal(22, badge.ActualHeight);
+            Assert.InRange(card.ActualHeight, 1, 64);
+            DesktopFixture.Save(window, $"summary-alignment-{theme}-{width}.png");
+        }, theme == "Light" ? Wpf.Ui.Appearance.ApplicationTheme.Light : Wpf.Ui.Appearance.ApplicationTheme.Dark);
+    }
+
+    [Theory]
     [InlineData(960, 500)]
     [InlineData(1180, 760)]
     public void 当前连接独立显示且不被选择提示或列表遮挡(double width, double height)
