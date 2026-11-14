@@ -7,9 +7,18 @@
         <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="views:ListSectionHeader">
             <Grid>
                 <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                <ContentPresenter Height="{DynamicResource ToolbarControlHeight}" Margin="{DynamicResource WifiHeaderHeadingInset}" Content="{TemplateBinding Heading}" VerticalAlignment="Center" />
-                <ContentPresenter Grid.Row="1" Margin="{DynamicResource WifiSectionContentGap}" Content="{TemplateBinding Tools}" Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource SectionExpandedVisibility}}" />
+                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                <ContentPresenter x:Name="Heading" Grid.ColumnSpan="2" MinHeight="{DynamicResource ToolbarControlHeight}" Margin="{DynamicResource WifiHeaderHeadingInset}" Content="{TemplateBinding Heading}" VerticalAlignment="Center" />
+                <ContentPresenter x:Name="Auxiliary" Grid.Column="2" Content="{TemplateBinding Auxiliary}" VerticalAlignment="Center" />
+                <ContentPresenter x:Name="Tools" Grid.Row="1" Grid.ColumnSpan="3" Margin="{DynamicResource WifiSectionContentGap}" Content="{TemplateBinding Tools}" Visibility="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource SectionExpandedVisibility}}" />
             </Grid>
+            <ControlTemplate.Triggers><Trigger Property="IsCompact" Value="True">
+                <Setter TargetName="Heading" Property="Grid.ColumnSpan" Value="1" />
+                <Setter TargetName="Tools" Property="Grid.Row" Value="0" />
+                <Setter TargetName="Tools" Property="Grid.Column" Value="1" />
+                <Setter TargetName="Tools" Property="Grid.ColumnSpan" Value="1" />
+                <Setter TargetName="Tools" Property="Margin" Value="8,0" />
+            </Trigger></ControlTemplate.Triggers>
         </ControlTemplate></Setter.Value></Setter>
     </Style>
 </ResourceDictionary>

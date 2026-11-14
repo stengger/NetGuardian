@@ -9,10 +9,14 @@ public class ListSectionHeader : Control
 {
     public static readonly DependencyProperty HeadingProperty = DependencyProperty.Register(nameof(Heading), typeof(object), typeof(ListSectionHeader), new PropertyMetadata(null, OnSlotChanged));
     public static readonly DependencyProperty ToolsProperty = DependencyProperty.Register(nameof(Tools), typeof(object), typeof(ListSectionHeader), new PropertyMetadata(null, OnSlotChanged));
+    public static readonly DependencyProperty AuxiliaryProperty = DependencyProperty.Register(nameof(Auxiliary), typeof(object), typeof(ListSectionHeader), new PropertyMetadata(null, OnSlotChanged));
     public static readonly DependencyProperty IsExpandedProperty = DependencyProperty.Register(nameof(IsExpanded), typeof(bool), typeof(ListSectionHeader), new PropertyMetadata(true));
+    public static readonly DependencyProperty IsCompactProperty = DependencyProperty.Register(nameof(IsCompact), typeof(bool), typeof(ListSectionHeader), new PropertyMetadata(false));
     public object? Heading { get => GetValue(HeadingProperty); set => SetValue(HeadingProperty, value); }
     public object? Tools { get => GetValue(ToolsProperty); set => SetValue(ToolsProperty, value); }
+    public object? Auxiliary { get => GetValue(AuxiliaryProperty); set => SetValue(AuxiliaryProperty, value); }
     public bool IsExpanded { get => (bool)GetValue(IsExpandedProperty); set => SetValue(IsExpandedProperty, value); }
+    public bool IsCompact { get => (bool)GetValue(IsCompactProperty); set => SetValue(IsCompactProperty, value); }
     public ListSectionHeader() => SetResourceReference(StyleProperty, typeof(ListSectionHeader));
 
     // 隐藏页面尚未生成视觉模板时，内容也必须能查找窗口命名控件并继承资源。
@@ -22,6 +26,7 @@ public class ListSectionHeader : Control
         {
             if (Heading is not null) yield return Heading;
             if (Tools is not null) yield return Tools;
+            if (Auxiliary is not null) yield return Auxiliary;
         }
     }
 

@@ -14,6 +14,10 @@ namespace NetGuardian.App.Presentation;
 // 直接复用表格列的绑定；详情只负责展示，不向业务模型增加字段。
 public sealed class TableRowDetails : Grid
 {
+    // 仅由 Wi-Fi 显式启用；其他页面保留原来的多行详情策略。
+    public static readonly DependencyProperty IsCompactProperty = DependencyProperty.Register(
+        nameof(IsCompact), typeof(bool), typeof(TableRowDetails), new PropertyMetadata(false));
+    public bool IsCompact { get => (bool)GetValue(IsCompactProperty); set => SetValue(IsCompactProperty, value); }
     private DataGrid? owner;
     private readonly List<(DataGridColumn Column, TextBlock Label, TextBox Value)> fields = new();
     private bool arranging;
@@ -31,6 +35,7 @@ public sealed class TableRowDetails : Grid
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         Loaded += (_, _) =>
         {
+            if (IsCompact) SetResourceReference(MarginProperty, "WifiDetailsMargin");
             owner = ResultTableInteraction.Ancestor<DataGrid>(this);
             if (owner is null) return;
             owner.SizeChanged += Resize;
@@ -100,6 +105,7 @@ public sealed class TableRowDetails : Grid
         {
             var original = (column is DataGridBoundColumn bound ? bound.Binding : column.ClipboardContentBinding) as Binding;
             if (string.IsNullOrWhiteSpace(original?.Path?.Path)) continue;
+            if (IsCompact && (original.Path.Path == "DragHandle" || string.IsNullOrWhiteSpace(column.Header?.ToString()))) continue;
             var label = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Top };
             label.SetResourceReference(TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
             label.SetBinding(TextBlock.TextProperty, new Binding(nameof(column.Header)) { Source = column });
@@ -111,6 +117,14 @@ public sealed class TableRowDetails : Grid
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, VerticalContentAlignment = VerticalAlignment.Top
             };
             value.SetResourceReference(Control.ForegroundProperty, "TextFillColorPrimaryBrush");
+            if (IsCompact)
+            {
+                label.VerticalAlignment = VerticalAlignment.Center;
+                value.TextWrapping = TextWrapping.NoWrap;
+                value.VerticalContentAlignment = VerticalAlignment.Center;
+                value.SetResourceReference(StyleProperty, "WifiDetailValueStyle");
+                value.SetBinding(ToolTipProperty, new Binding(nameof(TextBox.Text)) { Source = value });
+            }
             value.SetBinding(TextBox.TextProperty, new Binding(original.Path.Path)
             {
                 Mode = BindingMode.OneWay, Converter = original.Converter, ConverterParameter = original.ConverterParameter,
@@ -131,25 +145,25 @@ public sealed class TableRowDetails : Grid
         arranging = true;
         try
         {
-            var compact = Width < (double)FindResource("DetailStackBreakpoint");
+            var compact = !IsCompact && Width < (double)FindResource("DetailStackBreakpoint");
             var labelLimit = Math.Min(Width, (double)FindResource("DetailLabelMaxWidth"));
             ColumnDefinitions[0].Width = compact ? new GridLength(1, GridUnitType.Star) : GridLength.Auto;
             ColumnDefinitions[0].MaxWidth = compact ? double.PositiveInfinity : labelLimit;
             ColumnDefinitions[1].Width = compact ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
             var row = ResultTableInteraction.Ancestor<DataGridRow>(this);
-            var overflow = fields.Select(field => IsOverflow(field.Column, field.Value, row)).ToArray();
+            var overflow = fields.Select(field => IsOverflow(field.Column, field.Value, row, IsCompact)).ToArray();
             var hasOverflow = overflow.Any(value => value);
             RowDefinitions.Clear();
             for (var index = 0; index < fields.Count; index++)
             {
                 var field = fields[index];
                 // 保留行标识、主行隐藏列和溢出字段；全部短值时仍提供完整的可复制视图。
-                var visible = !hasOverflow || index == 0 || overflow[index];
+                var visible = IsCompact ? overflow[index] : !hasOverflow || index == 0 || overflow[index];
                 field.Label.Visibility = field.Value.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
                 if (!visible) continue;
                 field.Label.MaxWidth = compact ? Width : labelLimit;
-                field.Label.SetResourceReference(MarginProperty, compact ? "SpacingDetailStackLabel" : "SpacingDetailLabel");
-                field.Value.SetResourceReference(MarginProperty, compact ? "SpacingDetailStackValue" : "SpacingDetailValue");
+                field.Label.SetResourceReference(MarginProperty, IsCompact ? "WifiDetailLabelMargin" : compact ? "SpacingDetailStackLabel" : "SpacingDetailLabel");
+                field.Value.SetResourceReference(MarginProperty, IsCompact ? "WifiDetailValueMargin" : compact ? "SpacingDetailStackValue" : "SpacingDetailValue");
                 var labelRow = RowDefinitions.Count;
                 RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 if (compact) RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -157,25 +171,37 @@ public sealed class TableRowDetails : Grid
                 SetRow(field.Value, compact ? labelRow + 1 : labelRow);
                 SetColumn(field.Value, compact ? 0 : 1);
             }
+            if (IsCompact) SetResourceReference(MarginProperty, RowDefinitions.Count == 0 ? "SpacingNone" : "WifiDetailsMargin");
         }
         finally { arranging = false; }
     }
 
-    private static bool IsOverflow(DataGridColumn column, TextBox value, DataGridRow? row)
+    private static bool IsOverflow(DataGridColumn column, TextBox value, DataGridRow? row, bool precise)
     {
         if (column.Visibility != Visibility.Visible) return !string.IsNullOrEmpty(value.Text);
         if (value.Text.Contains('\n') || value.Text.Contains('\r')) return true;
         if (row is null || string.IsNullOrEmpty(value.Text)) return false;
         var content = column.GetCellContent(row);
+        // Wi-Fi 名称模板含连接徽标，必须测量绑定到同一字段的文字区域。
+        var boundText = precise && content is not null ? Texts(content).FirstOrDefault(t =>
+            BindingOperations.GetBinding(t, TextBlock.TextProperty)?.Path?.Path ==
+            BindingOperations.GetBinding(value, TextBox.TextProperty)?.Path?.Path) : null;
         // 徽标模板的第一个 TextBlock 可能只是状态圆点，不能拿它的宽度衡量整列文字。
-        var available = content is TextBlock text ? text.ActualWidth
-            : column.ActualWidth - (content?.Margin.Left ?? 0) - (content?.Margin.Right ?? 0);
+        var available = boundText?.ActualWidth ?? (content is TextBlock text ? text.ActualWidth
+            : column.ActualWidth - (content?.Margin.Left ?? 0) - (content?.Margin.Right ?? 0));
         if (available <= 0) return false;
         var formatted = new FormattedText(value.Text, value.Language.GetEquivalentCulture(), value.FlowDirection,
             new Typeface(value.FontFamily, value.FontStyle, value.FontWeight, value.FontStretch), value.FontSize,
             value.Foreground, VisualTreeHelper.GetDpi(value).PixelsPerDip);
         // 文本布局按设备像素取整，忽略不足一个物理像素的测量差。
         return formatted.WidthIncludingTrailingWhitespace > available + 1 / VisualTreeHelper.GetDpi(value).DpiScaleX;
+    }
+
+    private static IEnumerable<TextBlock> Texts(DependencyObject root)
+    {
+        if (root is TextBlock text) yield return text;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            foreach (var child in Texts(VisualTreeHelper.GetChild(root, i))) yield return child;
     }
 
 }

@@ -10,8 +10,8 @@ public sealed class WifiWorkspaceLayoutTests
 {
     [Theory]
     [InlineData(1180, 758, 6)]
-    [InlineData(1040, 660, 6)]
-    public void 双栏各至少六行且摘要不超过六十四(double width, double height, int minimum)
+    [InlineData(1040, 660, 1)]
+    public void 默认双栏与最小窗口上下排列均保留有限视口(double width, double height, int minimum)
     {
         DesktopFixture.Run(window =>
         {
@@ -33,9 +33,9 @@ public sealed class WifiWorkspaceLayoutTests
     }
 
     [Theory]
-    [InlineData(959, false)]
-    [InlineData(960, true)]
-    [InlineData(961, true)]
+    [InlineData(1178, false)]
+    [InlineData(1179, true)]
+    [InlineData(1180, true)]
     public void 窗口宽度断点切换且没有横向溢出(double width, bool horizontal)
     {
         DesktopFixture.Run(window =>

@@ -3,6 +3,8 @@
     <Color x:Key="AppAccentColor">#6EA8FF</Color>
     <!-- Custom semantic colors — dark theme (U2 §3.3, pre-validated AA). -->
     <SolidColorBrush x:Key="StatusHealthyBrush" Color="#6CCB8A" />
+    <SolidColorBrush x:Key="WifiConnectedBadgeBrush" Color="#246CCB8A" />
+    <SolidColorBrush x:Key="WifiPriorityBadgeBrush" Color="#246EA8FF" />
     <SolidColorBrush x:Key="StatusWarningBrush" Color="#F59E0B" />
     <SolidColorBrush x:Key="StatusDangerBrush" Color="#F47289" />
     <SolidColorBrush x:Key="WifiDestructiveBrush" Color="#D98C9B" />

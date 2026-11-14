@@ -141,6 +141,7 @@
             <Setter Property="VirtualizingPanel.VirtualizationMode" Value="Recycling" />
         </Style>
         <Style x:Key="WifiWorkspaceListStyle" TargetType="DataGrid" BasedOn="{StaticResource WifiListStyle}">
+            <Setter Property="RowDetailsTemplate" Value="{StaticResource WifiCompactDetailsTemplate}" />
             <Setter Property="Template" Value="{StaticResource WifiWorkspaceTableTemplate}" />
             <Setter Property="RowHeaderWidth" Value="{DynamicResource WifiRowHeaderWidth}" />
             <Setter Property="ColumnHeaderHeight" Value="{DynamicResource WifiTableHeaderHeight}" />
@@ -207,7 +208,7 @@
                         <SelectiveScrollingGrid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></SelectiveScrollingGrid.ColumnDefinitions>
                         <SelectiveScrollingGrid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></SelectiveScrollingGrid.RowDefinitions>
                         <DataGridCellsPresenter Grid.Column="1" ItemsPanel="{TemplateBinding ItemsPanel}" MinHeight="{TemplateBinding MinHeight}" SnapsToDevicePixels="True" />
-                        <DataGridDetailsPresenter Grid.Column="1" Grid.Row="1" Visibility="{TemplateBinding DetailsVisibility}" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical" />
+                        <DataGridDetailsPresenter Grid.Column="1" Grid.Row="1" Visibility="{TemplateBinding DetailsVisibility}" ClipToBounds="True" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical" />
                         <!-- 折叠详情时行头不跨空的第二行，避免 Grid 按跨行最小值额外分配高度。 -->
                         <DataGridRowHeader x:Name="RowHeader" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical" />
                     </SelectiveScrollingGrid>
@@ -241,9 +242,9 @@
         <sys:String x:Key="WifiCurrentConnectionLabel">当前连接</sys:String>
         <sys:String x:Key="WifiConnectedLabel">已连接</sys:String>
         <DataTemplate x:Key="WifiWorkspaceSsidTemplate"><DockPanel ToolTip="{Binding Ssid}">
-            <Border DockPanel.Dock="Right" Style="{StaticResource SectionCountBadgeStyle}">
+            <Border DockPanel.Dock="Right" Style="{StaticResource WifiConnectedBadgeStyle}" Margin="4,0,4,0">
                 <Border.Visibility><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}"><Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" /></MultiBinding></Border.Visibility>
-                <TextBlock Text="{DynamicResource WifiConnectedLabel}" FontSize="{DynamicResource FontCaption}" FontWeight="Normal" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="{DynamicResource WifiConnectedLabel}" VerticalAlignment="Center" />
             </Border>
             <TextBlock Text="{Binding Ssid}" Style="{StaticResource GridTextStyle}" FontWeight="Normal" />
         </DockPanel></DataTemplate>

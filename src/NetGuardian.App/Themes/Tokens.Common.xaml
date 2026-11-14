@@ -59,7 +59,13 @@
     <sys:Double x:Key="WifiPrimaryActionWidth">144</sys:Double>
     <sys:Double x:Key="WifiTableHeaderHeight">32</sys:Double>
     <sys:Double x:Key="WifiRowHeaderWidth">32</sys:Double>
-    <sys:Double x:Key="WifiSplitGap">20</sys:Double>
+    <sys:Double x:Key="WifiStatusBadgeHeight">22</sys:Double>
+    <Duration x:Key="WifiDetailsTransitionDuration">0:0:0.18</Duration>
+    <Thickness x:Key="WifiDetailsMargin">10,4,12,6</Thickness>
+    <Thickness x:Key="WifiDetailLabelMargin">0,3,12,3</Thickness>
+    <Thickness x:Key="WifiDetailValueMargin">0,3,0,3</Thickness>
+    <Thickness x:Key="WifiStatusBadgePadding">8,2</Thickness>
+    <sys:Double x:Key="WifiSplitGap">16</sys:Double>
     <Thickness x:Key="WifiSectionGap">0,0,0,20</Thickness>
     <Thickness x:Key="WifiSectionContentGap">0,8,0,0</Thickness>
     <Thickness x:Key="ToolbarControlPadding">8,0</Thickness>

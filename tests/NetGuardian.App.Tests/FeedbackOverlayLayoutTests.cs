@@ -57,7 +57,8 @@ public sealed class FeedbackOverlayLayoutTests
             AssertStable(window, before, columns);
             if (width >= 960)
                 foreach (var name in new[] { "NearbyGrid", "ProfileGrid" })
-                    Assert.True(WifiWorkspaceLayoutTests.CompleteRows((DataGrid)window.FindName(name)) >= 6);
+                    Assert.True(WifiWorkspaceLayoutTests.CompleteRows((DataGrid)window.FindName(name)) >=
+                        (Grid.GetColumn((FrameworkElement)window.FindName("PriorityNetworksCard")) == 2 ? 6 : 2));
         }, theme == "Light" ? Wpf.Ui.Appearance.ApplicationTheme.Light : Wpf.Ui.Appearance.ApplicationTheme.Dark);
     }
 

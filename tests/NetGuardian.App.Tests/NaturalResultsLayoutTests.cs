@@ -29,7 +29,8 @@ public sealed class NaturalResultsLayoutTests
             ExpansionInteractionTests.Settle(window);
             DesktopFixture.Save(window, $"wifi-six-expanded-{width}.png");
             var page = Assert.IsType<ScrollViewer>(window.FindName("WifiContentScrollViewer"));
-            Assert.True(first.ActualHeight > 100);
+            var fields = DesktopFixture.Descendants(first).OfType<TextBox>().Count(t => t.IsVisible);
+            Assert.InRange(first.ActualHeight, 40, 40 + fields * 28 + 12);
             Assert.Equal(Visibility.Visible, first.DetailsVisibility);
             // 模板列的 GetCellContent 返回 ContentPresenter，检查实际承载 SSID 的文本及其完整提示。
             var ssidText = DesktopFixture.Descendants(nearby.Columns[0].GetCellContent(first))

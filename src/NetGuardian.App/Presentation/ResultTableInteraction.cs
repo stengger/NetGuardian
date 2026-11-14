@@ -142,13 +142,24 @@ public static class ResultTableInteraction
             var presenter = Ancestor<DataGridDetailsPresenter>(details);
             if (presenter is null || details is null) return;
             var expanded = row.DetailsVisibility == Visibility.Visible;
+            var compact = details is TableRowDetails { IsCompact: true };
+            var fromOpacity = presenter.HasAnimatedProperties ? presenter.Opacity : expanded ? 0 : 1;
             var from = presenter.HasAnimatedProperties ? presenter.Height : expanded ? 0 : transition.Height;
             presenter.BeginAnimation(FrameworkElement.HeightProperty, null);
+            if (compact) presenter.BeginAnimation(UIElement.OpacityProperty, null);
+            if (compact && !SystemParameters.ClientAreaAnimation)
+            {
+                presenter.Height = double.NaN;
+                presenter.Opacity = 1;
+                presenter.SetCurrentValue(UIElement.VisibilityProperty, row.DetailsVisibility);
+                return;
+            }
             presenter.SetCurrentValue(UIElement.VisibilityProperty, Visibility.Visible);
             details.Measure(new Size(Math.Max(0, ((DataGrid)sender!).ActualWidth - ((DataGrid)sender!).RowHeaderWidth - 24), double.PositiveInfinity));
             var target = expanded ? details.DesiredSize.Height : 0;
             if (expanded) transition.Height = target;
-            var animation = new DoubleAnimation(double.IsNaN(from) ? 0 : from, target, TimeSpan.FromMilliseconds(150))
+            var duration = compact ? (Duration)details.FindResource("WifiDetailsTransitionDuration") : new Duration(TimeSpan.FromMilliseconds(150));
+            var animation = new DoubleAnimation(double.IsNaN(from) ? 0 : from, target, duration)
             { FillBehavior = FillBehavior.Stop, EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut } };
             presenter.Height = target;
             animation.Completed += (_, _) =>
@@ -156,9 +167,20 @@ public static class ResultTableInteraction
                 if (version != transition.Version) return;
                 presenter.BeginAnimation(FrameworkElement.HeightProperty, null);
                 presenter.Height = double.NaN;
+                if (compact)
+                {
+                    presenter.BeginAnimation(UIElement.OpacityProperty, null);
+                    presenter.Opacity = 1;
+                }
                 presenter.SetCurrentValue(UIElement.VisibilityProperty, row.DetailsVisibility);
             };
             presenter.BeginAnimation(FrameworkElement.HeightProperty, animation);
+            if (compact)
+            {
+                presenter.Opacity = expanded ? 1 : 0;
+                presenter.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation(fromOpacity, expanded ? 1 : 0, duration)
+                { FillBehavior = FillBehavior.Stop, EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseInOut } });
+            }
         }));
     }
 }
