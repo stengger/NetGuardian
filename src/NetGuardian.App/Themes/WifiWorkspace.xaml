@@ -63,4 +63,11 @@
             <ToggleButton Style="{DynamicResource ExpansionToggleStyle}" Height="{DynamicResource GridRowHeight}" VerticalAlignment="Top" ToolTip="{DynamicResource TableDetailLabel}" AutomationProperties.Name="{DynamicResource TableDetailLabel}" IsChecked="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource WifiDetailsToggleConverter}, Mode=TwoWay}" />
         </ControlTemplate></Setter.Value></Setter>
     </Style>
+    <Style x:Key="WifiLastScanCaptionStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="{DynamicResource FontCaption}" />
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+        <Style.Triggers><DataTrigger Binding="{Binding IsExpanded, RelativeSource={RelativeSource AncestorType=Expander}}" Value="False"><Setter Property="Visibility" Value="Collapsed" /></DataTrigger></Style.Triggers>
+    </Style>
 </ResourceDictionary>

@@ -678,6 +678,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         SaveSettings();
+        RefreshWifiWorkspaceSummary();
     }
 
     private void RootNavigation_SelectionChanged(Wpf.Ui.Controls.NavigationView sender, RoutedEventArgs args)
@@ -1887,6 +1888,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ConnectButton.Content = _localizer.T("Connect");
         DragHintText.Text = _localizer.T("DoubleClickWifiHint");
         Resources["WifiCurrentConnectionLabel"] = _localizer.T("WifiCurrentConnection");
+        Resources["WifiConnectedLabel"] = _localizer.T("WifiCurrentConnected");
         NearbyNetworksTitle.Text = _localizer.T("NearbyNetworks");
         NearbySearchTextBox.ToolTip = _localizer.T("WifiSearch");
         System.Windows.Automation.AutomationProperties.SetName(NearbySearchTextBox, _localizer.T("WifiSearch"));

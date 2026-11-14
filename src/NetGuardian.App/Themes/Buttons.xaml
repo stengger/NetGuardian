@@ -93,8 +93,8 @@
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style x:Key="ToolbarDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
-            <Setter Property="Foreground" Value="{DynamicResource StatusDangerBrush}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource DangerButtonBorderBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource WifiDestructiveBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WifiDestructiveBrush}" />
         </Style>
     <Style x:Key="ToolbarFixedButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
         <Setter Property="Width" Value="{DynamicResource WifiPrimaryActionWidth}" />

@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using NetGuardian.App.Presentation;
 
 namespace NetGuardian.App;
 
@@ -23,9 +24,9 @@ public partial class MainWindow
         WifiRecoverySummaryText.Text = string.Format(_localizer.T("WifiRecoverySummary"), _profiles.Count(p => p.Enabled), _profiles.Count);
         WifiRecoverySummaryText.ToolTip = WifiRecoverySummaryText.Text;
         WifiMoreButton.Content = _localizer.T("WifiMore");
-        WifiLastScanText.Text = string.Format(_localizer.T("WifiLastScan"), _lastSuccessfulWifiScan?.ToString("HH:mm:ss") ?? "—");
-        var connectPrimary = ConnectButton.IsEnabled || _isNetworkActionRunning;
-        ScanButton.Style = (Style)FindResource(connectPrimary ? "ToolbarFixedButtonStyle" : "ToolbarPrimaryButtonStyle");
-        ConnectButton.Style = (Style)FindResource(connectPrimary ? "ToolbarPrimaryButtonStyle" : "ToolbarFixedButtonStyle");
+        WifiWorkspacePresentation.ApplyScanStatus(this,
+            string.Format(_localizer.T("WifiLastScan"), _lastSuccessfulWifiScan?.ToString("HH:mm:ss") ?? "—"),
+            WifiScanStatusText.Text, _wifiScan.Phase == WifiScanPhase.Failed);
+        WifiWorkspacePresentation.ApplyActions(this, _isNetworkActionRunning);
     }
 }

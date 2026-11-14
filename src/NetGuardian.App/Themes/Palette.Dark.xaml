@@ -5,6 +5,7 @@
     <SolidColorBrush x:Key="StatusHealthyBrush" Color="#6CCB8A" />
     <SolidColorBrush x:Key="StatusWarningBrush" Color="#F59E0B" />
     <SolidColorBrush x:Key="StatusDangerBrush" Color="#F47289" />
+    <SolidColorBrush x:Key="WifiDestructiveBrush" Color="#D98C9B" />
     <SolidColorBrush x:Key="SurfaceCardBrush" Color="#272C33" />
     <SolidColorBrush x:Key="StrokeInputBrush" Color="#7A8694" />
     <SolidColorBrush x:Key="ChartAccentBrush" Color="#55E6D5" />

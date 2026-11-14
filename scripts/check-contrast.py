@@ -83,6 +83,7 @@ CHECKS = [
     ("StatusHealthyBrush", "text", "SurfaceCardBrush"),
     ("StatusWarningBrush", "text", "SurfaceCardBrush"),
     ("StatusDangerBrush", "text", "SurfaceCardBrush"),
+    ("WifiDestructiveBrush", "text", "SurfaceCardBrush"),
     # Input border must clear the 3:1 non-text bar against the card.
     ("StrokeInputBrush", "stroke", "SurfaceCardBrush"),
     # Chart accent is a graphical stroke; treat as non-text 3:1 on the card.

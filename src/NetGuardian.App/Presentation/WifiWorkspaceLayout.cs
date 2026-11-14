@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 namespace NetGuardian.App.Presentation;
 
@@ -16,6 +17,12 @@ internal static class WifiWorkspaceLayout
         internal bool Persistent, Horizontal, Applying;
     }
     private static readonly ConditionalWeakTable<FrameworkElement, State> States = new();
+    private sealed class ColumnUpdate
+    {
+        internal bool Pending, Manual;
+        internal double? LastAutomaticWidth;
+    }
+    private static readonly ConditionalWeakTable<DataGrid, ColumnUpdate> ColumnUpdates = new();
 
     internal static void EnablePersistence(FrameworkElement root)
     {
@@ -95,8 +102,8 @@ internal static class WifiWorkspaceLayout
             state.Horizontal = horizontal;
             var ratio = horizontal ? state.Preferences.HorizontalRatio : state.Preferences.VerticalRatio;
             // 双栏折叠保留可操作标题宽度，竖排折叠自然只占标题高度。
-            var first = a ? new GridLength(ratio, GridUnitType.Star) : horizontal ? new GridLength(168) : GridLength.Auto;
-            var last = b ? new GridLength(1 - ratio, GridUnitType.Star) : horizontal ? new GridLength(168) : GridLength.Auto;
+            var first = a ? new GridLength(ratio, GridUnitType.Star) : horizontal ? new GridLength(192) : GridLength.Auto;
+            var last = b ? new GridLength(1 - ratio, GridUnitType.Star) : horizontal ? new GridLength(192) : GridLength.Auto;
             var gap = new GridLength((double)root.FindResource("WifiSplitGap"));
             for (var i = 0; i < 3; i++)
             {
@@ -122,7 +129,7 @@ internal static class WifiWorkspaceLayout
                 table.ColumnHeaderHeight = (double)root.FindResource("WifiTableHeaderHeight");
                 table.SizeChanged -= TableResized;
                 table.SizeChanged += TableResized;
-                ApplyColumns(table);
+                QueueColumns(table);
             }
             var summary = (TextBlock)root.FindName("WifiRecoverySummaryText");
             summary.MaxWidth = Math.Max(100, ((FrameworkElement)root.FindName("CurrentWifiCard")).ActualWidth * .42);
@@ -132,11 +139,36 @@ internal static class WifiWorkspaceLayout
         finally { state.Applying = false; }
     }
 
-    private static void TableResized(object sender, SizeChangedEventArgs args) => ApplyColumns((DataGrid)sender);
+    private static void TableResized(object sender, SizeChangedEventArgs args) => QueueColumns((DataGrid)sender);
+    private static void QueueColumns(DataGrid table)
+    {
+        var state = ColumnUpdates.GetOrCreateValue(table);
+        if (state.Pending) return;
+        state.Pending = true;
+        // 合并同一轮布局触发的列更新，等视口完成测量后再使用实际宽度预算。
+        table.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            state.Pending = false;
+            ApplyColumns(table);
+        }));
+    }
     private static void ApplyColumns(DataGrid table)
     {
+        if (table.ActualWidth <= 0) return;
+        var state = ColumnUpdates.GetOrCreateValue(table);
+        var fill = table.Columns[table.Name == "NearbyGrid" ? 0 : 1];
+        // 自动填充使用视口逻辑宽度预算；用户改过名称列后不再覆盖其选择。
+        if (state.LastAutomaticWidth is { } previous && fill.Width.IsAbsolute && Math.Abs(fill.Width.Value - previous) > .5)
+            state.Manual = true;
         var optional = table.Name == "NearbyGrid" ? new[] { 3 } : new[] { 3, 5 };
-        var required = table.RowHeaderWidth + 4 + table.Columns.Sum(c => c.Width.IsAbsolute ? Math.Max(c.Width.Value, c.MinWidth) : Math.Max(180, c.MinWidth));
+        var required = table.RowHeaderWidth + 4 + table.Columns.Sum(c => ReferenceEquals(c, fill)
+            ? Math.Max(state.Manual ? fill.Width.Value : 180, c.MinWidth) : c.Width.IsAbsolute ? Math.Max(c.Width.Value, c.MinWidth) : c.MinWidth);
         foreach (var i in optional) table.Columns[i].Visibility = table.ActualWidth + .5 >= required ? Visibility.Visible : Visibility.Collapsed;
+        if (state.Manual) return;
+        var remaining = Math.Max(fill.MinWidth, table.ActualWidth - table.RowHeaderWidth - table.Columns
+            .Where(c => !ReferenceEquals(c, fill) && c.Visibility == Visibility.Visible)
+            .Sum(c => c.Width.IsAbsolute ? Math.Max(c.Width.Value, c.MinWidth) : c.ActualWidth));
+        fill.Width = new DataGridLength(remaining);
+        state.LastAutomaticWidth = remaining;
     }
 }

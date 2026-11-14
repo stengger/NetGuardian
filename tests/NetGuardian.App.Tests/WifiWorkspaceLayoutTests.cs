@@ -154,6 +154,25 @@ public sealed class WifiWorkspaceLayoutTests
         });
     }
 
+    [Fact]
+    public void 折叠再展开后名称列重新占满剩余宽度()
+    {
+        DesktopFixture.Run(window =>
+        {
+            Populate(window); DesktopFixture.Layout(window, 1180, 758);
+            var table = (DataGrid)window.FindName("ProfileGrid");
+            var initial = table.Columns[1].ActualWidth;
+            var section = (Expander)window.FindName("NearbyNetworksExpander");
+            section.IsExpanded = false; DesktopFixture.Layout(window, 1180, 758);
+            section.IsExpanded = true; DesktopFixture.Layout(window, 1180, 758);
+            Assert.True(table.Columns[1].ActualWidth >= initial - 1, $"名称列从 {initial} 缩至 {table.Columns[1].ActualWidth}");
+            table.Columns[1].Width = 190;
+            DesktopFixture.Layout(window, 1400, 758);
+            Assert.Equal(190, table.Columns[1].ActualWidth, 1);
+            Assert.Equal(0, WifiSectionLayoutTests.Scroll(table).ScrollableWidth);
+        });
+    }
+
     internal static int CompleteRows(DataGrid table)
     {
         var viewport = DesktopFixture.Descendants(table).OfType<ScrollContentPresenter>().Single(p => p.Name == "PART_ScrollContentPresenter");

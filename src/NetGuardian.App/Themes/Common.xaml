@@ -52,6 +52,9 @@
             <Setter Property="ToolTip" Value="{DynamicResource TableDragLabel}" />
             <Setter Property="Foreground" Value="{DynamicResource StatusInfoBrush}" />
         </Style>
+        <Style x:Key="WifiWorkspaceDragHandleStyle" TargetType="TextBlock" BasedOn="{StaticResource DragHandleTextStyle}">
+            <Setter Property="Margin" Value="0" />
+        </Style>
         <Style x:Key="AddressTextStyle" TargetType="TextBlock" BasedOn="{StaticResource GridTextStyle}">
             <Setter Property="TextWrapping" Value="Wrap" />
             <Setter Property="Margin" Value="{DynamicResource SpacingTableCell}" />
@@ -223,6 +226,14 @@
             </Style.Triggers>
         </Style>
         <sys:String x:Key="WifiCurrentConnectionLabel">当前连接</sys:String>
+        <sys:String x:Key="WifiConnectedLabel">已连接</sys:String>
+        <DataTemplate x:Key="WifiWorkspaceSsidTemplate"><DockPanel ToolTip="{Binding Ssid}">
+            <Border DockPanel.Dock="Right" Style="{StaticResource SectionCountBadgeStyle}">
+                <Border.Visibility><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}"><Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" /></MultiBinding></Border.Visibility>
+                <TextBlock Text="{DynamicResource WifiConnectedLabel}" FontSize="{DynamicResource FontCaption}" FontWeight="Normal" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+            </Border>
+            <TextBlock Text="{Binding Ssid}" Style="{StaticResource GridTextStyle}" FontWeight="Normal" />
+        </DockPanel></DataTemplate>
         <DataTemplate x:Key="WifiSsidTemplate"><DockPanel ToolTip="{Binding Ssid}">
                                                 <ui:SymbolIcon Symbol="Wifi124" DockPanel.Dock="Right" FontSize="{DynamicResource ActivityIconSize}" Margin="{DynamicResource SpacingCountGap}" ToolTip="{DynamicResource WifiCurrentConnectionLabel}" AutomationProperties.Name="{DynamicResource WifiCurrentConnectionLabel}">
                                                     <ui:SymbolIcon.Visibility><MultiBinding Converter="{StaticResource WifiCurrentRowConverter}"><Binding Path="Ssid" /><Binding Path="(presentation:WifiRowPresentation.CurrentSsid)" RelativeSource="{RelativeSource Self}" /></MultiBinding></ui:SymbolIcon.Visibility>
