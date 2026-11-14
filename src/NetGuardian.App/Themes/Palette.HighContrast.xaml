@@ -201,4 +201,6 @@
     <SolidColorBrush x:Key="SystemAccentColorTertiaryBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
     <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
     <SolidColorBrush x:Key="ButtonInteractionBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="WifiActionAccentBrush" Color="{DynamicResource {x:Static SystemColors.HighlightColorKey}}" />
+    <SolidColorBrush x:Key="WifiActionAccentTextBrush" Color="{DynamicResource {x:Static SystemColors.HighlightTextColorKey}}" />
 </ResourceDictionary>

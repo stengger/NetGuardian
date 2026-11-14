@@ -1533,6 +1533,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var profileIndex = hasProfile ? ProfileGrid.Items.IndexOf(profile!) : -1;
         MoveUpButton.IsEnabled = !_isNetworkActionRunning && profileIndex > 0;
         MoveDownButton.IsEnabled = !_isNetworkActionRunning && profileIndex >= 0 && profileIndex < ProfileGrid.Items.Count - 1;
+        WifiWorkspacePresentation.ApplyDisabledReasons(this, _localizer, _isNetworkActionRunning, profileIndex, nearby?.Ssid);
         RefreshWifiWorkspaceSummary();
     }
 

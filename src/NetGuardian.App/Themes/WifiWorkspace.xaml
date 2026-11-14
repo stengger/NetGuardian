@@ -11,6 +11,18 @@
     <DataGridLength x:Key="WifiPriorityStateColumnWidth">80</DataGridLength>
     <sys:Double x:Key="WifiPriorityStateColumnMinimum">80</sys:Double>
     <DataTemplate x:Key="WifiCompactDetailsTemplate"><presentation:TableRowDetails IsCompact="True" /></DataTemplate>
+    <Style x:Key="WifiToolbarAccentButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+        <Setter Property="Background" Value="{DynamicResource WifiActionAccentBrush}" />
+        <Setter Property="Foreground" Value="{DynamicResource WifiActionAccentTextBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource WifiActionAccentBrush}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style x:Key="WifiToolbarPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource WifiToolbarAccentButtonStyle}">
+        <Setter Property="Width" Value="{DynamicResource WifiPrimaryActionWidth}" />
+    </Style>
+    <Style x:Key="WifiToolbarDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+        <Setter Property="Foreground" Value="{DynamicResource WifiDestructiveBrush}" />
+    </Style>
     <Style x:Key="WifiDetailValueStyle" TargetType="TextBox">
         <Setter Property="MinHeight" Value="0" />
         <Setter Property="Padding" Value="0" />
@@ -77,8 +89,8 @@
     <Style x:Key="WifiSortToolStyle" TargetType="ComboBox" BasedOn="{StaticResource CompactFilterComboBoxStyle}">
         <Setter Property="Height" Value="{DynamicResource ToolbarControlHeight}" />
         <Setter Property="MinHeight" Value="{DynamicResource ToolbarControlHeight}" />
-        <Setter Property="Width" Value="112" />
-        <Setter Property="MinWidth" Value="112" />
+        <Setter Property="Width" Value="{DynamicResource WifiSortWidth}" />
+        <Setter Property="MinWidth" Value="{DynamicResource WifiSortWidth}" />
     </Style>
     <Style x:Key="WifiEmptyStateStyle" TargetType="Border">
         <Setter Property="Padding" Value="{DynamicResource WifiSummaryPadding}" />

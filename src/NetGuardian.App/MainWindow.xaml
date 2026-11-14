@@ -153,7 +153,7 @@
                 <ScrollViewer x:Name="WifiPageActions" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" Focusable="False" AutomationProperties.Name="Wi-Fi 操作">
                     <WrapPanel>
                         <StackPanel Orientation="Horizontal" Margin="{DynamicResource SpacingInlineGap}">
-                            <Button x:Name="ScanButton" Click="Scan_Click" Style="{StaticResource ToolbarPrimaryButtonStyle}" />
+                            <Button x:Name="ScanButton" Click="Scan_Click" Style="{StaticResource WifiToolbarPrimaryButtonStyle}" />
                             <Button x:Name="WifiScanCancelButton" Click="WifiScanCancel_Click" Style="{StaticResource ToolbarButtonStyle}" Visibility="Collapsed" Margin="{DynamicResource SpacingLeadingGap}" />
                             <Button x:Name="ConnectButton" Click="Connect_Click" Style="{StaticResource ToolbarFixedButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" />
                         </StackPanel>
@@ -173,7 +173,7 @@
                         <StackPanel Orientation="Horizontal">
                                         <Button x:Name="MoveUpButton" Click="MoveUp_Click" Style="{StaticResource ToolbarButtonStyle}" />
                                         <Button x:Name="MoveDownButton" Click="MoveDown_Click" Style="{StaticResource ToolbarButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" />
-                                        <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeInlineDivider}" Padding="{DynamicResource SpacingActionDivider}" Margin="{DynamicResource SpacingLeadingGap}"><Button x:Name="RemoveButton" Click="Remove_Click" Style="{StaticResource ToolbarDangerButtonStyle}" /></Border>
+                                        <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeInlineDivider}" Padding="{DynamicResource SpacingActionDivider}" Margin="{DynamicResource SpacingLeadingGap}"><Button x:Name="RemoveButton" Click="Remove_Click" Style="{StaticResource WifiToolbarDangerButtonStyle}" /></Border>
                                     </StackPanel>
                         <StackPanel x:Name="WifiMoreSources" Visibility="Collapsed">
                             <Button x:Name="SetPasswordButton" Click="SetPassword_Click" />
@@ -352,8 +352,8 @@
                                 <DataGrid x:Name="NearbyGrid" Style="{StaticResource WifiWorkspaceListStyle}" presentation:ResultTableInteraction.DeferSingleClick="True" AutomationProperties.Name="{Binding Text, ElementName=NearbyNetworksTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource WifiWorkspaceRowStyle}" ColumnHeaderStyle="{StaticResource WifiWorkspaceHeaderStyle}" SelectionChanged="NearbyGrid_SelectionChanged" MouseDoubleClick="NearbyGrid_MouseDoubleClick">
                                     <DataGrid.Columns>
                                         <DataGridTemplateColumn x:Name="NearbySsidColumn" ClipboardContentBinding="{Binding Ssid}" SortMemberPath="Ssid" Width="*" MinWidth="180"  CellTemplate="{StaticResource WifiWorkspaceSsidTemplate}" />
-                                        <DataGridTemplateColumn x:Name="NearbySignalColumn" ClipboardContentBinding="{Binding SignalPercent}" SortMemberPath="SignalPercent" Width="{StaticResource WifiSignalColumnWidth}" MinWidth="{StaticResource WifiSignalColumnMinimum}" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}">
-                                            <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <DataGridTemplateColumn x:Name="NearbySignalColumn" ClipboardContentBinding="{Binding SignalPercent}" SortMemberPath="SignalPercent" Width="{StaticResource WifiSignalColumnWidth}" MinWidth="{StaticResource WifiSignalColumnMinimum}" HeaderStyle="{StaticResource WifiNumericHeaderStyle}">
+                                            <DataGridTemplateColumn.CellTemplate><DataTemplate><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="4,0,8,0">
                                                 <ui:SymbolIcon Symbol="{Binding SignalPercent, Converter={StaticResource WifiSignalIconConverter}}" FontSize="{DynamicResource ActivityIconSize}" Width="{DynamicResource ActivityIconSize}" Height="{DynamicResource ActivityIconSize}" Margin="{DynamicResource SpacingInlineGap}" />
                                                 <TextBlock Text="{Binding SignalPercent}" VerticalAlignment="Center" />
                                             </StackPanel></DataTemplate></DataGridTemplateColumn.CellTemplate>
@@ -389,7 +389,7 @@
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="24" MinWidth="24" IsReadOnly="True" ElementStyle="{StaticResource WifiWorkspaceDragHandleStyle}" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}" />
                                         <DataGridTemplateColumn x:Name="ProfileSsidColumn" ClipboardContentBinding="{Binding Ssid}" SortMemberPath="Ssid" Width="*" MinWidth="180"  IsReadOnly="True" CellTemplate="{StaticResource WifiWorkspaceSsidTemplate}" />
-                                        <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="56" MinWidth="56" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="ProfilePriorityColumn" Binding="{Binding Priority}" IsReadOnly="True" Width="56" MinWidth="56" ElementStyle="{StaticResource WifiNumericTextStyle}" HeaderStyle="{StaticResource WifiNumericHeaderStyle}" />
                                         <DataGridTemplateColumn x:Name="ProfileCredentialColumn" ClipboardContentBinding="{Binding CredentialSaved, Converter={StaticResource CredentialStatusConverter}}" IsReadOnly="True" Width="88" MinWidth="88" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
@@ -410,7 +410,7 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTextColumn x:Name="ProfileFailuresColumn" Binding="{Binding FailureCount}" IsReadOnly="True" Width="88" MinWidth="88" ElementStyle="{StaticResource GridCenteredTextStyle}" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}" />
+                                        <DataGridTextColumn x:Name="ProfileFailuresColumn" Binding="{Binding FailureCount}" IsReadOnly="True" Width="88" MinWidth="88" ElementStyle="{StaticResource WifiNumericTextStyle}" HeaderStyle="{StaticResource WifiNumericHeaderStyle}" />
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </Grid>

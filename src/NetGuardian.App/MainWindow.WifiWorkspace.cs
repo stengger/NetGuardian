@@ -28,5 +28,8 @@ public partial class MainWindow
             string.Format(_localizer.T("WifiLastScan"), _lastSuccessfulWifiScan?.ToString("HH:mm:ss") ?? "—"),
             WifiScanStatusText.Text, _wifiScan.Phase == WifiScanPhase.Failed);
         WifiWorkspacePresentation.ApplyActions(this, _isNetworkActionRunning);
+        ScanButton.ToolTip = _localizer.T(ScanButton.IsEnabled ? "ScanTip" : "Scanning");
+        System.Windows.Automation.AutomationProperties.SetHelpText(ScanButton, ScanButton.ToolTip.ToString());
+        WifiScanCancelButton.ToolTip = _localizer.T(WifiScanCancelButton.IsEnabled ? "Cancel" : "WifiScanCancelling");
     }
 }

@@ -86,7 +86,7 @@
     <sys:Double x:Key="WifiConnectButtonMinWidth">112</sys:Double>
     <Thickness x:Key="WifiFilterPadding">8,0</Thickness>
     <sys:Double x:Key="WifiSearchWidth">128</sys:Double>
-    <sys:Double x:Key="WifiSortWidth">112</sys:Double>
+    <sys:Double x:Key="WifiSortWidth">124</sys:Double>
     <sys:Double x:Key="WifiFilterControlHeight">36</sys:Double>
     <sys:Double x:Key="WifiScanStatusMaxHeight">40</sys:Double>
     <Thickness x:Key="WifiContextCompactPadding">8,0</Thickness>

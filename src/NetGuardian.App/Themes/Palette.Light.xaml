@@ -49,4 +49,6 @@
     <SolidColorBrush x:Key="TextOnAccentFillColorSecondaryBrush" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ToggleSwitchKnobFillOn" Color="#FFFFFF" />
     <SolidColorBrush x:Key="ButtonInteractionBrush" Color="#000000" />
+    <SolidColorBrush x:Key="WifiActionAccentBrush" Color="{DynamicResource AppAccentColor}" />
+    <SolidColorBrush x:Key="WifiActionAccentTextBrush" Color="#FFFFFF" />
 </ResourceDictionary>

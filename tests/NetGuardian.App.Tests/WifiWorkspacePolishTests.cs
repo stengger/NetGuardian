@@ -63,7 +63,7 @@ public sealed class WifiWorkspacePolishTests
             DesktopFixture.Layout(window, 1180, 758);
             var connect = (Button)window.FindName("ConnectButton");
             var scan = (Button)window.FindName("ScanButton");
-            var primary = window.FindResource("ToolbarPrimaryButtonStyle");
+            var primary = window.FindResource("WifiToolbarPrimaryButtonStyle");
             Assert.Equal(canConnect, ReferenceEquals(connect.Style, primary));
             Assert.Equal(!canConnect, ReferenceEquals(scan.Style, primary));
             var size = connect.RenderSize;
