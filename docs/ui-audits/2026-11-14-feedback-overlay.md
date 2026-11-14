@@ -23,3 +23,9 @@
 使用项目 SDK 执行 dotnet build NetGuardian.sln -c Release --no-restore --nologo，以及 dotnet test NetGuardian.sln -c Release --no-build --no-restore --nologo：构建退出码 0；核心 305、桌面 360 项全部通过，无失败或跳过，退出码 0。完整测试与截图渲染串行运行。git diff --check 通过。
 
 RenderTargetBitmap 图验证 WPF 布局和绘制，不替代真实系统 DPI 切换、跨屏或辅助技术验收。
+
+## 本机更新
+
+用户手动托盘退出后，通过标准 UAC 更新 C:\Program Files\NetGuardian 和项目 dist\NetGuardian 的五个 UI 文件；两个目录共 10 个文件哈希一致。软件提交 9884c876e5bbd6eb4c59aa74c1e8e5d6d7977c51，构建标识 1.1.1+9884c87。发布退出码 0，保留原有两条 WFAC010。
+
+重新启动的 UI 进程 PID 88252，桌面窗口清单确认来自 Program Files 安装目录，实际启动截图显示“后台监控中”。守护 PID 99664 保持运行；替换前后、启动后 settings.json 哈希未变化。备份、安装清单和核验结果保存在本次审查目录。实际提示前后布局由 WPF 渲染和边界回归验证，本机截图确认安装启动，不冒充本机自动点击提示验证。
