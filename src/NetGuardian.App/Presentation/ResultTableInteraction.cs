@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -142,7 +143,8 @@ public static class ResultTableInteraction
             var presenter = Ancestor<DataGridDetailsPresenter>(details);
             if (presenter is null || details is null) return;
             var expanded = row.DetailsVisibility == Visibility.Visible;
-            var compact = details is TableRowDetails { IsCompact: true };
+            var compact = details is TableRowDetails { IsCompact: true } ||
+                details is Panel panel && panel.Children.OfType<TableRowDetails>().Any(child => child.IsCompact);
             var fromOpacity = presenter.HasAnimatedProperties ? presenter.Opacity : expanded ? 0 : 1;
             var from = presenter.HasAnimatedProperties ? presenter.Height : expanded ? 0 : transition.Height;
             presenter.BeginAnimation(FrameworkElement.HeightProperty, null);

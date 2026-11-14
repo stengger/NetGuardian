@@ -154,6 +154,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyGrid.ItemsSource = _nearbyView.View;
         _nearbySavedWifi = new(_profiles);
         ProfileGrid.ItemsSource = _nearbySavedWifi.View;
+        WifiPasswordDetails.SetPasswordReader(ProfileGrid, _wifi.GetSavedPasswordAsync);
         RecentEventsList.ItemsSource = _recentEvents;
         DnsGrid.ItemsSource = _dnsRows;
         DnsAdapterComboBox.ItemsSource = _dnsAdapterOptions;
@@ -1886,6 +1887,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RemoveButton.Content = _localizer.T("Remove");
         SetPasswordButton.Content = _localizer.T("SetPassword");
         ImportPasswordButton.Content = _localizer.T("ImportPassword");
+        WifiPasswordDetails.SetUiLanguage(ProfileGrid, _localizer.Language);
         ConnectButton.Content = _localizer.T("Connect");
         DragHintText.Text = _localizer.T("DoubleClickWifiHint");
         Resources["WifiCurrentConnectionLabel"] = _localizer.T("WifiCurrentConnection");

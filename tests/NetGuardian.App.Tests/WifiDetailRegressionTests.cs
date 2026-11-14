@@ -130,7 +130,9 @@ public sealed class WifiDetailRegressionTests
                 Assert.Contains(values, value => value.Text == "2");
             }
             Assert.DoesNotContain(DesktopFixture.Descendants(details).OfType<ScrollBar>(), b => b.IsVisible);
-            Assert.InRange(row.ActualHeight, 40, 160);
+            // 已保存列表新增密码查看行，原有字段详情仍须保持紧凑。
+            Assert.InRange(details.ActualHeight, 0, 120);
+            Assert.InRange(row.ActualHeight, 40, name == "ProfileGrid" ? 200 : 160);
             DesktopFixture.Save(window, $"compact-details-{theme}-{name}.png");
             row.DetailsVisibility = Visibility.Collapsed;
             ExpansionInteractionTests.Settle(window);
