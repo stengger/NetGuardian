@@ -21,6 +21,7 @@
     <sys:Double x:Key="FeedbackWidth">360</sys:Double>
     <sys:Double x:Key="FeedbackMaxWidth">420</sys:Double>
     <sys:Double x:Key="FeedbackVisibleLimit">3</sys:Double>
+    <sys:Int32 x:Key="FeedbackOverlayZIndex">10</sys:Int32>
     <sys:Double x:Key="FeedbackSlideOffset">8</sys:Double>
     <sys:Double x:Key="FeedbackDetailsMaxHeight">120</sys:Double>
     <sys:TimeSpan x:Key="FeedbackNormalTimeout">0:0:4</sys:TimeSpan>

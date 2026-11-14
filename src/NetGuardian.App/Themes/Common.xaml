@@ -10,6 +10,19 @@
         <presentation:RowDetailsToggleConverter x:Key="RowDetailsToggleConverter" />
         <presentation:ViewportFractionConverter x:Key="ViewportFractionConverter" />
         <presentation:FeedbackViewportConverter x:Key="FeedbackViewportConverter" />
+        <!-- 与正文共用有界网格行；提示只覆盖右下角，不参与正文和侧栏的高度分配。 -->
+        <Style x:Key="FeedbackOverlayHostStyle" TargetType="ScrollViewer">
+            <Setter Property="Panel.ZIndex" Value="{DynamicResource FeedbackOverlayZIndex}" />
+            <Setter Property="HorizontalAlignment" Value="Right" />
+            <Setter Property="VerticalAlignment" Value="Bottom" />
+            <Setter Property="VerticalScrollBarVisibility" Value="Auto" />
+            <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
+            <Setter Property="Visibility" Value="{Binding Content.Visibility, RelativeSource={RelativeSource Self}}" />
+            <Setter Property="MaxHeight"><Setter.Value><MultiBinding Converter="{StaticResource FeedbackViewportConverter}">
+                <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
+                <Binding RelativeSource="{RelativeSource AncestorType=Window}" />
+            </MultiBinding></Setter.Value></Setter>
+        </Style>
         <sys:String x:Key="TableDetailLabel">详情</sys:String>
         <sys:String x:Key="TableCopyLabel">复制结果</sys:String>
         <sys:String x:Key="TableDragLabel">拖动右侧列表行可调整恢复优先级</sys:String>

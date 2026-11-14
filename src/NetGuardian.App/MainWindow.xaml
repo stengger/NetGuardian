@@ -27,17 +27,11 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <ui:TitleBar x:Name="TitleBar" Grid.Row="0" Title="NetGuardian" Icon="Assets/app-icon-256.png" />
 
-        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Visibility="{Binding Visibility, ElementName=RootSnackbar}">
-            <ScrollViewer.MaxHeight><MultiBinding Converter="{StaticResource FeedbackViewportConverter}">
-                <Binding Path="ActualHeight" RelativeSource="{RelativeSource AncestorType=Window}" />
-                <Binding RelativeSource="{RelativeSource AncestorType=Window}" />
-            </MultiBinding></ScrollViewer.MaxHeight>
+        <ScrollViewer Grid.Row="1" Style="{StaticResource FeedbackOverlayHostStyle}">
             <presentation:FeedbackPresenter x:Name="RootSnackbar" HorizontalAlignment="Right"
                                             Width="{DynamicResource FeedbackWidth}" MaxWidth="{DynamicResource FeedbackMaxWidth}"
                                             Margin="{DynamicResource SpacingFeedbackArea}" />
