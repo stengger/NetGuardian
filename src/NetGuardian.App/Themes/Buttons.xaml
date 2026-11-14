@@ -77,6 +77,25 @@
             <Setter Property="Foreground" Value="{DynamicResource StatusDangerBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource DangerButtonBorderBrush}" />
         </Style>
+        <Style x:Key="ToolbarButtonStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Height" Value="{DynamicResource ToolbarControlHeight}" />
+            <Setter Property="MinHeight" Value="{DynamicResource ToolbarControlHeight}" />
+            <Setter Property="MinWidth" Value="{DynamicResource ToolbarControlHeight}" />
+            <Setter Property="Padding" Value="{DynamicResource ToolbarControlPadding}" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="ToolbarPrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+            <Setter Property="Width" Value="{DynamicResource WifiPrimaryActionWidth}" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryButtonBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource PrimaryButtonTextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryButtonBorderBrush}" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style x:Key="ToolbarDangerButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+            <Setter Property="Foreground" Value="{DynamicResource StatusDangerBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerButtonBorderBrush}" />
+        </Style>
     <!-- 仅供业务对话框显式引用，避免影响标题栏及下拉框内部按钮。 -->
     <Style x:Key="DialogButtonStyle" TargetType="ui:Button" BasedOn="{StaticResource SecondaryButtonStyle}">
         <Setter Property="MinWidth" Value="{DynamicResource DialogActionMinWidth}" />

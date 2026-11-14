@@ -51,6 +51,24 @@
     <Thickness x:Key="SpacingFieldGap">0,0,0,12</Thickness>
     <Thickness x:Key="SpacingInlineGap">0,0,8,0</Thickness>
     <sys:Double x:Key="ControlMinHeight">36</sys:Double>
+    <!-- 显式工具栏与列表工作区令牌，不改变其他页面的默认控件尺寸。 -->
+    <sys:Double x:Key="ToolbarControlHeight">32</sys:Double>
+    <sys:Double x:Key="WifiWorkspaceBreakpoint">960</sys:Double>
+    <sys:Double x:Key="WifiSummaryMaxHeight">64</sys:Double>
+    <sys:Double x:Key="WifiPrimaryActionWidth">144</sys:Double>
+    <sys:Double x:Key="WifiTableHeaderHeight">32</sys:Double>
+    <sys:Double x:Key="WifiRowHeaderWidth">32</sys:Double>
+    <sys:Double x:Key="WifiSplitGap">20</sys:Double>
+    <Thickness x:Key="WifiSectionGap">0,0,0,20</Thickness>
+    <Thickness x:Key="WifiSectionContentGap">0,8,0,0</Thickness>
+    <Thickness x:Key="ToolbarControlPadding">8,0</Thickness>
+    <Thickness x:Key="WifiSummaryPadding">12,4</Thickness>
+    <Thickness x:Key="WifiHeaderHeadingInset">32,0,0,0</Thickness>
+    <Thickness x:Key="WifiTableHeaderInset">32,0,0,0</Thickness>
+    <sys:Double x:Key="OverlayScrollHitWidth">12</sys:Double>
+    <sys:Double x:Key="OverlayScrollThumbWidth">4</sys:Double>
+    <sys:Double x:Key="OverlayScrollHoverWidth">8</sys:Double>
+    <sys:Double x:Key="OverlayScrollThumbMinimum">24</sys:Double>
     <sys:Double x:Key="ExpansionGlyphSize">16</sys:Double>
     <sys:Double x:Key="ExpansionHitSize">32</sys:Double>
     <sys:Double x:Key="ExpansionStrokeThickness">1.5</sys:Double>
