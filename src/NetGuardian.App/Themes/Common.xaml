@@ -2,7 +2,7 @@
  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
  xmlns:sys="clr-namespace:System;assembly=mscorlib" xmlns:presentation="clr-namespace:NetGuardian.App.Presentation">
 
-        <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Buttons.xaml" /><ResourceDictionary Source="Filters.xaml" /><ResourceDictionary Source="ScrollBars.xaml" /></ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Buttons.xaml" /><ResourceDictionary Source="Filters.xaml" /><ResourceDictionary Source="ScrollBars.xaml" /><ResourceDictionary Source="WifiWorkspace.xaml" /><ResourceDictionary Source="../Views/ListSectionHeader.xaml" /></ResourceDictionary.MergedDictionaries>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <presentation:WifiSignalIconConverter x:Key="WifiSignalIconConverter" />
         <presentation:WifiCurrentRowConverter x:Key="WifiCurrentRowConverter" />
@@ -128,17 +128,20 @@
             <Setter Property="Template" Value="{StaticResource WifiWorkspaceTableTemplate}" />
             <Setter Property="RowHeaderWidth" Value="{DynamicResource WifiRowHeaderWidth}" />
             <Setter Property="ColumnHeaderHeight" Value="{DynamicResource WifiTableHeaderHeight}" />
-            <Setter Property="RowHeight" Value="{DynamicResource GridRowHeight}" />
+            <Setter Property="MinRowHeight" Value="{DynamicResource GridRowHeight}" />
+            <Setter Property="RowHeaderStyle" Value="{StaticResource WifiWorkspaceRowHeaderStyle}" />
             <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+            <Style.Triggers><Trigger Property="HasItems" Value="False"><Setter Property="Visibility" Value="Hidden" /></Trigger></Style.Triggers>
         </Style>
         <Style x:Key="WifiSectionExpanderStyle" TargetType="Expander">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
             <Setter Property="HorizontalContentAlignment" Value="Stretch" />
             <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander">
                 <Grid>
                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                     <ContentPresenter ContentSource="Header" />
                     <ToggleButton Style="{DynamicResource ExpansionToggleStyle}" Width="{DynamicResource ToolbarControlHeight}" Height="{DynamicResource ToolbarControlHeight}"
-                                  HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="{Binding Header.Heading, RelativeSource={RelativeSource TemplatedParent}}"
+                                  HorizontalAlignment="Left" VerticalAlignment="Top" AutomationProperties.Name="{Binding (AutomationProperties.Name), RelativeSource={RelativeSource TemplatedParent}}"
                                   IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" />
                     <ContentPresenter x:Name="SectionContent" Grid.Row="1" Margin="{DynamicResource WifiSectionContentGap}" ContentSource="Content" Visibility="Collapsed" />
                 </Grid>
@@ -179,6 +182,34 @@
                     <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
                 </Trigger>
             </Style.Triggers>
+        </Style>
+        <Style x:Key="WifiWorkspaceRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource GridRowStyle}">
+            <Setter Property="FontWeight" Value="Normal" />
+            <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridRow">
+                <Grid Background="{TemplateBinding Background}">
+                    <SelectiveScrollingGrid>
+                        <SelectiveScrollingGrid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></SelectiveScrollingGrid.ColumnDefinitions>
+                        <SelectiveScrollingGrid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></SelectiveScrollingGrid.RowDefinitions>
+                        <DataGridCellsPresenter Grid.Column="1" ItemsPanel="{TemplateBinding ItemsPanel}" MinHeight="{TemplateBinding MinHeight}" SnapsToDevicePixels="True" />
+                        <DataGridDetailsPresenter Grid.Column="1" Grid.Row="1" Visibility="{TemplateBinding DetailsVisibility}" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical" />
+                        <!-- 折叠详情时行头不跨空的第二行，避免 Grid 按跨行最小值额外分配高度。 -->
+                        <DataGridRowHeader x:Name="RowHeader" SelectiveScrollingGrid.SelectiveScrollingOrientation="Vertical" />
+                    </SelectiveScrollingGrid>
+                    <Border BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}" IsHitTestVisible="False" />
+                </Grid>
+                <ControlTemplate.Triggers><Trigger Property="DetailsVisibility" Value="Visible"><Setter TargetName="RowHeader" Property="Grid.RowSpan" Value="2" /></Trigger></ControlTemplate.Triggers>
+            </ControlTemplate></Setter.Value></Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter Property="BorderThickness" Value="{DynamicResource StrokeSelectedIndicator}" /><Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" /></Trigger>
+                <Trigger Property="IsSelected" Value="True"><Setter Property="BorderThickness" Value="{DynamicResource StrokeSelectedIndicator}" /><Setter Property="BorderBrush" Value="{DynamicResource FocusRingBrush}" /></Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="WifiWorkspaceHeaderStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource GridHeaderStyle}">
+            <Setter Property="Height" Value="{DynamicResource WifiTableHeaderHeight}" />
+        </Style>
+        <Style x:Key="WifiWorkspaceCenteredHeaderStyle" TargetType="DataGridColumnHeader" BasedOn="{StaticResource WifiWorkspaceHeaderStyle}">
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="Padding" Value="4,0" />
         </Style>
         <Style x:Key="WifiRowStyle" TargetType="DataGridRow" BasedOn="{StaticResource GridRowStyle}">
             <Style.Triggers>

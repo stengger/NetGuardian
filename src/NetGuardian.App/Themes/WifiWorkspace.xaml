@@ -1,0 +1,66 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml" xmlns:presentation="clr-namespace:NetGuardian.App.Presentation">
+    <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Buttons.xaml" /><ResourceDictionary Source="Filters.xaml" /></ResourceDictionary.MergedDictionaries>
+    <presentation:RowDetailsToggleConverter x:Key="WifiDetailsToggleConverter" />
+    <Style x:Key="WifiSummaryCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource ControlFillColorDefaultBrush}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="BorderThickness" Value="{DynamicResource StrokeControlThickness}" />
+        <Setter Property="CornerRadius" Value="{DynamicResource CornerCard}" />
+        <Setter Property="Padding" Value="{DynamicResource WifiSummaryPadding}" />
+        <Setter Property="Margin" Value="{DynamicResource WifiSectionGap}" />
+        <Setter Property="MaxHeight" Value="{DynamicResource WifiSummaryMaxHeight}" />
+    </Style>
+    <Style x:Key="WifiSummaryExpanderStyle" TargetType="Expander">
+        <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+        <Setter Property="IsExpanded" Value="True" />
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander">
+            <Grid><Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                <ContentPresenter ContentSource="Header" MinHeight="22" />
+                <ContentPresenter Grid.Row="1" ContentSource="Content" MinHeight="18" VerticalAlignment="Center" />
+            </Grid>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="WifiSearchToolStyle" TargetType="ui:TextBox" BasedOn="{StaticResource CompactFilterTextBoxStyle}">
+        <Setter Property="Height" Value="{DynamicResource ToolbarControlHeight}" />
+        <Setter Property="MinHeight" Value="{DynamicResource ToolbarControlHeight}" />
+        <Setter Property="MinWidth" Value="128" />
+    </Style>
+    <Style x:Key="WifiSortToolStyle" TargetType="ComboBox" BasedOn="{StaticResource CompactFilterComboBoxStyle}">
+        <Setter Property="Height" Value="{DynamicResource ToolbarControlHeight}" />
+        <Setter Property="MinHeight" Value="{DynamicResource ToolbarControlHeight}" />
+        <Setter Property="Width" Value="112" />
+        <Setter Property="MinWidth" Value="112" />
+    </Style>
+    <Style x:Key="WifiEmptyStateStyle" TargetType="Border">
+        <Setter Property="Padding" Value="{DynamicResource WifiSummaryPadding}" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+    <Style x:Key="WifiWorkspaceSplitterStyle" TargetType="GridSplitter">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="VerticalAlignment" Value="Stretch" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="ResizeBehavior" Value="PreviousAndNext" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource ButtonKeyboardFocusStyle}" />
+        <Setter Property="AutomationProperties.Name" Value="{DynamicResource TableDetailLabel}" />
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="GridSplitter">
+            <Grid Background="{TemplateBinding Background}">
+                <Border x:Name="Grip" Background="{DynamicResource CardStrokeColorDefaultBrush}" Width="2" Margin="8,0" CornerRadius="1" />
+            </Grid>
+            <ControlTemplate.Triggers>
+                <Trigger Property="ResizeDirection" Value="Rows"><Setter TargetName="Grip" Property="Width" Value="Auto" /><Setter TargetName="Grip" Property="Height" Value="2" /><Setter TargetName="Grip" Property="Margin" Value="0,8" /></Trigger>
+                <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Grip" Property="Background" Value="{DynamicResource FocusRingBrush}" /></Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+    <Style x:Key="WifiWorkspaceRowHeaderStyle" TargetType="DataGridRowHeader">
+        <Setter Property="MinHeight" Value="{DynamicResource GridRowHeight}" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Margin" Value="0" />
+        <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="DataGridRowHeader">
+            <ToggleButton Style="{DynamicResource ExpansionToggleStyle}" Height="{DynamicResource GridRowHeight}" VerticalAlignment="Top" ToolTip="{DynamicResource TableDetailLabel}" AutomationProperties.Name="{DynamicResource TableDetailLabel}" IsChecked="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}, Converter={StaticResource WifiDetailsToggleConverter}, Mode=TwoWay}" />
+        </ControlTemplate></Setter.Value></Setter>
+    </Style>
+</ResourceDictionary>

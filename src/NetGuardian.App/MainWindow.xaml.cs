@@ -118,6 +118,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         InitializeComponent();
         _windowWorkArea = new WindowWorkArea(this);
+        WifiWorkspaceLayout.EnablePersistence(this);
         WifiListsGrid.SizeChanged += (_, _) => ResponsiveLayout.ApplyWifi(this);
         SizeChanged += (_, _) => ResponsiveLayout.ApplyWifi(this);
         _isFirstRun = !File.Exists(_store.Path);
@@ -1531,6 +1532,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var profileIndex = hasProfile ? ProfileGrid.Items.IndexOf(profile!) : -1;
         MoveUpButton.IsEnabled = !_isNetworkActionRunning && profileIndex > 0;
         MoveDownButton.IsEnabled = !_isNetworkActionRunning && profileIndex >= 0 && profileIndex < ProfileGrid.Items.Count - 1;
+        RefreshWifiWorkspaceSummary();
     }
 
     private void SetWifiSelectionMessage(string message)
@@ -2067,6 +2069,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void UpdateEmptyStates()
     {
+        RefreshWifiWorkspaceSummary();
         NearbyEmptyText.Visibility = NearbyGrid.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         var filteredEmpty = _nearbyNetworks.Count > 0 && NearbyGrid.Items.Count == 0;
         if (filteredEmpty) NearbyEmptyText.Text = _localizer.T("WifiNoMatches");

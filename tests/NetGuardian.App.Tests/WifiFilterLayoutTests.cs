@@ -33,14 +33,15 @@ public sealed class WifiFilterLayoutTests
             var sort = (ComboBox)window.FindName("NearbySortComboBox");
             var placeholder = DesktopFixture.Descendants(search).OfType<TextBlock>().Single(e => e.Name == "PlaceholderTextBox");
             var host = DesktopFixture.Descendants(search).OfType<ScrollViewer>().Single(e => e.Name == "PART_ContentHost");
-            var badge = ((Panel)search.Parent).Children.OfType<Border>().Single();
+            var badge = (Border)window.FindName("NearbyCountBadge");
             var badgeText = Assert.IsType<TextBlock>(badge.Child);
             var rowHeight = ((FrameworkElement)search.Parent).ActualHeight;
             var initialHeight = search.ActualHeight;
             DesktopFixture.Save(window, $"filter-empty-{theme}-{width}.png");
             AssertCentered(placeholder, search);
             AssertCentered(host, search);
-            AssertCentered(badge, (FrameworkElement)search.Parent);
+            Assert.InRange(badge.ActualHeight, 16, 32);
+            Assert.True(placeholder.ActualWidth >= 48, "搜索占位文字必须完整显示。");
             Assert.Equal(badgeText.ActualHeight + badge.Padding.Top + badge.Padding.Bottom, badge.ActualHeight, 1);
             var selection = DesktopFixture.Descendants(sort).OfType<ContentPresenter>()
                 .First(e => e.Content == sort.SelectionBoxItem && e.ActualHeight > 0);

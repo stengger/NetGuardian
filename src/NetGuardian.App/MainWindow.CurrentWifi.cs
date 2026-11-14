@@ -59,8 +59,11 @@ public partial class MainWindow
         CurrentWifiTitle.Text = _localizer.T("WifiCurrentConnection");
         CurrentWifiNameText.Text = view.Name;
         CurrentWifiDetailsText.Text = view.Details;
-        CurrentWifiSignalBar.Visibility = _currentWifiInfo is { ReadSucceeded: true, Connected: true, SignalPercent: not null }
+        CurrentWifiConnectedText.Text = _localizer.T("WifiCurrentConnected");
+        CurrentWifiConnectedBadge.Visibility = _currentWifiInfo is { ReadSucceeded: true, Connected: true }
             ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+        // 摘要详情已包含信号值，旧进度条仅保留名称兼容，不再覆盖摘要正文。
+        CurrentWifiSignalBar.Visibility = System.Windows.Visibility.Collapsed;
         CurrentWifiSignalBar.Value = _currentWifiInfo?.SignalPercent ?? 0;
         CurrentWifiSignalBar.ToolTip = view.Details;
     }

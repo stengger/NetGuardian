@@ -31,6 +31,8 @@ public partial class MainWindow
             UpdateEmptyStates();
         });
         if (_resourcesCleaned) return;
+        if (_wifiScan.Phase == WifiScanPhase.Complete) _lastSuccessfulWifiScan = System.DateTimeOffset.Now;
+        RefreshWifiScanUi();
         SetToolOutput(WifiScanStatusText.Text);
         Log(WifiScanStatusText.Text, _wifiScan.Phase == WifiScanPhase.Failed ? UiLogLevel.Error : UiLogLevel.Information);
     }
@@ -44,6 +46,7 @@ public partial class MainWindow
 
     private void RefreshWifiScanUi()
     {
+        ScanButton.Content = _localizer.T(_wifiScan.IsBusy ? "Scanning" : "Scan");
         ScanButton.IsEnabled = ToolsScanButton.IsEnabled = !_wifiScan.IsBusy;
         WifiScanCancelButton.Content = _localizer.T("Cancel");
         ToolsScanCancelButton.Content = _localizer.T("Cancel");
@@ -62,5 +65,6 @@ public partial class MainWindow
             _ => _localizer.T("NoNearbyWifiRows")
         };
         NearbyEmptyText.Text = _localizer.T(_wifiScan.Phase == WifiScanPhase.Complete ? "WifiScanNone" : "WifiScanNoCurrentResults");
+        RefreshWifiWorkspaceSummary();
     }
 }

@@ -28,7 +28,7 @@ public sealed class WifiSectionLayoutTests
             var prioritySection = Assert.IsType<Expander>(window.FindName("PriorityNetworksExpander"));
             var region = (FrameworkElement)window.FindName("WifiListsGrid");
             Assert.True(nearbySection.IsExpanded && prioritySection.IsExpanded);
-            Assert.True(nearbySection.ActualHeight <= ((FrameworkElement)window.FindName("WifiContentScrollViewer")).ActualHeight * .4 + 1);
+            Assert.True(nearbySection.ActualHeight <= region.ActualHeight + 1);
             var title = (FrameworkElement)window.FindName("PriorityListTitle");
             var bounds = title.TransformToAncestor(window).TransformBounds(new Rect(title.RenderSize));
             Assert.InRange(bounds.Bottom, 1, height);

@@ -172,7 +172,7 @@ public sealed class SmallWorkAreaTests
     [Theory]
     [InlineData("zh-CN")]
     [InlineData("en-US")]
-    public void 短窗口无线操作可以横向访问且恢复大窗口换行(string language)
+    public void 短窗口无线操作完整可见且低频入口保留在更多菜单(string language)
     {
         DesktopFixture.Run(window =>
         {
@@ -181,8 +181,10 @@ public sealed class SmallWorkAreaTests
             ApplyWifiLabels(window, language);
             DesktopFixture.Layout(window, 960, 500);
             var actions = Assert.IsType<ScrollViewer>(window.FindName("WifiPageActions"));
-            // 英文按钮需要横向滚动；中文按钮可完整放下时无需产生滚动条。
-            if (language == "en-US") Assert.True(actions.ScrollableWidth > 0);
+            Assert.Equal(0, actions.ScrollableWidth);
+            var more = (Button)window.FindName("WifiMoreButton");
+            Assert.True(more.IsVisible);
+            Assert.Equal(3, more.ContextMenu.Items.Count);
             actions.ScrollToRightEnd(); window.UpdateLayout();
             var connect = (FrameworkElement)window.FindName("ConnectButton");
             var bounds = connect.TransformToAncestor(actions).TransformBounds(new Rect(connect.RenderSize));

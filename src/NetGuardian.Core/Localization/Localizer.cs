@@ -8,6 +8,9 @@ public sealed class Localizer
         {
             ["FeedbackDetails"] = "查看详情",
             ["WifiSearch"] = "搜索网络",
+            ["WifiMore"] = "更多",
+            ["WifiLastScan"] = "最后扫描：{0}",
+            ["WifiRecoverySummary"] = "恢复优先级：已启用 {0}/{1}",
             ["WifiOnlyNew"] = "仅显示未添加",
             ["WifiSortSignal"] = "按信号排序",
             ["WifiSortName"] = "按名称排序",
@@ -587,6 +590,9 @@ public sealed class Localizer
         {
             ["FeedbackDetails"] = "View details",
             ["WifiSearch"] = "Search networks",
+            ["WifiMore"] = "More",
+            ["WifiLastScan"] = "Last scan: {0}",
+            ["WifiRecoverySummary"] = "Recovery priority: {0}/{1} enabled",
             ["WifiOnlyNew"] = "Only unadded",
             ["WifiSortSignal"] = "Sort by signal",
             ["WifiSortName"] = "Sort by name",

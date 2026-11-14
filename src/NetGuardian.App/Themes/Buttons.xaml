@@ -96,6 +96,13 @@
             <Setter Property="Foreground" Value="{DynamicResource StatusDangerBrush}" />
             <Setter Property="BorderBrush" Value="{DynamicResource DangerButtonBorderBrush}" />
         </Style>
+    <Style x:Key="ToolbarFixedButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+        <Setter Property="Width" Value="{DynamicResource WifiPrimaryActionWidth}" />
+    </Style>
+    <Style x:Key="ToolbarIconButtonStyle" TargetType="Button" BasedOn="{StaticResource ToolbarButtonStyle}">
+        <Setter Property="Width" Value="{DynamicResource ToolbarControlHeight}" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
     <!-- 仅供业务对话框显式引用，避免影响标题栏及下拉框内部按钮。 -->
     <Style x:Key="DialogButtonStyle" TargetType="ui:Button" BasedOn="{StaticResource SecondaryButtonStyle}">
         <Setter Property="MinWidth" Value="{DynamicResource DialogActionMinWidth}" />

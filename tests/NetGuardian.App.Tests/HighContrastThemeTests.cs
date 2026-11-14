@@ -132,7 +132,7 @@ public sealed class HighContrastThemeTests
             grid.SelectedIndex = 0;
             DesktopFixture.Layout(window, 1040, 660);
             var row = (DataGridRow)grid.ItemContainerGenerator.ContainerFromIndex(0);
-            Assert.Equal(new Thickness(1), row.BorderThickness);
+            Assert.Equal(new Thickness(2, 0, 0, 0), row.BorderThickness);
             Assert.Equal(SystemColors.WindowTextColor, Assert.IsType<SolidColorBrush>(row.BorderBrush).Color);
             Assert.True(row.ActualHeight >= 38);
         });

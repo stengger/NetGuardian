@@ -16,6 +16,8 @@ public sealed class ButtonStateTests
     {
         DesktopFixture.Run(window =>
         {
+            DesktopFixture.ShowPage(window, "WifiPanel");
+            DesktopFixture.Layout(window, 1180, 758);
             var button = (Button)window.FindName("RemoveButton");
             button.IsEnabled = true;
             button.ApplyTemplate();

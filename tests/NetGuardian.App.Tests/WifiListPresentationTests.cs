@@ -88,10 +88,11 @@ public sealed class WifiListPresentationTests
             WifiRowPresentation.SetCurrentSsid(table, "当前网络");
             DesktopFixture.Layout(window, 1180, 760);
             var row = (DataGridRow)table.ItemContainerGenerator.ContainerFromIndex(0);
-            Assert.Equal(FontWeights.SemiBold, row.FontWeight);
+            Assert.Equal(FontWeights.Normal, row.FontWeight);
             row.IsSelected = true;
             window.UpdateLayout();
-            Assert.Equal(window.FindResource("RowSelectionStrokeBrush"), row.BorderBrush);
+            Assert.Equal(window.FindResource("FocusRingBrush"), row.BorderBrush);
+            Assert.Equal(new Thickness(2, 0, 0, 0), row.BorderThickness);
             WifiRowPresentation.SetCurrentSsid(table, null);
             window.UpdateLayout();
             Assert.NotEqual(FontWeights.SemiBold, row.FontWeight);

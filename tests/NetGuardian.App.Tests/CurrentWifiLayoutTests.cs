@@ -29,11 +29,11 @@ public sealed class CurrentWifiLayoutTests
             ((DataGrid)window.FindName("ProfileGrid")).ItemsSource = new[] { new WifiProfile { Ssid = "实际连接", Priority = 1 } };
             DesktopFixture.Layout(window, width, height);
             var currentBounds = current.TransformToAncestor(window).TransformBounds(new Rect(current.RenderSize));
-            var selection = (FrameworkElement)window.FindName("WifiSelectionBar");
-            var selectionBounds = selection.TransformToAncestor(window).TransformBounds(new Rect(selection.RenderSize));
-            Assert.True(current.IsVisible && currentBounds.Height > 0);
-            Assert.True(currentBounds.Bottom <= selectionBounds.Top && currentBounds.Left >= 0 && currentBounds.Right <= width,
-                $"当前连接卡片越界或覆盖提示：卡片={currentBounds}，提示={selectionBounds}，窗口宽度={width}");
+            var region = (FrameworkElement)window.FindName("WifiListsGrid");
+            var regionBounds = region.TransformToAncestor(window).TransformBounds(new Rect(region.RenderSize));
+            Assert.True(current.IsVisible && currentBounds.Height > 0 && currentBounds.Height <= 64);
+            Assert.True(currentBounds.Bottom <= regionBounds.Top && currentBounds.Left >= 0 && currentBounds.Right <= width,
+                $"摘要越界或覆盖列表：摘要={currentBounds}，列表={regionBounds}，窗口宽度={width}");
             Assert.Contains("Redmi", ssid.Text);
             Assert.DoesNotContain("目标网络", ssid.Text);
             var page = (ScrollViewer)window.FindName("WifiContentScrollViewer");
