@@ -9,6 +9,26 @@ namespace NetGuardian.App.Tests;
 public sealed class WifiSharedComponentTests
 {
     [Fact]
+    public void 编译分区头内容能绑定同一窗口的数量和菜单状态源()
+    {
+        DesktopFixture.Run(window =>
+        {
+            // 主窗口先加载隐藏的 Wi-Fi 页，导航后才首次展开视觉模板。
+            var fixture = new Fixtures.CompiledSectionHeader { Visibility = Visibility.Collapsed };
+            ((Panel)window.Content).Children.Add(fixture);
+            fixture.Networks.ItemsSource = new[] { "网络一", "网络二" };
+            DesktopFixture.Layout(window, 1180, 758);
+            fixture.Visibility = Visibility.Visible;
+            DesktopFixture.Layout(window, 1180, 758);
+            Assert.Equal("2", fixture.CountText.Text);
+            Assert.Same(fixture.FilterSource, fixture.FilterButton.Tag);
+            fixture.Networks.ItemsSource = new[] { "网络一", "网络二", "网络三" };
+            window.UpdateLayout();
+            Assert.Equal("3", fixture.CountText.Text);
+        });
+    }
+
+    [Fact]
     public void 紧凑工具按钮保持三十二高且忙碌内容不改变尺寸()
     {
         DesktopFixture.Run(window =>
