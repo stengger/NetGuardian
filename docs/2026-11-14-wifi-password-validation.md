@@ -40,4 +40,19 @@ git diff --check
 
 本机窗口清单核实当前界面从 `C:\Program Files\NetGuardian\NetGuardian.exe` 启动，安装目录与启动器目录当前均为 `1.1.1+4830bc9…`。更新脚本已通过 PowerShell 语法检查；待提交后发布到独立审查目录，校验源文件及依赖，再按 AGENTS.md 请用户手动托盘退出。
 
-更新仅替换两个目录各五个必要界面文件，备份旧文件并检查哈希、用户配置与守护文件。真实安装、重新启动路径与密码读取接口探测结果在完成后另补记录；当前文档不声称本机已更新。
+更新计划仅替换两个目录各五个必要界面文件，备份旧文件并检查哈希、用户配置与守护文件。准备阶段未替换本机文件，实际安装与核验结果见下节。
+
+## 本机更新结果
+
+- 软件提交 `360db9c66f2505227f7e010a87e0ffe2cf726c07`：支持在已保存无线网络详情中显示和隐藏密码。
+- `dotnet publish src/NetGuardian.App/NetGuardian.App.csproj -c Release --no-restore --self-contained false --nologo --output artifacts/ui-audit/wifi-password-20261114/release` 通过，退出码 0，保留原有两条 WFAC010。构建标识 `1.1.1+360db9c66f2505227f7e010a87e0ffe2cf726c07`；依赖及 runtimeconfig 与安装目录一致。
+- 用户确认从托盘退出后，核实界面进程已退出，通过标准 UAC 执行更新脚本；安装结果 Success=true。更新了 `C:\Program Files\NetGuardian` 和项目 `dist\NetGuardian`，两目录共 10 文件与发布清单哈希一致。安装后再次独立核对文件哈希通过；管理员安装助手核实两份用户配置在替换前后、启动后保持一致，独立复核 Roaming 界面配置也保持一致。
+- 备份：`artifacts/ui-audit/wifi-password-20261114/ui-backup-20261114-233653/`，包含旧界面文件、原文件及配置哈希清单。完整安装结果为审查目录的 `install-result.json`。
+- 新界面 PID 78736，管理员安装助手核实实际路径 `C:\Program Files\NetGuardian\NetGuardian.exe`；独立复核仍在运行。后台守护 PID 99664 保持不变，守护及其他文件未替换。
+- 使用发布的 Core 程序集实际调用当前网络与已保存密码只读接口，结果 `CurrentNetworkAvailable=true`、`SavedPasswordReadable=true`；没有输出或保存真实 SSID、密码或命令输出，没有执行连接、切网或凭据写入。
+- 真实密码读取与本机安装已核验；密码按钮、复制文本、隐藏、收起与选择切换由真实 WPF 组件测试覆盖，尚未做安装窗口中的人工点击验收。
+
+## 工具权限记录
+
+- 普通沙盒的 Git 暂存/提交退出码 1，完整错误：`fatal: Unable to create 'C:/Users/Qiu/Documents/Net/.git/index.lock': Permission denied`。使用实际审批机制获得 Git 写权限后，提交成功，退出码 0。
+- 非管理员独立复核 ProgramData 配置时退出码 1，完整读取错误：`Get-FileHash: Access to the path 'C:\ProgramData\NetGuardian\settings.json' is denied.`；后续比较因未取得哈希而报告 `安装后用户配置哈希变化。`。这是读取权限不足，不能据此判断配置变化。标准管理员安装助手已经在替换前后及启动后核实该文件哈希一致；独立复核仅检查全部安装文件、可读取的 Roaming 配置与进程，结果保存在 `independent-check.json`，没有绕过文件权限。
