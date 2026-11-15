@@ -85,6 +85,17 @@
 
 SHA256：`d4df7ca2d3923b990fcfbf454edc62dd1884633582398e66b16bdb4a3e3cb955`。
 
-同名 `.sha256` 已生成并核对，复制到交付目录后再次核对。完整构建、备份和核验 JSON 保存在 `.dotnet-home/validation/update-exit/`，构建产物与配置未提交 Git。本轮没有推送 Git 或发布 GitHub Release。
+同名 `.sha256` 已生成并核对，复制到交付目录后再次核对。完整构建、备份和核验 JSON 保存在 `.dotnet-home/validation/update-exit/`，构建产物与配置未提交 Git。用户随后明确要求推送并发布，结果见下面的正式发布验收记录。
 
 另一台电脑仍需正常退出旧版后手动安装修复包并验收。没有在另一台电脑执行安装，也没有以替身测试宣称真实 Inno 升级或安装失败恢复已端到端验收。同步阻塞于系统调用或资源清理的情形仍可能阻塞 UI 线程，异步时限不能保证打断这类阻塞；本次没有强制结束进程。
+
+## GitHub 正式发布验收
+
+- 正式 Release：[NetGuardian v1.1.3](https://github.com/stengger/NetGuardian/releases/tag/v1.1.3)，draft=false、prerelease=false，匿名 `/releases/latest` 返回 v1.1.3。
+- `a0ffa23` 修复与 `f6fc2d7` 本机验收记录均已推送 origin/master。新建并推送的注释标签 v1.1.3 指向安装包实际源码提交 `a0ffa2386e6924afefe436c1ed629d021969f6ec`，没有改写已有标签。
+- Release ID 为 446092328。安装包 77,464,901 字节，GitHub digest 为 `sha256:d4df7ca2d3923b990fcfbf454edc62dd1884633582398e66b16bdb4a3e3cb955`，与本地已验证构建一致。
+- 同名校验文件 103 字节，GitHub digest 为 `sha256:35fdb0b950845415c4aae5ad5165f4208615031ba92c1a7a8b72ae90c6064d50`，与本地校验文件一致。
+- `git fetch origin`、`git push origin master`、创建标签、推送标签，以及发布助手的 Inspect / Draft / Upload / Publish / Verify 全部成功，退出码 0。先创建草稿、上传并核对两个附件，再正式发布为 latest。
+- 使用本次软件的生产 `GitHubUpdateService` 匿名执行 `CheckAsync(1.1.2)`、完整 `DownloadAsync` 并核对 SHA256，最后 `CheckAsync(1.1.3)` 返回无更新。命令 `.dotnet-home/validation/update-exit/verify-public-release.ps1` 退出码 0，下载长度及哈希均匹配，没有启动安装包。
+
+发布收据位于 `.dotnet-home/validation/release-1.1.3-published.json`，匿名生产服务验证结果位于 `.dotnet-home/validation/update-exit/public-release-verification.json`。发布凭据仅通过现有 Git 凭据管理器在进程内读取，没有输出凭据或将凭据写入文件。
