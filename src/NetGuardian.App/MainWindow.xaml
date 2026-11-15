@@ -716,11 +716,11 @@
                                 <DataGridTextColumn x:Name="QualityLatencyColumn" Binding="{Binding LatencyText}" Width="110" MinWidth="100" ElementStyle="{StaticResource GridTextStyle}" />
                                 <DataGridTextColumn x:Name="QualityDetailColumn" Binding="{Binding Detail}" Width="3*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
                             </DataGrid.Columns>
-                        </DataGrid><Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=QualityEmptyText}"><StackPanel>
+                        </DataGrid><ContentControl Style="{StaticResource TableEmptyStateHostStyle}" Tag="{Binding ColumnHeaderHeight, ElementName=QualityProbeGrid}" Visibility="{Binding Visibility, ElementName=QualityEmptyText}"><Border Style="{StaticResource EmptyStateStyle}"><StackPanel>
  <ui:SymbolIcon Symbol="Info24" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" />
  <TextBlock x:Name="QualityEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed"  TextAlignment="Center" Margin="{DynamicResource SpacingEmptyCaption}" />
  <Button x:Name="QualityEmptyAction" Content="{Binding Content, ElementName=QualityRunButton}" IsEnabled="{Binding IsEnabled, ElementName=QualityRunButton}" ToolTip="{Binding ToolTip, ElementName=QualityRunButton}" Click="QualityRun_Click" HorizontalAlignment="Center" />
- </StackPanel></Border></Grid>
+ </StackPanel></Border></ContentControl></Grid>
 
                         </Grid>
                         <TextBlock x:Name="QualityStatusText" TextWrapping="Wrap"  Grid.Row="3" Margin="{DynamicResource SpacingSectionStart}" />
