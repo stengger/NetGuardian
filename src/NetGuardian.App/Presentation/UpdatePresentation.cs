@@ -18,7 +18,7 @@ internal static class UpdatePresentation
         Get<Expander>("UpdateNotesExpander").Visibility = session.Release is null ? Visibility.Collapsed : Visibility.Visible;
         Get<TextBlock>("UpdateNotesText").Text = session.Release?.Notes ?? "";
         var canDownload = session.Release is not null && session.Phase is UpdatePhase.Available or UpdatePhase.Cancelled or UpdatePhase.Failed;
-        var ready = session.Phase is UpdatePhase.Ready or UpdatePhase.Installing;
+        var ready = session.Phase is UpdatePhase.Ready or UpdatePhase.Installing or UpdatePhase.WaitingForExit;
         Button Action(string name, string key, bool visible, bool enabled, string? hint = null)
         {
             var button = Get<Button>(name);
@@ -55,6 +55,7 @@ internal static class UpdatePresentation
                     UpdateError.VerificationFailed => "UpdateVerificationFailed", _ => "UpdateFailed"
                 }) : string.Format(text.T("UpdateFailedDetail"), session.Error?.Message),
             UpdatePhase.Installing => text.T("UpdateInstalling"),
+            UpdatePhase.WaitingForExit => text.T("UpdateWaitingForExit"),
             _ => text.T("UpdateIdle")
         };
         Get<TextBlock>("UpdateStatusText").Text = message;

@@ -5,7 +5,7 @@ using NetGuardian.Core.Updates;
 
 namespace NetGuardian.App.Updates;
 
-internal enum UpdatePhase { Idle, Checking, NoUpdate, Available, Downloading, Ready, Cancelled, Failed, Installing }
+internal enum UpdatePhase { Idle, Checking, NoUpdate, Available, Downloading, Ready, Cancelled, Failed, Installing, WaitingForExit }
 
 internal sealed class UpdateSession(IUpdateService service, Version currentVersion) : IDisposable
 {
@@ -17,7 +17,7 @@ internal sealed class UpdateSession(IUpdateService service, Version currentVersi
     public DownloadedUpdate? Downloaded { get; private set; }
     public UpdateProgress? Progress { get; private set; }
     public Exception? Error { get; private set; }
-    public bool IsBusy => Phase is UpdatePhase.Checking or UpdatePhase.Downloading or UpdatePhase.Installing;
+    public bool IsBusy => Phase is UpdatePhase.Checking or UpdatePhase.Downloading or UpdatePhase.Installing or UpdatePhase.WaitingForExit;
 
     public async Task CheckAsync()
     {
@@ -69,6 +69,13 @@ internal sealed class UpdateSession(IUpdateService service, Version currentVersi
         Error = error;
         Downloaded = null;
         Phase = UpdatePhase.Failed;
+        Changed?.Invoke();
+    }
+
+    public void WaitForExit()
+    {
+        if (Phase != UpdatePhase.Installing) throw new InvalidOperationException("更新尚未开始准备。");
+        Phase = UpdatePhase.WaitingForExit;
         Changed?.Invoke();
     }
 

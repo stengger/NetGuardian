@@ -22,8 +22,13 @@ public sealed class UpdateSessionTests
         Assert.NotNull(available.Downloaded);
         available.BeginInstall();
         Assert.Equal(UpdatePhase.Installing, available.Phase);
+        available.WaitForExit();
+        Assert.Equal(UpdatePhase.WaitingForExit, available.Phase);
+        Assert.True(available.IsBusy);
         available.InstallFailed(new IOException("准备失败"));
         Assert.Equal(UpdatePhase.Ready, available.Phase);
+        Assert.False(available.IsBusy);
+        Assert.NotNull(available.Downloaded);
     }
 
     [Fact]

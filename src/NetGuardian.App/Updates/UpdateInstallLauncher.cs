@@ -17,7 +17,8 @@ internal sealed class UpdateInstallLauncher(UpdateStorage storage)
         return Path.GetFullPath(directory).StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 
-    public async Task PrepareAsync(DownloadedUpdate update, CancellationToken token)
+    public async Task PrepareAndExitAsync(DownloadedUpdate update, Func<CancellationToken, Task> exit,
+        Action waitingForExit, CancellationToken token)
     {
         var directory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar);
         if (!IsInstalledDirectory(directory)) throw new InvalidOperationException("当前运行目录不支持原地安装，请从已安装版本打开。");
@@ -50,35 +51,41 @@ internal sealed class UpdateInstallLauncher(UpdateStorage storage)
         var prepared = false;
         try
         {
+            async Task VerifyJobAsync(CancellationToken verificationToken)
+            {
+                var resultFile = Path.Combine(job, "result.json");
+                if (File.Exists(resultFile))
+                {
+                    using var result = JsonDocument.Parse(await File.ReadAllTextAsync(resultFile, verificationToken));
+                    throw new IOException(result.RootElement.GetProperty("Message").GetString() ?? "更新准备失败。");
+                }
+                if (process.HasExited) throw new IOException($"更新协调进程提前退出（{process.ExitCode}）。");
+            }
             var deadline = DateTime.UtcNow.AddMinutes(3);
             while (DateTime.UtcNow < deadline)
             {
                 token.ThrowIfCancellationRequested();
-                var resultFile = Path.Combine(job, "result.json");
-                if (File.Exists(resultFile))
-                {
-                    using var result = JsonDocument.Parse(await File.ReadAllTextAsync(resultFile, token));
-                    throw new IOException(result.RootElement.GetProperty("Message").GetString() ?? "更新准备失败。");
-                }
+                await VerifyJobAsync(token);
                 var readyFile = Path.Combine(job, "ready.json");
                 if (File.Exists(readyFile))
                 {
                     using var ready = JsonDocument.Parse(await File.ReadAllTextAsync(readyFile, token));
                     if (ready.RootElement.GetProperty("Ready").GetBoolean() && ready.RootElement.GetProperty("Version").GetString() == update.Version.ToString())
                     {
+                        waitingForExit();
+                        await UpdateExitCoordinator.WaitAsync(exit, VerifyJobAsync, token, TimeSpan.FromMinutes(1));
                         prepared = true;
                         return;
                     }
                     throw new IOException("更新准备信号无效。");
                 }
-                if (process.HasExited) throw new IOException($"更新协调进程提前退出（{process.ExitCode}）。");
                 await Task.Delay(200, token);
             }
             throw new TimeoutException("更新准备超时，界面将保持打开。");
         }
         finally
         {
-            // 超时也必须撤销握手，避免稍后普通退出界面触发遗留的安装请求。
+            // 备份或退出交接失败都撤销握手，避免稍后退出触发遗留安装请求。
             if (!prepared)
             {
                 var cancel = Path.Combine(job, "cancel.request");

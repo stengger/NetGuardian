@@ -97,8 +97,8 @@ public partial class MainWindow
                 string.Format(_localizer.T("UpdateConfirmMessage"), downloaded.Version))) return;
             _updateSession.BeginInstall();
             IsEnabled = false;
-            await new UpdateInstallLauncher(_updateStorage).PrepareAsync(downloaded, CancellationToken.None);
-            ExitApplication();
+            await new UpdateInstallLauncher(_updateStorage).PrepareAndExitAsync(downloaded,
+                ExitApplicationAsync, _updateSession.WaitForExit, CancellationToken.None);
         }
         catch (Exception ex)
         {

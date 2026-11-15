@@ -17,6 +17,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 using NetGuardian.App.Presentation;
+using NetGuardian.App.Updates;
 using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Logging;
@@ -733,15 +734,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _ = ReleaseMonitorLeaseWhenIdleAsync();
     }
 
-    private async Task ReleaseMonitorLeaseWhenIdleAsync()
+    private Task ReleaseMonitorLeaseWhenIdleAsync(CancellationToken token = default)
+        => ApplicationExitCoordinator.WaitForIdleAsync(() => _engine.IsChecking, () =>
     {
-        while (_engine.IsChecking) await Task.Delay(100);
         if (!_engine.IsMonitoring)
         {
             _monitorLease?.Dispose();
             _monitorLease = null;
         }
-    }
+    }, token);
 
     private async Task RunCheckAsync()
     {
@@ -2924,20 +2925,33 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
     }
 
-    private bool _isExiting;
+    private readonly ApplicationExitCoordinator _exitCoordinator = new();
+    private bool _isExiting => _exitCoordinator.IsExiting;
 
     private async void ExitApplication()
     {
-        if (_isExiting) return;
-        _isExiting = true;
+        if (_isExiting || _isUpdatePreparing) return;
+        try { await ExitApplicationAsync(CancellationToken.None); }
+        catch (Exception ex)
+        {
+            Log(ex.Message, UiLogLevel.Error);
+            ShowFeedback(_localizer.T("ActionFailedTitle"), ex.Message, FeedbackSeverity.Danger);
+        }
+    }
+
+    private Task ExitApplicationAsync(CancellationToken token) => _exitCoordinator.ExitAsync(async exitToken =>
+    {
         _networkActionCancellation?.Cancel();
-        if (_networkActionCompletion is { } actionCompletion) await actionCompletion;
+        if (_networkActionCompletion is { } actionCompletion) await actionCompletion.WaitAsync(exitToken);
+        exitToken.ThrowIfCancellationRequested();
         _engine.Stop();
-        await ReleaseMonitorLeaseWhenIdleAsync();
+        await ReleaseMonitorLeaseWhenIdleAsync(exitToken);
+    }, () =>
+    {
         _forceExit = true;
         CleanupResources();
         Close();
-    }
+    }, token);
 
     private void Window_StateChanged(object? sender, EventArgs e)
     {

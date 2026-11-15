@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using NetGuardian.App.Presentation;
@@ -54,6 +55,17 @@ public sealed class UpdateLayoutTests
             Assert.Equal(localizer.T("UpdateInstalledOnly"), install.ToolTip);
             UpdatePresentation.Apply(window, session, new Version(1, 1, 0), localizer, true);
             Assert.True(install.IsEnabled);
+            session.BeginInstall();
+            session.WaitForExit();
+            UpdatePresentation.Apply(window, session, new Version(1, 1, 0), localizer, true);
+            Assert.Equal(localizer.T("UpdateWaitingForExit"), ((TextBlock)window.FindName("UpdateStatusText")).Text);
+            Assert.False(install.IsEnabled);
+            Assert.False(((Button)window.FindName("UpdateCheckButton")).IsEnabled);
+            session.InstallFailed(new IOException("退出收尾失败"));
+            UpdatePresentation.Apply(window, session, new Version(1, 1, 0), localizer, true);
+            Assert.True(install.IsEnabled);
+            Assert.True(((Button)window.FindName("UpdateCheckButton")).IsEnabled);
+            Assert.Contains("退出收尾失败", ((TextBlock)window.FindName("UpdateStatusText")).Text);
         }, theme);
     }
 
