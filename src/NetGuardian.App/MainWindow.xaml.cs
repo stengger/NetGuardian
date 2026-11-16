@@ -194,6 +194,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateMonitorStatus();
         UpdateSidebarSpeed();
         UpdateWeeklySummary();
+        InitializePersistedLogs();
         UpdateFirstRunGuide();
         _ = Dispatcher.BeginInvoke(async () =>
         {
@@ -985,20 +986,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         try
         {
-            var summary = _journal.GetSummary();
-            WeeklyOutagesText.Text = summary.OutageEpisodes.ToString();
-            WeeklyRateText.Text = DashboardPresentation.SuccessRate(summary.RecoverySuccesses, summary.RecoveryAttempts);
-            WeeklySummaryText.Text = string.Format(
-                _localizer.T("WeeklySummary"),
-                summary.OutageEpisodes,
-                summary.RecoverySuccesses,
-                summary.RecoveryAttempts);
+            ApplyWeeklySummary(_journal.GetSummary());
         }
         catch (Exception ex)
         {
             WeeklySummaryText.Text = ex.Message;
             WeeklyOutagesText.Text = WeeklyRateText.Text = "—";
         }
+    }
+
+    private void ApplyWeeklySummary(WeeklySummary summary)
+    {
+        WeeklyOutagesText.Text = summary.OutageEpisodes.ToString();
+        WeeklyRateText.Text = DashboardPresentation.SuccessRate(summary.RecoverySuccesses, summary.RecoveryAttempts);
+        WeeklySummaryText.Text = string.Format(_localizer.T("WeeklySummary"),
+            summary.OutageEpisodes, summary.RecoverySuccesses, summary.RecoveryAttempts);
     }
 
     private void ExportLogs_Click(object sender, RoutedEventArgs e)
@@ -3046,6 +3048,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _engine.Stop();
         _engine.Dispose();
         _ = ReleaseMonitorLeaseWhenIdleAsync();
+        _logRefreshTimer.Stop();
         _countdownTimer.Stop();
         _sidebarSpeedTimer.Stop();
         CleanupSpeedTest();

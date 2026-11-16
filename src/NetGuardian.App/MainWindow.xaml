@@ -776,7 +776,7 @@
                                 <StackPanel Grid.Column="2" Margin="{DynamicResource SpacingTrailingGroupGap}">
                                     <TextBlock x:Name="LogSourceLabel" Margin="{DynamicResource SpacingFieldCaptionGap}" />
                                     <ComboBox x:Name="LogSourceComboBox" SelectedIndex="0" SelectionChanged="LogFilter_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LogSourceLabel}">
-                                        <ComboBoxItem Tag="all" /><ComboBoxItem Tag="Interface" /><ComboBoxItem Tag="Monitor" /><ComboBoxItem Tag="Diagnostic" /><ComboBoxItem Tag="Network" />
+                                        <ComboBoxItem Tag="all" /><ComboBoxItem Tag="Interface" /><ComboBoxItem Tag="Monitor" /><ComboBoxItem Tag="Diagnostic" /><ComboBoxItem Tag="Network" /><ComboBoxItem Tag="Background" /><ComboBoxItem Tag="Recovery" />
                                     </ComboBox>
                                 </StackPanel>
                             </Grid>
