@@ -1,4 +1,9 @@
 using System.Collections.ObjectModel;
+using System.Reflection;
+using System.Text;
+using NetGuardian.Core.Settings;
+using NetGuardian.Core.SystemCommands;
+using NetGuardian.Core.Wifi;
 using NetGuardian.App.Presentation;
 using NetGuardian.Core.Models;
 using Xunit;
@@ -7,6 +12,35 @@ namespace NetGuardian.App.Tests;
 
 public sealed class NearbySavedWifiViewTests
 {
+    [Fact]
+    public async Task 中文混合编码保存配置匹配附近SSID并显示已有恢复优先级()
+    {
+        const string ssid = "8b304北_5G_Wi-Fi5";
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        var oem = Encoding.GetEncoding(936);
+        var bytes = oem.GetBytes("SSID 名称 : “").Concat(Encoding.UTF8.GetBytes(ssid))
+            .Concat(oem.GetBytes("”\r\n名称 : WLAN\r\n状态 : 已连接\r\nSSID : "))
+            .Concat(Encoding.UTF8.GetBytes(ssid)).Concat(new byte[] { 13, 10 }).ToArray();
+        var runner = (ISystemCommandRunner)typeof(NetshWifiClient)
+            .GetField("_commands", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(new NetshWifiClient())!;
+        var result = await runner.RunAsync("powershell.exe", ["-NoProfile", "-Command",
+            "$bytes = [Convert]::FromBase64String('" + Convert.ToBase64String(bytes)
+                + "'); [Console]::OpenStandardOutput().Write($bytes, 0, $bytes.Length)"]);
+        Assert.True(result.Ok, result.Output);
+        var connection = NetshWifiClient.ParseConnectionInfo(result.Output);
+        var profileSsid = NetshWifiClient.ParseProfileSsid(result.Output);
+        var existing = new WifiProfile { Ssid = ssid, Priority = 3, CredentialSaved = false };
+        var settings = new AppSettings { Profiles = [existing] };
+        SavedWifiProfileImporter.Apply(settings, new(true, [new("真实配置北", profileSsid!)]), connection.Ssid);
+        var visible = new NearbySavedWifiView(new ObservableCollection<WifiProfile>(settings.Profiles));
+        visible.Update([ssid]);
+        Assert.Equal(ssid, connection.Ssid);
+        Assert.Same(existing, Assert.Single(visible.View.Cast<WifiProfile>()));
+        Assert.Equal(3, existing.Priority);
+        Assert.True(existing.CredentialSaved);
+        Assert.Equal("真实配置北", existing.ConnectionProfileName);
+    }
+
     [Fact]
     public void 只显示附近已保存网络且重新出现时保留原优先级和对象()
     {

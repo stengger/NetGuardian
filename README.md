@@ -85,7 +85,7 @@ dist\NetGuardian\guardian\NetGuardian.Guardian.exe  后台守护
 ```powershell
 $env:NETGUARDIAN_DOTNET = '你的 dotnet.exe 完整路径'
 $env:NETGUARDIAN_ISCC = '你的 Inno Setup 7\ISCC.exe 完整路径'
-.\scripts\build-installer.ps1 -Version 1.1.2
+.\scripts\build-installer.ps1 -Version 1.1.4
 ```
 
 脚本先运行 Release 完整测试，再将管理界面和 Guardian 以 `win-x64` 自包含模式发布到新的暂存目录，加入 README、启动入口与后台维护脚本，最后编译：

@@ -21,12 +21,14 @@ public sealed class ProcessCommandRunner : ISystemCommandRunner
     private readonly TimeSpan _timeout;
     private readonly Encoding? _outputEncoding;
     private readonly Encoding? _fallbackOutputEncoding;
+    private readonly Func<byte[], string>? _outputDecoder;
 
-    public ProcessCommandRunner(TimeSpan? timeout = null, Encoding? outputEncoding = null, Encoding? fallbackOutputEncoding = null)
+    public ProcessCommandRunner(TimeSpan? timeout = null, Encoding? outputEncoding = null, Encoding? fallbackOutputEncoding = null, Func<byte[], string>? outputDecoder = null)
     {
         _timeout = timeout ?? TimeSpan.FromSeconds(30);
         _outputEncoding = outputEncoding;
         _fallbackOutputEncoding = fallbackOutputEncoding;
+        _outputDecoder = outputDecoder;
         if (_timeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(timeout));
     }
 
@@ -74,13 +76,14 @@ public sealed class ProcessCommandRunner : ISystemCommandRunner
 
     private async Task<string> ReadOutputAsync(StreamReader reader)
     {
-        if (_fallbackOutputEncoding is null) return await reader.ReadToEndAsync();
+        if (_outputDecoder is null && _fallbackOutputEncoding is null) return await reader.ReadToEndAsync();
         using var buffer = new MemoryStream();
         await reader.BaseStream.CopyToAsync(buffer);
         var bytes = buffer.ToArray();
+        if (_outputDecoder is not null) return _outputDecoder(bytes);
         var strict = (Encoding)(_outputEncoding ?? reader.CurrentEncoding).Clone();
         strict.DecoderFallback = DecoderFallback.ExceptionFallback;
         try { return strict.GetString(bytes).TrimStart('\uFEFF'); }
-        catch (DecoderFallbackException) { return _fallbackOutputEncoding.GetString(bytes); }
+        catch (DecoderFallbackException) { return _fallbackOutputEncoding!.GetString(bytes); }
     }
 }

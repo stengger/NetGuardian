@@ -23,8 +23,9 @@ public sealed partial class NetshWifiClient : IWifiClient
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         // netsh 在不同 Windows 版本上可能输出 UTF-8 或系统 OEM 编码。
         var codePage = OperatingSystem.IsWindows() ? (int)GetOEMCP() : 65001;
+        var fallback = Encoding.GetEncoding(codePage);
         return new ProcessCommandRunner(outputEncoding: Encoding.UTF8,
-            fallbackOutputEncoding: Encoding.GetEncoding(codePage));
+            outputDecoder: bytes => NetshOutputDecoder.Decode(bytes, fallback));
     }
 
     [DllImport("kernel32.dll")]
