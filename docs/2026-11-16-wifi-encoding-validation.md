@@ -25,7 +25,7 @@ SDK：`.dotnet-home/sdk/dotnet.exe`。TEMP/TMP 指向工作区 `.dotnet-home/upd
 
 ## 交付状态
 
-修复源码与上述验证先提交。安装包构建、GitHub 发布及本机部署结果在完成后追加。本机界面仍运行时须用户从托盘手动退出后再替换；共用核心模块更新需要后台正常收尾并重新加载，保留配置与任务启用状态。
+修复、完整验证、安装包构建与正式发布已完成。2026-11-16 用户确认从托盘退出本机界面后，已完成本机安装目录与项目启动目录更新、后台正常重启及安装核验；配置与任务启用状态保留。另一台电脑升级后的实际 Wi-Fi 显示与列表验收仍待用户确认。
 
 ## 构建与正式发布
 
@@ -36,11 +36,17 @@ SDK：`.dotnet-home/sdk/dotnet.exe`。TEMP/TMP 指向工作区 `.dotnet-home/upd
 - 本机依赖系统运行时，因此从同一测试通过的独立源码分别执行界面和 Guardian 的 `dotnet publish --configuration Release --runtime win-x64 --self-contained false --no-restore`，生成 18 个组件文件，退出码 0。四个产品程序集构建标识均为 `1.1.4+6230e3531bcda3d5f746613898c348efe16ba57d`；另存部署清单和文件摘要。
 - 构建完整日志、安装包核验与发布记录保存在 `.dotnet-home/validation/wifi-mixed-encoding/` 和 `.dotnet-home/validation/release-1.1.4-published.json`，均属于忽略的验证产物。
 
-## 本机部署待完成
+## 本机部署与启动核验
 
-管理员只读核实本机实际界面路径为 `C:\Program Files\NetGuardian\NetGuardian.exe`，界面为 `1.1.3+a0ffa23…`；后台实际路径为同目录下 `guardian\NetGuardian.Guardian.exe`，仍为 `1.1.0+1408002…`，归属于 NetGuardian 计划任务；项目 `dist/NetGuardian` 版本与安装目录相同。
+2026-11-16 用户确认已从托盘退出，随后只读查询确认本机无 NetGuardian 界面进程。通过系统正常管理员授权运行 `pwsh -NoProfile -File .dotnet-home/validation/wifi-mixed-encoding/deploy-reviewed.ps1 -Apply`；部署记录 `Success=true`，日志记录退出码 0。
 
-部署包、清单摘要核验、安装和用户配置备份、逐文件差异备份、失败回滚、后台停止请求正常收尾、任务状态恢复和重启核验助手均已准备，语法检查通过。更新必须等用户按 AGENTS.md 从托盘手动退出当前运行的界面后继续。本记录尚未宣称本机已升级，也未宣称另一台电脑升级后实际验收通过。
+- 备份目录：`.dotnet-home/validation/wifi-mixed-encoding/deployment-backup-20261116-174711`。逐文件备份核对摘要后，向已核实路径的后台写入正常停止请求，等待原后台收尾；恢复原任务启用状态后由 NetGuardian 计划任务启动新版后台。
+- 安装目录 `C:\Program Files\NetGuardian` 与项目启动目录 `C:\Users\Qiu\Documents\Net\dist\NetGuardian` 各替换 12 个差异文件，共 24 个；两个目录各 18 个组件均与已验证部署包的 SHA256 一致。界面、Guardian 及共用核心程序集的构建标识均为 `1.1.4+6230e3531bcda3d5f746613898c348efe16ba57d`。
+- 机器配置与用户配置均已备份，部署阶段分别核对原 SHA256，内容未变。NetGuardian 与 NetGuardian-Watchdog 任务保持原启用状态。
+- 通过系统正常管理员授权运行 `pwsh -NoProfile -File .dotnet-home/validation/wifi-mixed-encoding/verify-installed.ps1`，记录 `Success=true`（成功路径退出码 0）。重新打开的唯一界面 PID 为 75596，实际路径为 `C:\Program Files\NetGuardian\NetGuardian.exe`，启动 3 秒后仍运行；后台 PID 为 77480，实际路径为安装目录下 `guardian\NetGuardian.Guardian.exe`，心跳进程号匹配、状态为 `Healthy`、控制协议版本为 1。再次核对两个目录各 18 个组件摘要通过。
+- 部署日志、结果与安装核验保存在同目录的 `deployment.log`、`deployment-result.json`、`installed-verification.json`。无需回滚；未使用强制结束进程或界面自动化退出。
+
+另一台电脑尚未执行升级后验收。应安装正式 1.1.4 后重新扫描，确认当前中文 SSID 显示和已保存且附近的恢复条目；旧版若卡在等待退出阶段，先从托盘退出界面，再运行发布的安装包。
 
 ## 生产更新接口验收
 
