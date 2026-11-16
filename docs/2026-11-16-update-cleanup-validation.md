@@ -48,3 +48,18 @@
 - 本机更新仍待用户手动从托盘退出，并正常通过 Windows 管理员确认；之后需备份并更新 `C:\Program Files\NetGuardian` 与项目 `dist\NetGuardian` 的必要界面组件及更新脚本，保留配置和后台进程，核对哈希、启动路径及后台身份。
 
 预检启动失败的完整错误：退出码 1，`This command cannot be run due to the error: An error occurred trying to start process 'C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe' with working directory 'C:\Users\Qiu\Documents\Net'. 操作已被用户取消。`；随后无进程对象导致 `You cannot call a method on a null-valued expression.`，无报告文件导致 `Cannot find path '.dotnet-home\validation\update-cleanup\Inspect-deployment.json' because it does not exist.`。这些属于管理员启动被取消后的派生错误，不是 .NET 工具故障；没有反复发起提权。
+## 本机更新完成（2026-11-16 22:41，北京时间）
+
+用户确认已从托盘退出后，按正常 Windows 管理员确认执行本机更新。
+
+- Inspect、Preflight、Baseline、Apply 与文件 Verify 均退出码 0。两处安装原来均为 `1.1.4+6230e3531bcda3d5f746613898c348efe16ba57d`，均为框架依赖安装；依赖兼容预检通过。
+- 两个更新目标：`C:\Program Files\NetGuardian`、`C:\Users\Qiu\Documents\Net\dist\NetGuardian`。按发布清单检查每处 8 个组件（共 16 项）；14 个文件需要替换，其余哈希本来一致。必要界面组件和更新协调脚本已更新为本次独立发布包。
+- 替换前备份并逐项检查原始文件及用户配置。备份目录：`.dotnet-home/validation/update-cleanup/ui-backup-20261116-223720/`；原始/目标 SHA256 清单位于 `changes.json`。更新期间配置、两个 guardian 目录的文件哈希及后台进程身份均核验不变。
+- 最终重新执行 `deploy-ui.ps1 -Mode Verify`，退出码 0，两处安装每项 SHA256 与发布清单一致。
+- 最终执行 `verify-startup.ps1 -Mode Verify`，退出码 0。界面 PID 16612，实际路径为 `C:\Program Files\NetGuardian\NetGuardian.exe`，所属目录的 ProductVersion 为 `1.1.6+c705b654aecd9e7da14457880530c18b048a3cae`。
+- 守护 PID 77480、实际路径及创建时间与更新前一致，未重启守护、未调用切网操作。守护状态 Healthy，最终核验时心跳年龄 3.96 秒；NetGuardian 与 NetGuardian-Watchdog 两个任务保持启用，和更新前一致。
+- 最终包装执行结果 `local-update-result.json` 为 Success=true，两个核验子步骤均 ExitCode=0；详细证据为 `Inspect-deployment.json`、`Preflight-deployment.json`、`Baseline-startup.json`、`Apply-deployment.json`、`Verify-deployment.json`、`Verify-startup.json`。
+
+本机辅助执行过程中的纠正：首轮文件检查通过，但启动核验退出码 1，完整错误为 `System.Management.Automation.RuntimeException: 更新界面未从核实目录正常启动。`。辅助进程曾使用 Start-Process -Wait 等待子进程树，调整等待方式；此时原辅助进程已经结束，没有结束界面或守护。一次后续包装读取到 ExitCode=null，返回 `System.Management.Automation.RuntimeException: 核验步骤失败：deploy-ui-Verify，退出码：`，而对应文件核验报告为 Success=true。随后改用隐藏辅助脚本直接调用原生 powershell.exe，并读取 LASTEXITCODE；最终两个真实核验均为 0。没有重新替换文件、强制结束软件或删除失败记录。
+
+结论边界：本机 1.1.6 安装和进程路径核验完成；真实下一次在线升级尚未执行，不能将本次本机文件更新等同于原始准备失败根因已修复或在线安装包清理已端到端验收。之前失败的 1.1.5 安装包继续保留，符合失败时保留的策略。
