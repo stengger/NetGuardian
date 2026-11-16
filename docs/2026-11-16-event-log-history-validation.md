@@ -50,3 +50,13 @@ SDK：`E:\Environment\dotnet-sdk-8.0\dotnet.exe`（8.0.422），Release 配置�
 源码提交后，从独立验证快照发布界面文件，并在程序集版本中写入本次提交标识。目标为 `C:\Program Files\NetGuardian` 和项目 `dist\NetGuardian`；只更新界面产品组件及界面使用的 Core 库，保留配置和后台文件。
 
 本记录提交时，发布、本机文件替换与实际启动核验尚待执行，不据测试结果认定本机软件已更新。界面运行时，必须按 AGENTS.md 请用户手动从托盘退出，随后正常提权、备份和校验、替换、重新启动，核对两个目录哈希及后台进程身份。
+
+### 已提交与独立发布
+
+- 源码提交：`12fca94abbc93e86ac1c41e86d43608f74c7a153`，`在事件日志中加载历史断网恢复与后台增量记录`。
+- 使用 `git archive 12fca94abbc93e86ac1c41e86d43608f74c7a153` 导出独立提交；发布目录为 `.dotnet-home/validation/persisted-logs/ui-package`，未混入工作区另一项更新协调功能和 1.1.6 版本准备改动。
+- `dotnet restore <release-source>/NetGuardian.sln --configfile <release-source>/NuGet.Config --ignore-failed-sources --verbosity minimal`：退出码 0。
+- `dotnet publish <release-source>/src/NetGuardian.App/NetGuardian.App.csproj --no-restore --configuration Release --self-contained false --output <ui-package> -p:SourceRevisionId=12fca94abbc93e86ac1c41e86d43608f74c7a153 --verbosity minimal`：退出码 0，保留既有 WFAC010 警告。
+- 界面与 Core 程序集 ProductVersion 均核验为 `1.1.5+12fca94abbc93e86ac1c41e86d43608f74c7a153`。发布清单 7 个产品文件 SHA-256 均再次比对通过；`build-manifest.json` 保存在发布目录。
+- 部署与启动核查脚本语法检查通过。预检和替换均会拒绝向本机已安装的更高版本降级，保留并核验后台文件及用户配置。
+- 本机替换仍待用户从托盘手动退出界面；本节仅记录构建完成，不表示已安装或已启动新版本。正常管理员预检结果单独保存至上述验证目录。
