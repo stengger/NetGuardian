@@ -251,6 +251,14 @@ function Invoke-NetGuardianUpdateInstaller($Request) {
     $process = Start-Process -FilePath $Request.InstallerPath -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
     return $process.ExitCode
 }
+function Remove-NetGuardianUpdateInstaller($Request, [string]$UpdatesDirectory) {
+    $downloads = Join-Path $UpdatesDirectory 'downloads'
+    $installer = Assert-NetGuardianUpdateChildPath ([string]$Request.InstallerPath) $downloads
+    if ((Split-Path -Parent $installer) -ine $downloads -or [IO.Path]::GetFileName($installer) -cne ('NetGuardian-' + $Request.Version + '-win-x64-Setup.exe')) { throw '清理目标不是本次更新的下载安装包。' }
+    Assert-NetGuardianUpdateProtectionChain $installer (Split-Path -Parent $UpdatesDirectory)
+    if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ine $Request.Sha256) { throw '安装包已变化，保留文件并跳过清理。' }
+    Remove-Item -LiteralPath $installer -Force
+}
 function Start-NetGuardianUpdateInterface([string]$Directory) {
     Start-Process -FilePath (Join-Path $Directory 'NetGuardian.exe') -WorkingDirectory $Directory | Out-Null
 }
@@ -311,7 +319,7 @@ function Invoke-NetGuardianUpdateTransactionCore {
     if ((Get-Item -LiteralPath $requestPath).Length -gt 65536) { throw '更新请求超出长度限制。' }
     $request = Get-Content -LiteralPath $requestPath -Raw | ConvertFrom-Json
     if ([string]$request.JobDirectory -ine $job) { throw '请求 JobDirectory 必须与受保护 jobs 请求目录一致。' }
-    $result = [ordered]@{ Success = $false; Stage = 'Preparing'; Message = ''; RollbackSucceeded = $false; Version = [string]$request.Version; JobDirectory = $job }
+    $result = [ordered]@{ Success = $false; Stage = 'Preparing'; Message = ''; RollbackSucceeded = $false; Version = [string]$request.Version; JobDirectory = $job; InstallerRemoved = $false; CleanupWarning = '' }
     $installationStarted = $false; $tasksChanged = $false; $parentExited = $false; $tasks = @(); $manifest = @()
     $backup = Join-Path $job 'backup'; $registry = Join-Path $job 'uninstall.clixml'
     try {
@@ -368,6 +376,11 @@ function Invoke-NetGuardianUpdateTransactionCore {
         $tasksChanged = $false
         $RestartContext.Directory = $request.InstallDirectory
         $result.Success = $true; $result.Stage = 'Installed'; $result.Message = '安装已完成并通过核验，等待重新打开界面。'
+        # 只有安装、版本和后台任务均核验通过后才删除本次安装包；清理失败不回滚安装。
+        try {
+            Remove-NetGuardianUpdateInstaller $request $UpdatesDirectory
+            $result.InstallerRemoved = $true
+        } catch { $result.CleanupWarning = '安装包清理失败，文件已保留：' + $_.Exception.Message }
     } catch {
         $result.Message = $_.Exception.Message
         if ($installationStarted -or $tasksChanged) {

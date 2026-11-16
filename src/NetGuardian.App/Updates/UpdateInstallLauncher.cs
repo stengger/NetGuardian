@@ -42,12 +42,10 @@ internal sealed class UpdateInstallLauncher(UpdateStorage storage)
         var requestFile = Path.Combine(job, "request.json");
         await File.WriteAllTextAsync(requestFile, JsonSerializer.Serialize(request), new UTF8Encoding(true), token);
         UpdateStorage.ProtectFile(requestFile);
-        var shell = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "WindowsPowerShell", "v1.0", "powershell.exe");
-        using var process = Process.Start(new ProcessStartInfo(shell)
-        {
-            Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{script}\" -RequestFile \"{requestFile}\"",
-            UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden, WorkingDirectory = job
-        }) ?? throw new IOException("无法启动更新协调进程。");
+        using var process = Process.Start(UpdateCoordinatorProcess.CreateStartInfo(script, requestFile, job))
+            ?? throw new IOException("无法启动更新协调进程。");
+        // 立即异步排空错误流，防止协助进程因管道缓冲区写满而阻塞。
+        var errorOutput = process.StandardError.ReadToEndAsync();
         var prepared = false;
         try
         {
@@ -59,7 +57,7 @@ internal sealed class UpdateInstallLauncher(UpdateStorage storage)
                     using var result = JsonDocument.Parse(await File.ReadAllTextAsync(resultFile, verificationToken));
                     throw new IOException(result.RootElement.GetProperty("Message").GetString() ?? "更新准备失败。");
                 }
-                if (process.HasExited) throw new IOException($"更新协调进程提前退出（{process.ExitCode}）。");
+                if (process.HasExited) throw await UpdateCoordinatorProcess.ReadFailureAsync(process, errorOutput, job);
             }
             var deadline = DateTime.UtcNow.AddMinutes(3);
             while (DateTime.UtcNow < deadline)

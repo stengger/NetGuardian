@@ -110,7 +110,9 @@ function New-TestUpdateRequest([string]$Mode) {
     $script:TestTasks = @([pscustomobject]@{ TaskName = 'NetGuardian'; TaskPath = '\'; State = 'Running'; Settings = [pscustomobject]@{ Enabled = $true }; Actions = @([pscustomobject]@{ Execute = (Join-Path $script:TestInstall 'guardian\NetGuardian.Guardian.exe'); Arguments = '' }) })
     $job = Join-Path $script:TestUpdates ('jobs\' + [guid]::NewGuid().ToString('D'))
     New-Item -ItemType Directory -Path $job -Force | Out-Null
-    $installer = Join-Path $script:TestUpdates 'Setup.exe'
+    $downloads = Join-Path $script:TestUpdates 'downloads'
+    New-Item -ItemType Directory -Path $downloads -Force | Out-Null
+    $installer = Join-Path $downloads 'NetGuardian-1.1.0-win-x64-Setup.exe'
     [IO.File]::WriteAllText($installer, '安装包')
     $request = [ordered]@{ InstallDirectory = $script:TestInstall; InstallerPath = $installer; Sha256 = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash; Version = '1.1.0'; ParentProcessId = 123; ParentStartedAt = '2026-11-10T01:00:00Z'; JobDirectory = $job }
     $path = Join-Path $job 'request.json'
@@ -141,6 +143,35 @@ try {
     Assert-Update (Test-Path -LiteralPath (Join-Path (Split-Path $path) 'ready.json')) '缺少准备握手。'
     Assert-Update (Test-Path -LiteralPath (Join-Path $script:TestUpdates 'last-result.json')) '缺少全局结果。'
 
+    $installer = (Get-Content -Raw -LiteralPath $path | ConvertFrom-Json).InstallerPath
+    Assert-Update (-not (Test-Path -LiteralPath $installer)) '安装和版本、任务核验通过后必须删除本次安装包。'
+    Assert-Update $result.InstallerRemoved '成功清理必须写入结果。'
+
+    $path = New-TestUpdateRequest 'CleanupLocked'
+    $installer = (Get-Content -Raw -LiteralPath $path | ConvertFrom-Json).InstallerPath
+    $otherInstaller = Join-Path (Split-Path -Parent $installer) 'NetGuardian-0.9.0-win-x64-Setup.exe'
+    [IO.File]::WriteAllText($otherInstaller, '其他版本不得清理')
+    $locked = [IO.File]::Open($installer, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+    try {
+        $result = Invoke-TestUpdate $path
+        Assert-Update ($result.Success -and -not $result.InstallerRemoved -and $result.CleanupWarning) '安装包被占用时只记录清理警告，不得回滚已核验安装。'
+        Assert-Update (Test-Path -LiteralPath $installer) '删除失败必须保留安装包。'
+        Assert-Update ((Get-Content -Raw (Join-Path $script:TestInstall 'NetGuardian.dll')) -eq '1.1.0') '清理失败不能恢复旧程序。'
+        Assert-Update (Test-Path -LiteralPath $otherInstaller) '不能清理其他版本安装包。'
+    } finally { $locked.Dispose() }
+    $path = New-TestUpdateRequest 'CleanupSafety'
+    $request = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
+    $installer = $request.InstallerPath
+    [IO.File]::AppendAllText($installer, '已发生变化')
+    Assert-UpdateThrows { Remove-NetGuardianUpdateInstaller $request $script:TestUpdates } '已变化'
+    Assert-Update (Test-Path -LiteralPath $installer) '摘要变化的文件不得删除。'
+    $request.InstallerPath = Join-Path $script:TestUpdates '外部安装包.exe'
+    [IO.File]::WriteAllText($request.InstallerPath, '不在 downloads 内')
+    Assert-UpdateThrows { Remove-NetGuardianUpdateInstaller $request $script:TestUpdates } '子目录'
+    Assert-Update (Test-Path -LiteralPath $request.InstallerPath) '不得清理 downloads 之外的文件。'
+    $request.InstallerPath = Join-Path (Split-Path -Parent $installer) 'NetGuardian-0.9.0-win-x64-Setup.exe'
+    Assert-UpdateThrows { Remove-NetGuardianUpdateInstaller $request $script:TestUpdates } '不是本次更新'
+    Assert-Update (Test-Path -LiteralPath $request.InstallerPath) '不得清理其他版本安装包。'
     $path = New-TestUpdateRequest 'RestartFails'
     $result = Invoke-TestUpdate $path
     Assert-Update (-not $result.Success -and $result.Stage -eq 'RestartFailed' -and -not $result.RollbackSucceeded) '界面启动失败应单独报告，不能回滚已完成安装。'
@@ -188,6 +219,7 @@ try {
     $path = New-TestUpdateRequest 'InstallerFails'
     $result = Invoke-TestUpdate $path
     Assert-Update (-not $result.Success -and $result.RollbackSucceeded) '安装失败应完成恢复。'
+    Assert-Update (Test-Path -LiteralPath ((Get-Content -Raw -LiteralPath $path | ConvertFrom-Json).InstallerPath)) '安装失败时必须保留安装包以便重试。'
     Assert-Update ((Get-Content -Raw (Join-Path $script:TestInstall 'NetGuardian.dll')) -eq '1.0.1') '未恢复原程序文件。'
     Assert-Update (-not (Test-Path (Join-Path $script:TestInstall '新增.dll'))) '恢复未清理新增文件。'
     Assert-Update ($script:TestTasks.Count -eq 1 -and $script:TestTasks[0].Enabled -and $script:TestTasks[0].Running) '未恢复任务启用与运行状态。'
@@ -260,7 +292,7 @@ try {
     Assert-UpdateThrows { Assert-NetGuardianUpdateSafePath $link } '重解析'
     # Windows PowerShell 5.1 的 Remove-Item 对目录联接有已知异常；仅删除联接本身。
     [IO.Directory]::Delete($link)
-    Write-Output '更新互斥、取消、成功安装、任务归属、安全停止、失败恢复、恢复失败阻断、哈希/版本/进程身份/未托管后台拒绝、ACL/路径/重解析点隔离检查全部通过。'
+    Write-Output '更新互斥、取消、成功安装与安装包清理、清理失败不回滚、摘要/清理范围保护、任务归属、安全停止、失败恢复及安装包保留、恢复失败阻断、哈希/版本/进程身份/未托管后台拒绝、ACL/路径/重解析点隔离检查全部通过。'
 }
 finally {
     $resolved = [IO.Path]::GetFullPath($fixture)
