@@ -37,3 +37,14 @@
 ## 与已提交日志功能整体验证
 
 另一项工作在首轮回归期间提交日志功能 12fca94，随后仅追加发布记录 69e8922。将这些已提交功能文件加入隔离源码后，以相同完整回归命令重新验证，退出码 0：核心 311/311、桌面 445/445，合计 756/756，失败 0，跳过 0；桌面套件耗时 3 分 58 秒。完整日志为 `.dotnet-home/validation/update-cleanup/integrated-full-tests.log`。最终构建保留该功能。
+## 独立发布与本机状态
+
+- 源码提交：`c705b654aecd9e7da14457880530c18b048a3cae`，`更新成功后清理安装包并保存协助进程原始错误`。
+- 使用 `git archive c705b654aecd9e7da14457880530c18b048a3cae` 导出独立发布源码，未从共享工作区直接打包。
+- `dotnet restore .dotnet-home\validation\update-cleanup\release-source\NetGuardian.sln --configfile NuGet.Config` 退出码 0。
+- `.dotnet-home\validation\update-cleanup\build-local-package.ps1 -SourceCommit c705b654aecd9e7da14457880530c18b048a3cae` 退出码 0；实际执行 `dotnet publish <release-source>/src/NetGuardian.App/NetGuardian.App.csproj --configuration Release --self-contained false --no-restore --output <ui-package>`，保留既有 WFAC010 警告。
+- 发布目录：`.dotnet-home/validation/update-cleanup/ui-package`；界面和 Core 程序集 ProductVersion 均为 `1.1.6+c705b654aecd9e7da14457880530c18b048a3cae`。8 个待部署组件（含更新协调脚本）的 SHA256 已逐一核对通过。发布清单为 `build-manifest.json`。
+- 此前管理员诊断核实界面及守护来自 `C:\Program Files\NetGuardian`。后续只读安装预检的 Windows 管理员确认被取消，未产生 Inspect-deployment.json，因此未执行替换、备份或重启，不能认定本机已更新。
+- 本机更新仍待用户手动从托盘退出，并正常通过 Windows 管理员确认；之后需备份并更新 `C:\Program Files\NetGuardian` 与项目 `dist\NetGuardian` 的必要界面组件及更新脚本，保留配置和后台进程，核对哈希、启动路径及后台身份。
+
+预检启动失败的完整错误：退出码 1，`This command cannot be run due to the error: An error occurred trying to start process 'C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe' with working directory 'C:\Users\Qiu\Documents\Net'. 操作已被用户取消。`；随后无进程对象导致 `You cannot call a method on a null-valued expression.`，无报告文件导致 `Cannot find path '.dotnet-home\validation\update-cleanup\Inspect-deployment.json' because it does not exist.`。这些属于管理员启动被取消后的派生错误，不是 .NET 工具故障；没有反复发起提权。
