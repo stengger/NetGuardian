@@ -13,6 +13,26 @@ namespace NetGuardian.App.Tests;
 public sealed class NearbySavedWifiViewTests
 {
     [Fact]
+    public void 标记与选中提示的序号采用当前附近列表且保留禁用网络的位置()
+    {
+        var hidden = new WifiProfile { Ssid = "家里", Priority = 1, CredentialSaved = true };
+        var first = new WifiProfile { Ssid = "附近甲", Priority = 38, CredentialSaved = true, Enabled = false };
+        var second = new WifiProfile { Ssid = "附近乙", Priority = 56, CredentialSaved = true };
+        var unsaved = new WifiProfile { Ssid = "未保存", Priority = 58 };
+        var profiles = new ObservableCollection<WifiProfile> { hidden, first, second, unsaved };
+        var nearby = new NearbySavedWifiView(profiles);
+        nearby.Update(["附近甲", "附近乙", "未保存"]);
+        Assert.Equal(1, nearby.GetPriority(first));
+        Assert.Equal(2, nearby.GetPriority(second));
+        Assert.Null(nearby.GetPriority(hidden));
+        Assert.Null(nearby.GetPriority(unsaved));
+        Assert.Null(nearby.GetPriority(null));
+        nearby.Update(["附近乙"]);
+        Assert.Equal(1, nearby.GetPriority(second));
+        Assert.Null(nearby.GetPriority(first));
+        Assert.Equal(new[] { 1, 38, 56, 58 }, profiles.Select(p => p.Priority));
+    }
+    [Fact]
     public async Task 中文混合编码保存配置匹配附近SSID并显示已有恢复优先级()
     {
         const string ssid = "8b304北_5G_Wi-Fi5";

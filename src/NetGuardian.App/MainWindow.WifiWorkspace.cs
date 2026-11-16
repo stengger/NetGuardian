@@ -3,6 +3,7 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using NetGuardian.App.Presentation;
+using NetGuardian.Core.Models;
 
 namespace NetGuardian.App;
 
@@ -21,7 +22,8 @@ public partial class MainWindow
 
     private void RefreshWifiWorkspaceSummary()
     {
-        WifiRecoverySummaryText.Text = string.Format(_localizer.T("WifiRecoverySummary"), _profiles.Count(p => p.Enabled), _profiles.Count);
+        var visible = _nearbySavedWifi.View.Cast<WifiProfile>().ToList();
+        WifiRecoverySummaryText.Text = string.Format(_localizer.T("WifiRecoverySummary"), visible.Count(p => p.Enabled), visible.Count);
         WifiRecoverySummaryText.ToolTip = WifiRecoverySummaryText.Text;
         WifiMoreButton.Content = _localizer.T("WifiMore");
         WifiWorkspacePresentation.ApplyScanStatus(this,

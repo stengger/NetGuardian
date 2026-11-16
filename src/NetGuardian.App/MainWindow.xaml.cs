@@ -155,6 +155,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyGrid.ItemsSource = _nearbyView.View;
         _nearbySavedWifi = new(_profiles);
         ProfileGrid.ItemsSource = _nearbySavedWifi.View;
+        _nearbySavedWifi.BindPriorityColumn(ProfilePriorityColumn);
         WifiPasswordDetails.SetPasswordReader(ProfileGrid, _wifi.GetSavedPasswordAsync);
         RecentEventsList.ItemsSource = _recentEvents;
         DnsGrid.ItemsSource = _dnsRows;
@@ -1414,7 +1415,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
         _profiles.Move(sourceIndex, targetIndex);
         RenumberProfiles();
+        ProfileGrid.SelectedItem = source;
         SaveSettings();
+        RefreshNearbyPriorityMarkers();
+        UpdateWifiSelectionUi();
     }
 
     private WifiProfile? GetRowItemAtPoint(Point point)
@@ -1482,10 +1486,12 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         var profile = _profiles.FirstOrDefault(item => SsidEquals(item.Ssid, row.Ssid));
         row.IsInPriorityList = profile is not null;
-        row.Priority = profile?.Priority;
+        row.Priority = _nearbySavedWifi.GetPriority(profile);
         row.PriorityBadge = profile is null
             ? _localizer.T("NotInPriority")
-            : string.Format(_localizer.T("InPriorityFormat"), profile.Priority);
+            : row.Priority is { } priority
+                ? string.Format(_localizer.T("InPriorityFormat"), priority)
+                : _localizer.T("InPriority");
     }
 
     private void UpdateWifiSelectionUi()
@@ -1504,11 +1510,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 string.IsNullOrWhiteSpace(nearby.Authentication) ? "-" : nearby.Authentication);
             SetWifiSelectionVisual(true);
         }
-        else if (hasProfile)
+        else if (profile is not null)
         {
             CurrentWifiSelectionText.Text = string.Format(
                 _localizer.T("SelectedProfileWifi"),
-                profile!.Priority,
+                _nearbySavedWifi.GetPriority(profile),
                 DisplaySsid(profile.Ssid),
                 profile.Enabled ? _localizer.T("Enabled") : _localizer.T("Disabled"));
             SetWifiSelectionVisual(true);
