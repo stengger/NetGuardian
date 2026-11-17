@@ -535,6 +535,19 @@
  <ui:SymbolIcon Symbol="Warning24" FontSize="{DynamicResource FontMetric}" Foreground="{DynamicResource StatusWarningBrush}" Margin="{DynamicResource SpacingInlineGroupGap}"/>
  <TextBlock x:Name="HighRiskText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorPrimaryBrush}" VerticalAlignment="Center" />
  </DockPanel></Border>
+                                    <TextBlock x:Name="QuickToolsHintText" Margin="{DynamicResource SpacingSectionStart}" TextWrapping="Wrap"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Text, ElementName=ToolsOutputText}" Value="">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <TextBlock x:Name="ToolsOutputText" Margin="{DynamicResource SpacingSectionStart}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </TabItem>

@@ -1955,6 +1955,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ToolsScanButton.Content = _localizer.T("Scan");
         ToolsNetworkSettingsButton.Content = _localizer.T("OpenNetworkSettings");
         HighRiskText.Text = _localizer.T("HighRiskReserved");
+        QuickToolsHintText.Text = _localizer.T("QuickToolsHint");
         QuickToolsTab.Header = _localizer.T("QuickTools");
         SpeedToolsTab.Header = _localizer.T("SpeedTools");
         WebsiteToolsTab.Header = _localizer.T("WebsiteTools");
