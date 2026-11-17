@@ -53,7 +53,7 @@ error : Access to the path 'C:\Users\Qiu\AppData\Local\Temp\MSBuildTemp\tmp5f04e
 
 保持版本 1.1.6，使用本次提交的构建标识区分界面修正，不创建 GitHub Release。从已验证提交隔离导出并构建；核实后只替换 `C:\Program Files\NetGuardian` 与 `dist\NetGuardian` 的必要界面和本地化组件。现有后台守护、配置和网络保持原状。
 
-本记录提交时尚未安装：现有界面运行中，必须先请用户手动从托盘退出，再进行备份、替换、哈希和启动核验。不得将源码或测试预览理解为本机软件已经更新。
+修正提交时尚未安装：当时界面运行中，必须先请用户手动从托盘退出，再进行备份、替换、哈希和启动核验。不得将源码或测试预览理解为本机软件已经更新。
 
 ## 隔离构建与安装前检查
 
@@ -74,4 +74,24 @@ E:\Environment\dotnet-sdk-8.0\sdk\8.0.422\NuGet.targets(174,5): error :   Access
 - 预检核实当前界面 PID 125012 路径为 `C:\Program Files\NetGuardian\NetGuardian.exe`；后台 PID 77480 路径为 `C:\Program Files\NetGuardian\guardian\NetGuardian.Guardian.exe`。
 - 两处目标各计划更新五个有差异的界面根文件及 `UIInstalledBuild.json`；依赖、`.deps.json`、`.runtimeconfig.json` 不需替换。预检 JSON 的备份路径只是计划，尚未创建安装备份或执行安装。
 - 新增证据均在 `.dotnet-home/validation/quick-tools-20261117/`：`local-package-build-sandbox-error.log`、`local-package-build.log`、`publish-result.json`、`ui-deployment-preflight.json`。
-- 当前仍等待用户手动从托盘退出界面；本机已安装软件尚未更新。实际安装、回滚保障和重新启动核验将在用户退出后继续。
+- 安装前阶段仍等待用户手动从托盘退出界面；当时已安装软件尚未更新。用户退出后的实际安装和启动核验见下一节。
+
+## 用户退出后的安装与启动核验（已完成）
+
+用户确认“已退出”后，于 2026-11-17（北京时间）通过正常 UAC 执行以下步骤；没有使用界面自动化退出或强制结束软件进程。
+
+1. 重新核对发布包七个根组件与 `publish-result.json` 的 SHA256：全部一致。
+2. 以管理员执行 `deploy-ui.ps1 -Apply`：退出码 0，安装结果 `Success=true`。脚本再次确认界面不存在，核实后台路径，备份原文件和配置后才替换；每次复制后及最终均检查哈希，保留异常回滚流程，本次没有触发回滚。
+   - 更新目标：`C:\Program Files\NetGuardian` 和 `C:\Users\Qiu\Documents\Net\dist\NetGuardian`。
+   - 共更新 12 项：两处各五个有差异的界面根文件及 `UIInstalledBuild.json`；每处七个产品根组件的最终哈希检查通过。没有替换第三方依赖、运行时、后台目录或更新脚本。
+   - 备份：`C:\Users\Qiu\Documents\Net\.dotnet-home\validation\quick-tools-20261117\ui-backup-20261117-104754`，含两处被替换文件及原配置，备份哈希已验证。
+3. 管理员执行 `verify-startup.ps1`：验证两处安装标识、七个组件哈希和产品版本，然后从 `C:\Program Files\NetGuardian\NetGuardian.exe` 重新打开界面。
+   - 首次启动核验已写入 `Success=true`、`Started=true`。外层 `Start-Process -Wait` 仍等待其界面子进程关闭；这不是软件启动失败。只结束准确核实路径及命令行的外层 PowerShell 等待器 PID 125004，终端等待会话退出码为 -1、没有错误输出；没有结束界面或守护。
+   - 首次读取结果时，沙箱内额外 CIM 查询失败，退出码 1，完整错误：`Get-CimInstance: 无法从客户端中访问 CIM 资源。` 按正常审批重跑只读查询，退出码 0；不据此判断软件或运行时不可用。
+   - 最终改用 `Start-Process ... -PassThru` 后调用 `$process.WaitForExit()`，只等待核验助手；再次运行核验时不再启动界面。最终核验退出码 0、`Success=true`，核验时间为 `2026-11-17T10:58:49.2269982+08:00`。
+   - 界面 PID 69936，路径 `C:\Program Files\NetGuardian\NetGuardian.exe`，窗口标题 `NetGuardian`、句柄 46208380、`Responding=true`。
+4. 两处界面及根目录 Core 产品版本均为 `1.1.6+3027e591b76c1460ea898c905df73f0ed5c6123f`。两处 `NetGuardian.dll` SHA256 均为 `D1132264587BBD697BEAB2FC7E53B8876C753628328E2A7A8F91912388AE3616`。
+5. 安装及启动核验确认配置与更新前备份哈希一致，后台文件未变；后台仍为 PID 77480、创建时间 `2026-11-16T17:47:17.490942+08:00`，路径 `C:\Program Files\NetGuardian\guardian\NetGuardian.Guardian.exe`。本次没有停止或重启守护，也没有主动执行切网或网络重置。
+6. 实际窗口自动化读取报告目标窗口完整性级别更高，只能获取窗口节点；截图没有呈现目标界面，因此不作为真实快捷页的视觉验收证据。保留此前离屏布局验证，不宣称已完成真实界面文案、实机语言切换或 DPI 验收。
+
+本轮只补充安装记录，没有再次修改产品代码；沿用本次完整回归 Core 311/311、WPF 453/453，最终快捷页 8/8 的结果。`git diff --check` 再次通过。新增证据：同一验证目录中的 `ui-deployment-result.json`、`ui-initial-startup-verification.json`、`ui-startup-verification.json`；备份和日志均保持 Git 忽略，不提交用户配置或构建产物。
