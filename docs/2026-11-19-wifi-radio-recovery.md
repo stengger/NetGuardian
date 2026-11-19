@@ -50,7 +50,7 @@
 
 已核实运行路径为 `C:\Program Files\NetGuardian\NetGuardian.exe` 与 `C:\Program Files\NetGuardian\guardian\NetGuardian.Guardian.exe`，同时需要更新项目 `dist/NetGuardian`。本次修复涉及后台 Core，安装时需要正常停止并重启相关后台，保留用户配置、任务定义和状态；替换前备份及校验，异常回滚。
 
-当前等待用户手动从托盘退出界面并确认。尚未替换安装文件、重启软件或验收真实 Wi-Fi 关闭后自动恢复，不将源码、测试或发布包等同于本机已经更新。
+2026-11-19 17:16（北京时间）通过 Windows UAC 管理员上下文完成本机更新。部署前先核验了前一次失败部署的回滚：26 个文件均恢复到备份哈希，配置和计划任务状态/定义一致；随后正常停止 Guardian，更新并校验两个目标目录，恢复原计划任务状态并启动后台与界面。部署结果保存在 `.dotnet-home/validation/wifi-auto-enable-20261119/deployment-result-1.1.7-20261119-171639.json`。
 
 ## 已验证提交与隔离发布
 
@@ -67,5 +67,7 @@
 
   按正常审批使用 `-Resume` 核对源码提交标记后继续，恢复与两个项目发布均成功，退出码 0；完整输出为 `local-package-build-authorized.log`。构建保留原有 `WFAC010` 高 DPI 配置警告，不涉及本次修复，未擅自修改 DPI 设置。
 - 发布目录：`.dotnet-home/validation/wifi-auto-enable-20261119/package-389fe59e`。14 个产品组件的存在性与 SHA256 检查通过；UI、Guardian 与两处 Core DLL 产品版本均为 `1.1.7+389fe59e8a9224ad1a14a38590dbceb54e9c7aec`。结果记录在 `publish-result.json`。
-- 安装前只读比对通过，退出码 0：重新校验发布包 SHA256，核对 `C:\Program Files\NetGuardian` 与项目 `dist/NetGuardian`，每处 12 个产品组件有差异，两处第三方 DLL 依赖与发布包哈希一致，两份运行时配置无需替换。结果为 `package-target-comparison.json`，没有复制文件到安装目录。实际安装时还需更新旧的 `UIInstalledBuild.json`，避免保留旧提交的安装标识。
-- 此处仍是发布包验证，不是本机安装验证；安装和真实关闭后恢复仍等待用户退出确认。
+- 安装前只读比对通过，退出码 0：重新校验发布包 SHA256，核对 `C:\Program Files\NetGuardian` 与项目 `dist/NetGuardian`，每处 12 个产品组件有差异，两处第三方 DLL 依赖与发布包哈希一致，两份运行时配置无需替换。结果为 `package-target-comparison.json`；该阶段仅比对，没有复制文件。之后的实际部署同时更新两处旧的 `UIInstalledBuild.json`，避免保留旧提交的安装标识。
+- 部署脚本退出码 0，变更 26 个目标文件（每个目录 12 个有差异的组件和 1 个构建标记）；另对每个目录的全部 14 个发布组件做了最终哈希核验，`PriorRollbackVerified=true`。管理员上下文独立复核退出码 0：两个目录各 14 个组件 SHA256、版本与构建标记均匹配；`settings.json` SHA256 与部署前备份一致；`NetGuardian`、`NetGuardian-Watchdog` 均启用且任务定义未变，主任务运行中；Guardian 心跳为 Healthy，UI 从 `C:\Program Files\NetGuardian\NetGuardian.exe` 启动，版本为 `1.1.7+389fe59e8a9224ad1a14a38590dbceb54e9c7aec`。复核结果为 `postdeploy-admin-verification-20261119.json`。
+- 首次部署在替换 26 个文件后因任务 XML 比较把临时变化的 `Enabled` 字段误判为任务定义变化，退出码 1；脚本回滚无错误。修正比较并核验回滚证据后重试成功。另一次非管理员调用在预检处退出码 1、`AppliedFiles=0`，未改动安装状态；随后通过 UAC 管理员流程完成部署。
+- 当前修复已安装并运行，但未主动关闭 Wi-Fi 做实机恢复验收。原生查询也只确认查询时软件与硬件无线电均开启，不能证明关闭后自动恢复；因此该用户报告场景仍待安全地实测。
