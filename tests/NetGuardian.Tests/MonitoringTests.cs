@@ -327,6 +327,9 @@ internal sealed class FakeWifiClient : IWifiClient
     public Func<string?>? ReadCurrentSsid { get; set; }
     public Func<string, CancellationToken, Task<bool>>? ConnectHandler { get; set; }
     public WifiAdapterDiagnostics? Diagnostics { get; set; }
+    public List<string?> AdapterEnableAttempts { get; } = [];
+    public bool AdapterEnableSucceeds { get; set; } = true;
+    public string? LastAdapterEnableFailure { get; set; }
 
     public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
         => ScanHandler?.Invoke(cancellationToken) ?? Task.FromResult<IReadOnlyList<WifiNetwork>>([]);
@@ -344,7 +347,10 @@ internal sealed class FakeWifiClient : IWifiClient
         => Task.FromResult<IReadOnlyList<string>>([]);
 
     public Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
-        => Task.FromResult(true);
+    {
+        AdapterEnableAttempts.Add(adapterName);
+        return Task.FromResult(AdapterEnableSucceeds);
+    }
 
     public Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
         => Task.FromResult<string?>(null);

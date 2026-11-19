@@ -231,12 +231,14 @@ public sealed class MonitoringEngine : IDisposable
                 {
                     var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
                     adapterName = wifiDiagnostics.AdapterName;
-                    if (RecoveryPlanner.ShouldTryEnableWifi(policy, wifiDiagnostics))
+                    if (IsMonitoring && RecoveryPlanner.ShouldTryEnableWifi(policy, wifiDiagnostics))
                     {
                         Raise(EngineEventKind.TryingEnableWifiAdapter, adapterName ?? "Wi-Fi");
                         probeToken.ThrowIfCancellationRequested();
                         var enabled = await _wifi.TryEnableWifiAdapterAsync(adapterName, probeToken).WaitAsync(probeToken);
                         Raise(enabled ? EngineEventKind.WifiAdapterEnabled : EngineEventKind.WifiAdapterEnableFailed);
+                        if (!enabled && _wifi.LastAdapterEnableFailure is { } failure)
+                            Raise(EngineEventKind.CheckError, failure);
                         await DelayAsync(AdapterEnableSettleDelay, probeToken);
                         wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
                     }

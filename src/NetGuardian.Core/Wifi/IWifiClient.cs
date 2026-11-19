@@ -4,6 +4,7 @@ namespace NetGuardian.Core.Wifi;
 
 public interface IWifiClient
 {
+    string? LastAdapterEnableFailure => null;
     string? LastConnectionFailure => null;
     Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default);
     Task<string?> GetCurrentSsidAsync(CancellationToken cancellationToken = default);
