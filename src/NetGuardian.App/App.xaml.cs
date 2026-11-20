@@ -16,6 +16,7 @@ using NetGuardian.Core.SystemCommands;
 using NetGuardian.Core.Wifi;
 using NetGuardian.App.Presentation;
 using NetGuardian.App.Updates;
+using NetGuardian.App.Startup;
 
 namespace NetGuardian.App;
 
@@ -113,6 +114,7 @@ public partial class App : Application
         var services = new ServiceCollection();
         services.AddSingleton<SettingsStore>();
         services.AddSingleton<Localizer>();
+        services.AddSingleton<UserLogonStartup>();
         // 备用客户端参数与注册接口同型，必须显式构造以避免容器注入自身。
         services.AddSingleton<IWifiClient>(_ => new WifiClient());
         services.AddSingleton<IConnectivityTester, ConnectivityTesterService>();

@@ -16,8 +16,13 @@ $install = Join-Path $fixture '中文 安装目录'
 $global:InstallerTestProcesses = @()
 $global:InstallerTestTasks = @()
 $global:InstallerUnregisterCalls = 0
+$global:InstallerRemovedLogonTasks = @()
 function Get-Process { [CmdletBinding()]param($Name) $global:InstallerTestProcesses }
 function Get-ScheduledTask { [CmdletBinding()]param() $global:InstallerTestTasks }
+function Unregister-ScheduledTask {
+    [CmdletBinding(SupportsShouldProcess)]param($TaskName, $TaskPath)
+    $global:InstallerRemovedLogonTasks += $TaskName
+}
 try {
     Assert-NetGuardianMachineInstallPath -InstallDirectory 'C:\Program Files\NetGuardian' -ProgramFilesDirectory 'C:\Program Files'
     Assert-Throws { Assert-NetGuardianMachineInstallPath -InstallDirectory 'C:\Users\Public\NetGuardian' -ProgramFilesDirectory 'C:\Program Files' } 'Program Files'
@@ -39,8 +44,15 @@ try {
     Assert-Throws { Invoke-NetGuardianUninstallPreparation -InstallDirectory $install } '其他目录'
     if ($global:InstallerUnregisterCalls -ne 0) { throw '不能删除其他安装目录的后台任务。' }
     $global:InstallerTestTasks[0].Actions[0].Execute = Join-Path $install 'guardian\NetGuardian.Guardian.exe'
+    $global:InstallerTestTasks += @(
+        [pscustomobject]@{ TaskName = 'NetGuardian-Logon-current'; TaskPath = '\'; Actions = @([pscustomobject]@{ Execute = (Join-Path $install 'NetGuardian.exe') }) },
+        [pscustomobject]@{ TaskName = 'NetGuardian-Logon-other'; TaskPath = '\'; Actions = @([pscustomobject]@{ Execute = 'C:\其他目录\NetGuardian.exe' }) }
+    )
     Invoke-NetGuardianUninstallPreparation -InstallDirectory $install
     if ($global:InstallerUnregisterCalls -ne 1) { throw '卸载没有调用安全停止入口。' }
+    if ($global:InstallerRemovedLogonTasks.Count -ne 1 -or $global:InstallerRemovedLogonTasks[0] -ne 'NetGuardian-Logon-current') {
+        throw '卸载应只移除指向当前安装目录的登录任务。'
+    }
     Set-Content -LiteralPath (Join-Path $install 'scripts\unregister-netguardian-task.ps1') -Value 'throw "后台未能安全停止"'
     Assert-Throws { Invoke-NetGuardianUninstallPreparation -InstallDirectory $install } '后台未能安全停止'
 
@@ -59,7 +71,7 @@ try {
     Write-Output '安装运行状态、任务归属、卸载失败阻断、中文路径与发布支持文件检查全部通过；系统调用均为替身。'
 }
 finally {
-    Remove-Variable InstallerTestProcesses, InstallerTestTasks, InstallerUnregisterCalls -Scope Global -ErrorAction SilentlyContinue
+    Remove-Variable InstallerTestProcesses, InstallerTestTasks, InstallerUnregisterCalls, InstallerRemovedLogonTasks -Scope Global -ErrorAction SilentlyContinue
     $resolvedFixture = [IO.Path]::GetFullPath($fixture)
     $allowedRoot = [IO.Path]::GetFullPath((Join-Path $root '.dotnet-home')) + [IO.Path]::DirectorySeparatorChar
     if (-not $resolvedFixture.StartsWith($allowedRoot, [StringComparison]::OrdinalIgnoreCase)) { throw '测试清理目录越界。' }

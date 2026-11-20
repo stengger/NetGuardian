@@ -214,7 +214,7 @@ public sealed class PanelNavigationTests
             navigation.SelectionChanged += (_, _) => PanelNavigationPresenter.Show(window, (navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString(), localizer);
             foreach (var (name, key) in new[] { ("LanguageLabel", "Language"), ("ThemeLabel", "ThemeMode"), ("TrayTitle", "Tray"), ("CloseBehaviorLabel", "CloseBehavior") })
                 ((System.Windows.Controls.TextBlock)window.FindName(name)).Text = localizer.T(key);
-            foreach (var (name, key) in new[] { ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
+            foreach (var (name, key) in new[] { ("StartOnUserLogonCheckBox", "StartOnUserLogon"), ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
                 ((System.Windows.Controls.ContentControl)window.FindName(name)).Content = localizer.T(key);
             var actionMap = new[]
             {

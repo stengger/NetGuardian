@@ -875,6 +875,8 @@
                             <ComboBoxItem Tag="exit" />
                             <ComboBoxItem Tag="tray" />
                         </ComboBox>
+                        <ui:ToggleSwitch x:Name="StartOnUserLogonCheckBox" IsEnabled="False" Margin="{DynamicResource SpacingToggleRow}" Checked="UserLogonStartup_Changed" Unchecked="UserLogonStartup_Changed" />
+                        <TextBlock x:Name="UserLogonStartupStatusText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="{DynamicResource SpacingValidationGap}" />
                         <ui:ToggleSwitch x:Name="StartMonitoringOnLaunchCheckBox" Margin="{DynamicResource SpacingToggleRow}" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="StartMinimizedToTrayCheckBox" Margin="{DynamicResource SpacingToggleRow}" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="ScheduledStartupCheckBox" Margin="{DynamicResource SpacingToggleRow}" Checked="ScheduledStartup_Changed" Unchecked="ScheduledStartup_Changed" />

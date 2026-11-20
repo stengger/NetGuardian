@@ -33,6 +33,8 @@ public sealed class DesktopLayoutTests
                 ((TextBlock)window.FindName(name)).Text = localizer.T(key);
             foreach (var (name, key) in new[] { ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
                 ((ContentControl)window.FindName(name)).Content = localizer.T(key);
+            var logonToggle = Assert.IsType<Wpf.Ui.Controls.ToggleSwitch>(window.FindName("StartOnUserLogonCheckBox"));
+            logonToggle.Content = localizer.T("StartOnUserLogon");
             var status = (TextBlock)window.FindName("ScheduledStartupStatusText");
             status.Text = string.Join("\n", Enumerable.Repeat(localizer.T("DiagnosticFailed") + " 计划任务权限错误原文。", 40));
             DesktopFixture.Layout(window, 1040, 660);
