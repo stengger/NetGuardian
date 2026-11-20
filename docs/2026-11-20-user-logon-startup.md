@@ -33,6 +33,24 @@ SDK：`E:\Environment\dotnet-sdk-8.0\dotnet.exe`，实际版本 8.0.422。先设
 - 沙箱内 MSBuild 退出码 1，完整错误：`error MSB3883: 意外的异常:`、`Access to the path 'C:\Users\Qiu\AppData\Local\Temp\MSBuildTemp\tmpc31f2a2965584f1792ef8dbad5b4c30b.rsp' is denied.` 按正常审批在真实临时目录重跑后通过，不是 SDK 或测试框架不可用。
 - 沙箱 CIM 查询退出码 1：`Get-CimInstance: 无法从客户端中访问 CIM 资源。` 中权限读取 SYSTEM 任务返回 `0x80070005`，不能据此判定任务不存在；实际安装验收使用正常 UAC 管理员上下文。
 - 首次更新脚本测试的自动审批服务断连，操作没有执行：`Automatic approval review failed: stream disconnected before completion: Upstream service temporarily unavailable`；`The action was not executed because automatic approval review could not be completed.`；`This is a review failure, not a determination that the action is unsafe.` 重新走正常审批后测试通过。
+- 首次暂存被沙箱阻止，退出码 1：`fatal: Unable to create 'C:/Users/Qiu/Documents/Net/.git/index.lock': Permission denied`。按正常审批暂存和提交成功，不属于构建故障。
+- 最终独立构建的自动审批检查曾超时，命令未执行，工具原文：`The automatic permission approval review did not finish before its deadline. Do not assume the action is unsafe based on the timeout alone. You may retry once, or ask the user for guidance or explicit approval.` 按允许的重试完成，退出码 0，0 警告、0 错误。
+
+## 真实 Windows 读取回归
+
+首次源码提交为 `4e1d0ea2b1ba799079d12238d4723240fd1c2e1b`。从该提交隔离发布后，安装前只读调用真实产品服务发现异常：Windows 动态 COM 将任务不存在的 `0x80070002` 映射为 `System.IO.FileNotFoundException`，原代码只捕获 `COMException`。当时尚未替换安装文件或注册任务，旧包不部署。
+
+只读复现以 `$ErrorActionPreference='Stop'` 保留完整错误及调用栈到 `native-read-error.txt`，退出码 1。关键原文：
+
+```text
+System.Management.Automation.MethodInvocationException: Exception calling "IsEnabled" with "0" argument(s): "系统找不到指定的文件。 (0x80070002)"
+ ---> System.IO.FileNotFoundException: 系统找不到指定的文件。 (0x80070002)
+   at Microsoft.CSharp.RuntimeBinder.ComInterop.ComRuntimeHelpers.CheckThrowException(Int32 hresult, ExcepInfo& excepInfo, UInt32 argErr, String message)
+```
+
+新增只读集成测试“真实任务计划程序中不存在的登录任务应读取为关闭”，只查询随机名称，不创建或删除系统任务。修复前单项回归按预期失败，错误同上，退出码 1，完整调用栈位于 `native-read-red.trx`。随后把任务不存在的判断改为精确匹配 HRESULT，继续传播权限及其他错误。
+
+最终完整重跑使用同一 `dotnet test NetGuardian.sln` 命令，将日志前缀改为 `logon-final`、结果目录改为 `.dotnet-home/validation/user-logon-20261120/final`。Core 339/339、WPF 462/462，共 801 项通过，0 失败、0 跳过，退出码 0；新增真实 Windows 查询回归通过。编译保留原有 `WFAC010` 高 DPI 配置警告，本轮未修改 DPI 设置。
 
 ## 本机更新与验收范围
 

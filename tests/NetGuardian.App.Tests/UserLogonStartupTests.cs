@@ -12,6 +12,14 @@ public sealed class UserLogonStartupTests
     private static readonly XNamespace Ns = "http://schemas.microsoft.com/windows/2004/02/mit/task";
 
     [Fact]
+    public void 真实任务计划程序中不存在的登录任务应读取为关闭()
+    {
+        var startup = new UserLogonStartup(new WindowsLogonTaskStore(), Executable, "missing-" + Guid.NewGuid().ToString("N"));
+
+        Assert.False(startup.IsEnabled());
+    }
+
+    [Fact]
     public void 登录任务只在当前用户交互会话运行且不限电池与运行时长()
     {
         var store = new MemoryTaskStore();

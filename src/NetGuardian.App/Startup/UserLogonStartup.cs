@@ -102,7 +102,8 @@ internal sealed class WindowsLogonTaskStore : ILogonTaskStore
             task = folder.GetTask(taskName);
             return (string)task.Xml;
         }
-        catch (COMException ex) when (ex.HResult == unchecked((int)0x80070002)) { return null; }
+        // 动态 COM 可能把同一 HRESULT 映射为 FileNotFoundException。
+        catch (Exception ex) when (ex.HResult == unchecked((int)0x80070002)) { return null; }
         finally { Release(task); }
     });
 
