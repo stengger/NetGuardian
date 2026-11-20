@@ -466,7 +466,7 @@ internal static class DesktopFixture
                         "clr-namespace:NetGuardian.App.Presentation;assembly=NetGuardian"), attribute.Value);
                     attribute.Remove();
                 }
-                var events = new HashSet<string> { "Closing", "StateChanged", "Click", "TextChanged", "SelectionChanged", "Checked", "Unchecked", "PreviewMouseLeftButtonUp", "PreviewMouseLeftButtonDown", "PreviewMouseWheel", "PreviewKeyDown", "MouseMove", "MouseDoubleClick", "Drop" };
+                var events = new HashSet<string> { "Closing", "StateChanged", "Click", "TextChanged", "SelectionChanged", "Checked", "Unchecked", "SourceUpdated", "PreviewMouseLeftButtonUp", "PreviewMouseLeftButtonDown", "PreviewMouseWheel", "PreviewKeyDown", "MouseMove", "MouseDoubleClick", "Drop" };
                 foreach (var attribute in document.Descendants().Attributes().Where(a => events.Contains(a.Name.LocalName)).ToList()) attribute.Remove();
                 window = (Window)XamlReader.Parse(document.ToString(), new ParserContext
                 {

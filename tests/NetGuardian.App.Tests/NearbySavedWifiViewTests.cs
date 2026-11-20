@@ -83,6 +83,25 @@ public sealed class NearbySavedWifiViewTests
     }
 
     [Fact]
+    public void 切换到全部配置后可查看历史和缺少凭据的候选()
+    {
+        var old = new WifiProfile { Ssid = "旧网络", CredentialSaved = true, Enabled = true, AutoConnect = false };
+        var noCredential = new WifiProfile { Ssid = "凭据已删除" };
+        var view = new NearbySavedWifiView(new ObservableCollection<WifiProfile> { old, noCredential });
+        Assert.Empty(view.View.Cast<WifiProfile>());
+
+        view.SetShowAll(true);
+        Assert.Equal(new[] { old, noCredential }, view.View.Cast<WifiProfile>());
+        Assert.False(old.ParticipatesInRecovery);
+        old.ParticipatesInRecovery = true;
+        Assert.True(old.Enabled && old.AutoConnect);
+        Assert.True(old.IsRecoveryCandidate);
+        Assert.False(noCredential.IsRecoveryCandidate);
+        view.SetShowAll(false);
+        Assert.Empty(view.View.Cast<WifiProfile>());
+    }
+
+    [Fact]
     public void 扫描前不展示历史记录且SSID大小写和空格不能混同()
     {
         var profiles = new ObservableCollection<WifiProfile>

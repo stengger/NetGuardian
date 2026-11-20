@@ -12,11 +12,12 @@ internal sealed class NearbySavedWifiView
 {
     private HashSet<string> _nearby = new(StringComparer.Ordinal);
     public ListCollectionView View { get; }
+    public bool ShowsAll { get; private set; }
 
     public NearbySavedWifiView(IList profiles)
     {
         View = new ListCollectionView(profiles);
-        View.Filter = item => item is WifiProfile profile && profile.CredentialSaved && _nearby.Contains(profile.Ssid);
+        View.Filter = item => item is WifiProfile profile && (ShowsAll || (profile.CredentialSaved && _nearby.Contains(profile.Ssid)));
     }
 
     public void BindPriorityColumn(DataGridTextColumn column)
@@ -31,6 +32,13 @@ internal sealed class NearbySavedWifiView
     {
         var index = profile is null ? -1 : View.IndexOf(profile);
         return index < 0 ? null : index + 1;
+    }
+
+    public void SetShowAll(bool showAll)
+    {
+        if (ShowsAll == showAll) return;
+        ShowsAll = showAll;
+        View.Refresh();
     }
 
     public void Update(IEnumerable<string> nearbySsids)

@@ -239,6 +239,44 @@ public sealed class MonitoringEngineTests : IDisposable
     }
 
     [Fact]
+    public async Task 刷新DNS后恢复时不重连或切换网络()
+    {
+        _policy.EnableDnsFlush = true;
+        _policy.EnableCurrentWifiReconnect = true;
+        _wifi.CurrentSsid = "当前网络";
+        _tester.NextState = NetworkState.DnsIssue;
+        _commands.OnRun = _ => _tester.NextState = NetworkState.Healthy;
+
+        _engine.Start();
+        await _engine.CheckNowAsync();
+        await _engine.CheckNowAsync();
+
+        Assert.Empty(_wifi.ConnectAttempts);
+        Assert.Equal(0, _engine.FailureStreak);
+        Assert.True(_checks.Last().Report.Ok);
+        Assert.DoesNotContain(EngineEventKind.RecoveryFailed, Kinds);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task 恢复优先尝试附近候选且扫描失败沿用原顺序(bool scanFails)
+    {
+        _profiles.Add(new WifiProfile { Ssid = "历史", Priority = 1, CredentialSaved = true });
+        _profiles.Add(new WifiProfile { Ssid = "附近甲", Priority = 2, CredentialSaved = true });
+        _profiles.Add(new WifiProfile { Ssid = "附近乙", Priority = 3, CredentialSaved = true });
+        _wifi.ScanHandler = _ => scanFails ? throw new InvalidOperationException("模拟扫描失败")
+            : Task.FromResult<IReadOnlyList<WifiNetwork>>([new("附近乙", 100, "", "", true, true), new("附近甲", 60, "", "", true, true)]);
+        _tester.NextState = NetworkState.InternetIssue;
+
+        _engine.Start();
+        await _engine.CheckNowAsync();
+        await _engine.CheckNowAsync();
+
+        Assert.Equal(scanFails ? new[] { "历史", "附近甲", "附近乙" } : new[] { "附近甲", "附近乙", "历史" }, _wifi.ConnectAttempts);
+    }
+
+    [Fact]
     public async Task DnsFlushEnabled_RunsCommand()
     {
         _policy.EnableDnsFlush = true;

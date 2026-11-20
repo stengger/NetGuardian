@@ -60,10 +60,10 @@ public sealed class AccessibleResultsTests
             var profiles = new[]
             {
                 new WifiProfile { Ssid = "工作网络-很长的网络名称-5GHz", Priority = 1, Enabled = true },
-                new WifiProfile { Ssid = "备用网络-2.4GHz", Priority = 2, Enabled = false }
+                new WifiProfile { Ssid = "备用网络-2.4GHz", Priority = 2, Enabled = true, AutoConnect = false, CredentialSaved = true }
             };
             grid.ItemsSource = profiles;
-            ((DataGridColumn)window.FindName("ProfileEnabledColumn")).Header = localizer.T("Enabled");
+            ((DataGridColumn)window.FindName("ProfileEnabledColumn")).Header = localizer.T("WifiRecoveryParticipation");
             DesktopFixture.Layout(window, 1040, 660);
             var toggles = DesktopFixture.Descendants(grid).OfType<Wpf.Ui.Controls.ToggleSwitch>().ToArray();
             Assert.Equal(2, toggles.Length);
@@ -72,10 +72,18 @@ public sealed class AccessibleResultsTests
                 var toggle = toggles.Single(item => ReferenceEquals(item.DataContext, profile));
                 var peer = UIElementAutomationPeer.CreatePeerForElement(toggle)!;
                 Assert.Equal(profile.Ssid, peer.GetName());
-                Assert.Equal(localizer.T("Enabled"), peer.GetHelpText());
-                Assert.Equal(profile.Enabled, toggle.IsChecked);
+                Assert.Equal(localizer.T("WifiRecoveryParticipation"), peer.GetHelpText());
+                Assert.Equal(profile.ParticipatesInRecovery, toggle.IsChecked);
                 var provider = Assert.IsAssignableFrom<IToggleProvider>(peer.GetPattern(PatternInterface.Toggle));
-                Assert.Equal(profile.Enabled ? ToggleState.On : ToggleState.Off, provider.ToggleState);
+                Assert.Equal(profile.ParticipatesInRecovery ? ToggleState.On : ToggleState.Off, provider.ToggleState);
+                if (!profile.ParticipatesInRecovery)
+                {
+                    bool? candidateOnSourceUpdate = null;
+                    toggle.SourceUpdated += (_, _) => candidateOnSourceUpdate = profile.IsRecoveryCandidate;
+                    provider.Toggle();
+                    Assert.True(candidateOnSourceUpdate);
+                    Assert.True(profile.Enabled && profile.AutoConnect);
+                }
             }
         });
     }

@@ -80,12 +80,14 @@ public static class RecoveryPlanner
     /// Orders the Wi-Fi profiles eligible for auto-switch: enabled, auto-connect,
     /// with saved credentials, excluding the currently connected SSID, by priority.
     /// </summary>
-    public static IReadOnlyList<WifiProfile> OrderSwitchCandidates(IEnumerable<WifiProfile> profiles, string? currentSsid)
+    public static IReadOnlyList<WifiProfile> OrderSwitchCandidates(IEnumerable<WifiProfile> profiles, string? currentSsid,
+        IReadOnlySet<string>? nearbySsids = null)
     {
         return profiles
-            .Where(profile => profile.Enabled && profile.AutoConnect && profile.CredentialSaved)
+            .Where(profile => profile.IsRecoveryCandidate)
             .Where(profile => !SsidEquals(profile.Ssid, currentSsid))
-            .OrderBy(profile => profile.Priority)
+            .OrderByDescending(profile => nearbySsids?.Contains(profile.Ssid) == true)
+            .ThenBy(profile => profile.Priority)
             .ToList();
     }
 

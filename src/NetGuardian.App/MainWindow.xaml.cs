@@ -716,7 +716,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         });
     }
 
-    private void ProfileEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    private void ProfileEnabledToggle_Changed(object sender, System.Windows.Data.DataTransferEventArgs e)
     {
         if (!IsLoaded)
         {
@@ -1560,7 +1560,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 _localizer.T("SelectedProfileWifi"),
                 _nearbySavedWifi.GetPriority(profile),
                 DisplaySsid(profile.Ssid),
-                profile.Enabled ? _localizer.T("Enabled") : _localizer.T("Disabled"));
+                profile.ParticipatesInRecovery ? _localizer.T("Enabled") : _localizer.T("Disabled"));
             SetWifiSelectionVisual(true);
         }
         else
@@ -1953,7 +1953,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyClearFilterButton.Content = _localizer.T("WifiClearFilter");
         PriorityListTitle.Text = _localizer.T("PriorityList");
         NearbyEmptyText.Text = _localizer.T("NoNearbyWifiRows");
-        ProfileEmptyText.Text = _localizer.T("NoPriorityWifiRows");
         RecentEventsEmptyText.Text = _localizer.T("NoRecentEvents");
         WebsiteEmptyText.Text = _localizer.T("NoWebsiteRows");
         IpInfoEmptyText.Text = _localizer.T("NoIpInfoRows");
@@ -1970,7 +1969,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProfileSsidColumn.Header = _localizer.T("Ssid");
         ProfilePriorityColumn.Header = _localizer.T("Priority");
         ProfileCredentialColumn.Header = _localizer.T("CredentialSaved");
-        ProfileEnabledColumn.Header = _localizer.T("Enabled");
+        ProfileEnabledColumn.Header = _localizer.T("WifiRecoveryParticipation");
         ProfileFailuresColumn.Header = _localizer.T("Failures");
         NearbyPriorityColumn.Header = _localizer.T("PriorityState");
         PolicyTitle.Text = _localizer.T("Policy");

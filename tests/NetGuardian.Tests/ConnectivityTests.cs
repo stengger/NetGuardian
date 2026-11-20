@@ -133,16 +133,41 @@ public sealed class ConnectivityTests
         Assert.Equal(NetworkState.InternetIssue, (await Create(probes, policy).RunFullCheckAsync("校园网")).State);
     }
 
+    [Fact]
+    public async Task 系统出口可用但无法确定无线接口时不能判为健康()
+    {
+        var tester = new ConnectivityTester(new MonitorPolicy(), new FakeEnvironment(), new FakeProbes(), requireWifiRoute: true);
+
+        Assert.False((await tester.RunLightweightCheckAsync()).Ok);
+        Assert.False((await tester.RunFullCheckAsync("校园网")).Ok);
+    }
+
+    [Fact]
+    public async Task 无线HTTPS失败时不会回退到可用的系统出口()
+    {
+        var probes = new FakeProbes { ScopedStatus = HttpStatusCode.ServiceUnavailable };
+        var tester = new ConnectivityTester(new MonitorPolicy(), new FakeEnvironment(42), probes, requireWifiRoute: true);
+
+        Assert.Equal(NetworkState.InternetIssue, (await tester.RunFullCheckAsync("校园网")).State);
+        Assert.False((await tester.RunLightweightCheckAsync()).Ok);
+        Assert.Equal(0, probes.UnscopedRequests);
+        Assert.Equal(6, probes.WifiRoutes.Count);
+        Assert.All(probes.WifiRoutes, route => Assert.Equal((IPAddress.Parse("192.0.2.2"), 42), route));
+    }
+
     private static ConnectivityTester Create(FakeProbes probes, MonitorPolicy? policy = null) =>
         new(policy ?? new MonitorPolicy(), new FakeEnvironment(), probes);
 
-    private sealed class FakeEnvironment : IConnectivityEnvironment
+    private sealed class FakeEnvironment(int? index = null) : IConnectivityEnvironment
     {
-        public NetworkSnapshot Capture() => new("测试无线网卡", true, true, "192.0.2.2", "192.0.2.1");
+        public NetworkSnapshot Capture() => new("测试无线网卡", true, true, "192.0.2.2", "192.0.2.1", index);
     }
 
     private sealed class FakeProbes : IConnectivityProbes
     {
+        public HttpStatusCode ScopedStatus { get; init; } = HttpStatusCode.OK;
+        public int UnscopedRequests { get; private set; }
+        public System.Collections.Concurrent.ConcurrentBag<(IPAddress Address, int Index)> WifiRoutes { get; } = [];
         public bool RejectDiagnosticProbes { get; init; }
         public bool GatewayOk { get; init; } = true;
         public bool DnsFails { get; init; }
@@ -175,8 +200,15 @@ public sealed class ConnectivityTests
 
         public Task<HttpStatusCode> HttpsHeadAsync(string host, CancellationToken cancellationToken)
         {
+            UnscopedRequests++;
             Check("HTTPS", cancellationToken);
             return Task.FromResult(HttpsStatuses is null ? Status : HttpsStatuses[host]);
+        }
+
+        public Task<HttpStatusCode> WifiHttpsHeadAsync(string host, IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
+        {
+            WifiRoutes.Add((address, interfaceIndex));
+            return Task.FromResult(ScopedStatus);
         }
     }
 

@@ -24,7 +24,7 @@ if (!store.TryLoad(out var initialSettings))
 }
 if (args.Contains("--validate"))
 {
-    var eligible = initialSettings.Profiles.Count(profile => profile.Enabled && profile.AutoConnect);
+    var eligible = initialSettings.Profiles.Count(profile => profile.ParticipatesInRecovery);
     if (eligible < 2) { Console.Error.WriteLine("无人值守切换至少需要两个启用且允许自动连接的 Wi-Fi 配置；请另用 --diagnose 检查 Windows 中的实际可用性。"); return 78; }
     Console.WriteLine(JsonSerializer.Serialize(new { 配置 = settingsPath, 网络数量 = initialSettings.Profiles.Count, 已配置候选数量 = eligible, 检测间隔秒 = initialSettings.Policy.CheckIntervalSeconds }));
     return 0;
