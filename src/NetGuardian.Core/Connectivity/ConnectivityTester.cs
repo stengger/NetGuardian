@@ -14,13 +14,16 @@ public sealed class ConnectivityTester
     private readonly IConnectivityEnvironment _environment;
     private readonly IConnectivityProbes _probes;
 
-    public ConnectivityTester(MonitorPolicy policy) : this(policy, new SystemConnectivityEnvironment(), new SystemConnectivityProbes()) { }
+    private readonly bool _requireWifiRoute;
 
-    public ConnectivityTester(MonitorPolicy policy, IConnectivityEnvironment environment, IConnectivityProbes probes)
+    public ConnectivityTester(MonitorPolicy policy) : this(policy, new SystemConnectivityEnvironment(), new SystemConnectivityProbes(), requireWifiRoute: true) { }
+
+    public ConnectivityTester(MonitorPolicy policy, IConnectivityEnvironment environment, IConnectivityProbes probes, bool requireWifiRoute = false)
     {
         _policy = policy;
         _environment = environment;
         _probes = probes;
+        _requireWifiRoute = requireWifiRoute;
     }
 
     /// <summary>只读接口快照及公网探测，不执行系统命令和独立网关、DNS 诊断。</summary>
@@ -33,7 +36,7 @@ public sealed class ConnectivityTester
         if (snapshot.AdapterPresent && snapshot.AdapterUp && !string.IsNullOrWhiteSpace(snapshot.Ipv4))
         {
             var targets = MonitorPolicy.NormalizeProbeList(_policy.HttpsProbeHosts, MonitorPolicy.DefaultHttpsProbeHosts);
-            probes.AddRange(await Task.WhenAll(targets.Select(host => HttpsHeadAsync(host, cancellationToken))));
+            probes.AddRange(await Task.WhenAll(targets.Select(host => HttpsHeadAsync(host, snapshot, cancellationToken))));
             state = probes.Count(probe => probe.Ok) >= Math.Min(2, targets.Count) ? NetworkState.Healthy : NetworkState.InternetIssue;
         }
         cancellationToken.ThrowIfCancellationRequested();
@@ -56,7 +59,7 @@ public sealed class ConnectivityTester
             probes.Add(new ConnectivityProbe("无线设备状态", false, null, wifiDiagnostics.Detail));
             return Report(NetworkState.AdapterFault, currentSsid, null, null, probes, wifiDiagnostics.Detail);
         }
-        var wifi = _environment.Capture();
+        var wifi = _environment.Capture(wifiDiagnostics?.AdapterName);
         var adapterName = wifiDiagnostics?.AdapterName ?? wifi.AdapterName;
         var adapterPresent = wifiDiagnostics?.AdapterPresent ?? wifi.AdapterPresent;
 
@@ -120,7 +123,7 @@ public sealed class ConnectivityTester
         }
 
         var httpsTargets = MonitorPolicy.NormalizeProbeList(_policy.HttpsProbeHosts, MonitorPolicy.DefaultHttpsProbeHosts);
-        var httpsProbes = await Task.WhenAll(httpsTargets.Select(host => HttpsHeadAsync(host, cancellationToken)));
+        var httpsProbes = await Task.WhenAll(httpsTargets.Select(host => HttpsHeadAsync(host, wifi, cancellationToken)));
         probes.AddRange(httpsProbes);
         var httpsSuccesses = httpsProbes.Count(probe => probe.Ok);
 
@@ -135,8 +138,22 @@ public sealed class ConnectivityTester
     private Task<ConnectivityProbe> ResolveAsync(string host, CancellationToken cancellationToken) =>
         ProbeAsync($"DNS {host}", async token => { await _probes.ResolveAsync(host, token); return (true, "解析成功"); }, cancellationToken);
 
-    private Task<ConnectivityProbe> HttpsHeadAsync(string host, CancellationToken cancellationToken) =>
-        ProbeAsync($"HTTPS {host}", async token => { var status = await _probes.HttpsHeadAsync(host, token); return ((int)status is >= 200 and < 300, $"HTTP {(int)status}"); }, cancellationToken);
+    private Task<ConnectivityProbe> HttpsHeadAsync(string host, NetworkSnapshot wifi, CancellationToken cancellationToken) =>
+        ProbeAsync($"HTTPS {host}", async token =>
+        {
+            HttpStatusCode status;
+            if (_requireWifiRoute)
+            {
+                if (wifi.Ipv4InterfaceIndex is not > 0 || !IPAddress.TryParse(wifi.Ipv4, out var address))
+                    return (false, "无法确定用于验证的无线出口。");
+                status = await _probes.WifiHttpsHeadAsync(host, address, wifi.Ipv4InterfaceIndex.Value, token);
+            }
+            else
+            {
+                status = await _probes.HttpsHeadAsync(host, token);
+            }
+            return ((int)status is >= 200 and < 300, $"HTTP {(int)status}");
+        }, cancellationToken);
 
     private async Task<ConnectivityProbe> ProbeAsync(string name, Func<CancellationToken, Task<(bool Ok, string Detail)>> operation, CancellationToken cancellationToken)
     {
@@ -180,18 +197,20 @@ public sealed class ConnectivityTester
 
 internal sealed class SystemConnectivityEnvironment : IConnectivityEnvironment
 {
-    public NetworkSnapshot Capture()
+    public NetworkSnapshot Capture() => Capture(null);
+
+    public NetworkSnapshot Capture(string? adapterName)
     {
-        var wifi = GetPrimaryWifiInterface();
-        return new NetworkSnapshot(wifi?.Name, wifi is not null, wifi?.OperationalStatus == OperationalStatus.Up, GetPrimaryIpv4(wifi), GetDefaultGateway(wifi));
-    }
-    private static NetworkInterface? GetPrimaryWifiInterface()
-    {
-        return NetworkInterface.GetAllNetworkInterfaces()
-            .Where(item => item.NetworkInterfaceType == NetworkInterfaceType.Wireless80211)
-            .OrderByDescending(item => item.OperationalStatus == OperationalStatus.Up)
-            .ThenBy(item => item.Name)
-            .FirstOrDefault();
+        var adapters = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(item => item.NetworkInterfaceType == NetworkInterfaceType.Wireless80211).ToArray();
+        var active = adapters.Where(item => item.OperationalStatus == OperationalStatus.Up).ToArray();
+        // 轻量检查没有 SSID 对应的接口名称，多个活动接口时交给完整检查确认。
+        var wifi = string.IsNullOrWhiteSpace(adapterName)
+            ? active.Length == 1 ? active[0] : null
+            : adapters.FirstOrDefault(item => string.Equals(item.Name, adapterName, StringComparison.OrdinalIgnoreCase));
+        var hasIpv4 = wifi?.Supports(NetworkInterfaceComponent.IPv4) == true;
+        return new NetworkSnapshot(wifi?.Name, adapters.Length > 0, wifi?.OperationalStatus == OperationalStatus.Up,
+            GetPrimaryIpv4(wifi), GetDefaultGateway(wifi), hasIpv4 ? wifi!.GetIPProperties().GetIPv4Properties()?.Index : null);
     }
 
     private static string? GetPrimaryIpv4(NetworkInterface? networkInterface)
@@ -242,10 +261,55 @@ internal sealed class SystemConnectivityProbes : IConnectivityProbes
     public async Task ResolveAsync(string host, CancellationToken cancellationToken) =>
         _ = await Dns.GetHostAddressesAsync(host, cancellationToken);
 
-    public async Task<HttpStatusCode> HttpsHeadAsync(string host, CancellationToken cancellationToken)
+    public Task<HttpStatusCode> HttpsHeadAsync(string host, CancellationToken cancellationToken) =>
+        SendHeadAsync(SharedHttpClient, host, cancellationToken);
+
+    public async Task<HttpStatusCode> WifiHttpsHeadAsync(string host, IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
+    {
+        using var handler = new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            UseProxy = false,
+            ConnectCallback = (context, token) => ConnectWifiAsync(context.DnsEndPoint, address, interfaceIndex, token)
+        };
+        using var client = new HttpClient(handler);
+        return await SendHeadAsync(client, host, cancellationToken);
+    }
+
+    private static async ValueTask<Stream> ConnectWifiAsync(DnsEndPoint endpoint, IPAddress address, int interfaceIndex, CancellationToken token)
+    {
+        var addresses = await Dns.GetHostAddressesAsync(endpoint.Host, AddressFamily.InterNetwork, token);
+        SocketException? failure = null;
+        foreach (var remote in addresses)
+        {
+            token.ThrowIfCancellationRequested();
+            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            try
+            {
+                // Windows IP_UNICAST_IF（31）接收网络字节序的索引，限制实际出站接口。
+                socket.SetSocketOption(SocketOptionLevel.IP, (SocketOptionName)31, IPAddress.HostToNetworkOrder(interfaceIndex));
+                socket.Bind(new IPEndPoint(address, 0));
+                await socket.ConnectAsync(new IPEndPoint(remote, endpoint.Port), token);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch (SocketException ex)
+            {
+                socket.Dispose();
+                failure = ex;
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+        throw failure ?? new SocketException((int)SocketError.HostNotFound);
+    }
+
+    private static async Task<HttpStatusCode> SendHeadAsync(HttpClient client, string host, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Head, new UriBuilder(Uri.UriSchemeHttps, host).Uri);
-        using var response = await SharedHttpClient.SendAsync(request, cancellationToken);
+        using var response = await client.SendAsync(request, cancellationToken);
         return response.StatusCode;
     }
 }

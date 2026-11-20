@@ -231,17 +231,18 @@ public sealed class MonitoringEngine : IDisposable
                 {
                     var wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
                     adapterName = wifiDiagnostics.AdapterName;
-                    if (RecoveryPlanner.ShouldTryEnableWifi(policy, wifiDiagnostics))
+                    if (IsMonitoring && RecoveryPlanner.ShouldTryEnableWifi(policy, wifiDiagnostics))
                     {
                         Raise(EngineEventKind.TryingEnableWifiAdapter, adapterName ?? "Wi-Fi");
                         probeToken.ThrowIfCancellationRequested();
                         var enabled = await _wifi.TryEnableWifiAdapterAsync(adapterName, probeToken).WaitAsync(probeToken);
                         Raise(enabled ? EngineEventKind.WifiAdapterEnabled : EngineEventKind.WifiAdapterEnableFailed);
+                        if (!enabled && _wifi.LastAdapterEnableFailure is { } failure)
+                            Raise(EngineEventKind.CheckError, failure);
                         await DelayAsync(AdapterEnableSettleDelay, probeToken);
                         wifiDiagnostics = await _wifi.GetAdapterDiagnosticsAsync(probeToken).WaitAsync(probeToken);
                     }
-                    var currentSsid = await _wifi.GetCurrentSsidAsync(probeToken).WaitAsync(probeToken);
-                    report = await _tester.RunFullCheckAsync(policy, currentSsid, wifiDiagnostics, probeToken).WaitAsync(probeToken);
+                    report = await CheckWifiAsync(policy, wifiDiagnostics, probeToken);
                 }
             }
             catch (OperationCanceledException) when (probeDeadline.IsCancellationRequested && !token.IsCancellationRequested)
@@ -355,16 +356,29 @@ public sealed class MonitoringEngine : IDisposable
         var attempted = false;
         Raise(EngineEventKind.RecoveryStarted, _failureStreak);
 
-        if (policy.EnableDnsFlush)
+        if (policy.EnableDnsFlush && report.State == NetworkState.DnsIssue)
         {
             attempted = true;
             Raise(EngineEventKind.RecoveryDnsFlush);
-            await TryRecoveryStepAsync(async () =>
+            var dnsRecovered = await TryRecoveryStepAsync(async () =>
             {
                 var result = await _commands.RunAsync("ipconfig.exe", ["/flushdns"], cancellationToken).WaitAsync(cancellationToken);
                 Raise(EngineEventKind.RecoveryDnsFlushCompleted, result.Ok, result.ExitCode, result.Output);
-                return result.Ok;
+                if (!result.Ok) return false;
+                var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(cancellationToken).WaitAsync(cancellationToken);
+                var retest = await ProbeAsync(policy, diagnostics, cancellationToken);
+                if (!retest.Ok) return false;
+                lock (_lifecycle)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _lastCheckHealthy = true;
+                    _failureStreak = 0;
+                    _failedRecoveryRounds = 0;
+                }
+                CheckCompleted?.Invoke(this, new CheckCompletedEventArgs(retest, 0));
+                return true;
             }, cancellationToken);
+            if (dnsRecovered) return;
         }
 
         if (policy.EnableCurrentWifiReconnect && !string.IsNullOrWhiteSpace(currentSsid) && !IsSsidCoolingDown(currentSsid))
@@ -391,18 +405,21 @@ public sealed class MonitoringEngine : IDisposable
         if (policy.EnableAutoSwitch)
         {
             // 长期关联后可用网络缓存可能过期；刷新失败仍保留已保存配置的连接机会。
+            IReadOnlyList<WifiNetwork> nearby = [];
             await TryRecoveryStepAsync(async () =>
             {
                 using var scanCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                 scanCancellation.CancelAfter(TimeSpan.FromSeconds(8));
-                try { await _wifi.ScanAsync(scanCancellation.Token).WaitAsync(scanCancellation.Token); }
+                try { nearby = await _wifi.ScanAsync(scanCancellation.Token).WaitAsync(scanCancellation.Token); }
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     throw new TimeoutException("恢复前无线扫描超过时限，继续尝试保存的配置。");
                 }
                 return true;
             }, cancellationToken);
-            foreach (var profile in RecoveryPlanner.OrderSwitchCandidates(_profilesProvider(), currentSsid))
+            var visibleSsids = nearby.Select(network => network.Ssid).ToHashSet(StringComparer.Ordinal);
+            var candidates = RecoveryPlanner.OrderSwitchCandidates(_profilesProvider(), currentSsid, visibleSsids);
+            foreach (var profile in candidates)
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 if (IsSsidCoolingDown(profile.Ssid)) continue;
@@ -450,9 +467,8 @@ public sealed class MonitoringEngine : IDisposable
 
         // 轻恢复可能已经改变关联状态；升级必须依据此刻的完整探测。
         // 验证异常直接终止本轮，不能把未知结果当成设备故障。
-        var currentSsid = await _wifi.GetCurrentSsidAsync(cancellationToken).WaitAsync(cancellationToken);
         var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(cancellationToken).WaitAsync(cancellationToken);
-        report = await ProbeAsync(policy, currentSsid, diagnostics, cancellationToken);
+        report = await ProbeAsync(policy, diagnostics, cancellationToken);
         if (!RecoveryPlanner.IsDeviceLayerFailure(report.State)) return;
         adapterName = diagnostics.AdapterName;
         _lastHighRiskAt = _time.GetLocalNow();
@@ -500,9 +516,8 @@ public sealed class MonitoringEngine : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
         await DelayAsync(HighRiskSettleDelay, cancellationToken);
 
-        var currentSsid = await _wifi.GetCurrentSsidAsync(cancellationToken).WaitAsync(cancellationToken);
         var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(cancellationToken).WaitAsync(cancellationToken);
-        var reportAfter = await ProbeAsync(policy, currentSsid, diagnostics, cancellationToken);
+        var reportAfter = await ProbeAsync(policy, diagnostics, cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         if (reportAfter.Ok)
         {
@@ -545,12 +560,18 @@ public sealed class MonitoringEngine : IDisposable
         {
             while (true)
             {
-                if (!await WaitForSsidAsync(ssid, timeout, validationToken)) return false;
+                var connection = await WaitForSsidAsync(ssid, timeout, validationToken);
+                if (connection is null) return false;
                 var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(validationToken).WaitAsync(validationToken);
                 // 公网探测保留独立预算，不能被已结束的地址等待预算截断。
-                var report = await ProbeAsync(policy, ssid, diagnostics, token);
+                var report = await ProbeAsync(policy, diagnostics, token, connection);
                 token.ThrowIfCancellationRequested();
-                if (report.Ok) return true;
+                if (report.Ok)
+                {
+                    var confirmed = await _wifi.GetConnectionInfoAsync(token).WaitAsync(token);
+                    return confirmed.ReadSucceeded && confirmed.Connected && RecoveryPlanner.SsidEquals(confirmed.Ssid, ssid)
+                        && string.Equals(confirmed.AdapterName, connection.AdapterName, StringComparison.OrdinalIgnoreCase);
+                }
                 // 连接建立期间接口状态及 SSID 可能短暂回落，明确的关闭或设备故障不等待。
                 var canWaitForConnection = (report.State is NetworkState.Disconnected or NetworkState.WifiDisabled or NetworkState.WifiDisconnected)
                     && diagnostics.AdapterPresent && (diagnostics.ProblemCode is null or 0)
@@ -570,8 +591,18 @@ public sealed class MonitoringEngine : IDisposable
         }
     }
 
-    private async Task<ConnectivityReport> ProbeAsync(MonitorPolicy policy, string? ssid,
-        WifiAdapterDiagnostics diagnostics, CancellationToken token)
+    private async Task<ConnectivityReport> CheckWifiAsync(MonitorPolicy policy, WifiAdapterDiagnostics diagnostics,
+        CancellationToken token, WifiConnectionInfo? connection = null)
+    {
+        connection ??= await _wifi.GetConnectionInfoAsync(token).WaitAsync(token);
+        if (connection.Connected && !string.IsNullOrWhiteSpace(connection.AdapterName))
+            diagnostics = diagnostics with { AdapterName = connection.AdapterName };
+        var ssid = connection.ReadSucceeded && connection.Connected ? connection.Ssid : null;
+        return await _tester.RunFullCheckAsync(policy, ssid, diagnostics, token).WaitAsync(token);
+    }
+
+    private async Task<ConnectivityReport> ProbeAsync(MonitorPolicy policy,
+        WifiAdapterDiagnostics diagnostics, CancellationToken token, WifiConnectionInfo? connection = null)
     {
         long generation;
         lock (_lifecycle)
@@ -583,7 +614,7 @@ public sealed class MonitoringEngine : IDisposable
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
         try
         {
-            var report = await _tester.RunFullCheckAsync(policy, ssid, diagnostics, linked.Token).WaitAsync(linked.Token);
+            var report = await CheckWifiAsync(policy, diagnostics, linked.Token, connection);
             lock (_lifecycle)
             {
                 token.ThrowIfCancellationRequested();
@@ -610,21 +641,19 @@ public sealed class MonitoringEngine : IDisposable
         }
     }
 
-    private async Task<bool> WaitForSsidAsync(string ssid, TimeSpan timeout, CancellationToken cancellationToken)
+    private async Task<WifiConnectionInfo?> WaitForSsidAsync(string ssid, TimeSpan timeout, CancellationToken cancellationToken)
     {
         var deadline = _time.GetLocalNow().Add(timeout);
         while (_time.GetLocalNow() < deadline)
         {
-            var currentSsid = await _wifi.GetCurrentSsidAsync(cancellationToken).WaitAsync(cancellationToken);
-            if (RecoveryPlanner.SsidEquals(currentSsid, ssid))
-            {
-                return true;
-            }
+            var connection = await _wifi.GetConnectionInfoAsync(cancellationToken).WaitAsync(cancellationToken);
+            if (connection.ReadSucceeded && connection.Connected && RecoveryPlanner.SsidEquals(connection.Ssid, ssid))
+                return connection;
 
             await DelayAsync(SsidPollInterval, cancellationToken);
         }
 
-        return false;
+        return null;
     }
 
     private Task DelayAsync(TimeSpan delay, CancellationToken cancellationToken)

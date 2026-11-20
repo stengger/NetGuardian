@@ -184,7 +184,8 @@ public sealed class SmallWorkAreaTests
             Assert.Equal(0, actions.ScrollableWidth);
             var more = (Button)window.FindName("WifiMoreButton");
             Assert.True(more.IsVisible);
-            Assert.Equal(3, more.ContextMenu.Items.Count);
+            Assert.Equal(4, more.ContextMenu.Items.OfType<MenuItem>().Count());
+            Assert.True(more.ContextMenu.Items.OfType<MenuItem>().Last().IsCheckable);
             actions.ScrollToRightEnd(); window.UpdateLayout();
             var connect = (FrameworkElement)window.FindName("ConnectButton");
             var bounds = connect.TransformToAncestor(actions).TransformBounds(new Rect(connect.RenderSize));

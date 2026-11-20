@@ -115,7 +115,12 @@ public sealed class WifiWorkspaceLayoutTests
             Assert.Equal(source.Content, item.Header);
             source.IsEnabled = false; window.UpdateLayout(); Assert.False(item.IsEnabled);
             source.IsEnabled = true; window.UpdateLayout(); Assert.True(item.IsEnabled);
-            Assert.Equal(3, menu.Items.Count); menu.IsOpen = false;
+            Assert.Equal(4, menu.Items.OfType<MenuItem>().Count());
+            var showAll = menu.Items.OfType<MenuItem>().Last();
+            Assert.True(showAll.IsCheckable);
+            Assert.False(showAll.IsChecked);
+            Assert.False(string.IsNullOrWhiteSpace(showAll.Header?.ToString()));
+            menu.IsOpen = false;
             var filter = (Button)window.FindName("NearbyFilterButton");
             filter.ContextMenu.PlacementTarget = filter; filter.ContextMenu.IsOpen = true; window.UpdateLayout();
             ((MenuItem)filter.ContextMenu.Items[0]).IsChecked = true; window.UpdateLayout();

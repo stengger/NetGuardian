@@ -165,6 +165,8 @@
                                         <MenuItem Header="{Binding PlacementTarget.Tag.Children[0].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[0].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="SetPassword_Click" />
                                         <MenuItem Header="{Binding PlacementTarget.Tag.Children[1].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[1].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="ImportPassword_Click" />
                                         <MenuItem Header="{Binding PlacementTarget.Tag.Children[2].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[2].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="AddManual_Click" />
+                                        <Separator />
+                                        <MenuItem x:Name="ShowAllWifiProfilesMenuItem" Header="查看全部恢复配置" IsCheckable="True" Click="ShowAllWifiProfiles_Click" />
                                     </ContextMenu></Button.ContextMenu>
                                 </Button>
                                 <Button x:Name="WifiSelectionInfoButton" Content="ⓘ" Style="{StaticResource ToolbarIconButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" ToolTip="{Binding Text, ElementName=CurrentWifiSelectionText}" AutomationProperties.Name="{Binding Text, ElementName=CurrentWifiSelectionText}" />
@@ -316,7 +318,7 @@
                                     <TextBlock x:Name="CurrentWifiDetailsText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                 </Expander>
                                 <Border x:Name="CurrentWifiConnectedBadge" Grid.Column="1" Style="{StaticResource WifiConnectedBadgeStyle}" Margin="{DynamicResource SpacingLeadingGap}" Visibility="Collapsed"><TextBlock x:Name="CurrentWifiConnectedText" Text="已连接" VerticalAlignment="Center" /></Border>
-                                <TextBlock x:Name="WifiRecoverySummaryText" Grid.Column="2" Text="恢复优先级：已启用 0/0" FontSize="{DynamicResource FontCaption}" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingLeadingGap}" />
+                                <TextBlock x:Name="WifiRecoverySummaryText" Grid.Column="2" Text="自动恢复候选：0/0" FontSize="{DynamicResource FontCaption}" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingLeadingGap}" />
                                 <ProgressBar x:Name="CurrentWifiSignalBar" Visibility="Collapsed" />
                                 <TextBlock x:Name="DragHintText" Visibility="Collapsed" />
 
@@ -407,10 +409,10 @@
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
-                                        <DataGridTemplateColumn x:Name="ProfileEnabledColumn" ClipboardContentBinding="{Binding Enabled}" Width="56" MinWidth="56" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}">
+                                        <DataGridTemplateColumn x:Name="ProfileEnabledColumn" ClipboardContentBinding="{Binding ParticipatesInRecovery}" Width="56" MinWidth="56" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}">
                                             <DataGridTemplateColumn.CellTemplate>
                                                 <DataTemplate>
-                                                    <ui:ToggleSwitch IsChecked="{Binding Enabled, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="{Binding Ssid}" AutomationProperties.HelpText="{Binding Column.Header, RelativeSource={RelativeSource AncestorType=DataGridCell}}" HorizontalAlignment="Center" Checked="ProfileEnabledToggle_Changed" Unchecked="ProfileEnabledToggle_Changed" />
+                                                    <ui:ToggleSwitch IsChecked="{Binding ParticipatesInRecovery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, NotifyOnSourceUpdated=True}" AutomationProperties.Name="{Binding Ssid}" AutomationProperties.HelpText="{Binding Column.Header, RelativeSource={RelativeSource AncestorType=DataGridCell}}" HorizontalAlignment="Center" SourceUpdated="ProfileEnabledToggle_Changed" />
                                                 </DataTemplate>
                                             </DataGridTemplateColumn.CellTemplate>
                                         </DataGridTemplateColumn>
@@ -875,6 +877,8 @@
                             <ComboBoxItem Tag="exit" />
                             <ComboBoxItem Tag="tray" />
                         </ComboBox>
+                        <ui:ToggleSwitch x:Name="StartOnUserLogonCheckBox" IsEnabled="False" Margin="{DynamicResource SpacingToggleRow}" Checked="UserLogonStartup_Changed" Unchecked="UserLogonStartup_Changed" />
+                        <TextBlock x:Name="UserLogonStartupStatusText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="{DynamicResource SpacingValidationGap}" />
                         <ui:ToggleSwitch x:Name="StartMonitoringOnLaunchCheckBox" Margin="{DynamicResource SpacingToggleRow}" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="StartMinimizedToTrayCheckBox" Margin="{DynamicResource SpacingToggleRow}" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                         <ui:ToggleSwitch x:Name="ScheduledStartupCheckBox" Margin="{DynamicResource SpacingToggleRow}" Checked="ScheduledStartup_Changed" Unchecked="ScheduledStartup_Changed" />

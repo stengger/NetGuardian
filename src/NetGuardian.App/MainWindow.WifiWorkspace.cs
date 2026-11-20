@@ -20,11 +20,19 @@ public partial class MainWindow
         }
     }
 
+    private void ShowAllWifiProfiles_Click(object sender, RoutedEventArgs e)
+    {
+        _nearbySavedWifi.SetShowAll(ShowAllWifiProfilesMenuItem.IsChecked);
+        UpdateWifiSelectionUi();
+        UpdateEmptyStates();
+    }
+
     private void RefreshWifiWorkspaceSummary()
     {
-        var visible = _nearbySavedWifi.View.Cast<WifiProfile>().ToList();
-        WifiRecoverySummaryText.Text = string.Format(_localizer.T("WifiRecoverySummary"), visible.Count(p => p.Enabled), visible.Count);
-        WifiRecoverySummaryText.ToolTip = WifiRecoverySummaryText.Text;
+        WifiRecoverySummaryText.Text = string.Format(_localizer.T("WifiRecoverySummary"), _profiles.Count(p => p.IsRecoveryCandidate), _profiles.Count);
+        WifiRecoverySummaryText.ToolTip = _localizer.T("WifiRecoverySummaryHint");
+        ShowAllWifiProfilesMenuItem.Header = _localizer.T("ShowAllWifiProfiles");
+        ProfileEmptyText.Text = _localizer.T(_nearbySavedWifi.ShowsAll ? "NoConfiguredWifiRows" : "NoPriorityWifiRows");
         WifiMoreButton.Content = _localizer.T("WifiMore");
         WifiWorkspacePresentation.ApplyScanStatus(this,
             string.Format(_localizer.T("WifiLastScan"), _lastSuccessfulWifiScan?.ToString("HH:mm:ss") ?? "—"),

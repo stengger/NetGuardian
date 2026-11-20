@@ -33,6 +33,8 @@ public sealed class DesktopLayoutTests
                 ((TextBlock)window.FindName(name)).Text = localizer.T(key);
             foreach (var (name, key) in new[] { ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
                 ((ContentControl)window.FindName(name)).Content = localizer.T(key);
+            var logonToggle = Assert.IsType<Wpf.Ui.Controls.ToggleSwitch>(window.FindName("StartOnUserLogonCheckBox"));
+            logonToggle.Content = localizer.T("StartOnUserLogon");
             var status = (TextBlock)window.FindName("ScheduledStartupStatusText");
             status.Text = string.Join("\n", Enumerable.Repeat(localizer.T("DiagnosticFailed") + " 计划任务权限错误原文。", 40));
             DesktopFixture.Layout(window, 1040, 660);
@@ -464,7 +466,7 @@ internal static class DesktopFixture
                         "clr-namespace:NetGuardian.App.Presentation;assembly=NetGuardian"), attribute.Value);
                     attribute.Remove();
                 }
-                var events = new HashSet<string> { "Closing", "StateChanged", "Click", "TextChanged", "SelectionChanged", "Checked", "Unchecked", "PreviewMouseLeftButtonUp", "PreviewMouseLeftButtonDown", "PreviewMouseWheel", "PreviewKeyDown", "MouseMove", "MouseDoubleClick", "Drop" };
+                var events = new HashSet<string> { "Closing", "StateChanged", "Click", "TextChanged", "SelectionChanged", "Checked", "Unchecked", "SourceUpdated", "PreviewMouseLeftButtonUp", "PreviewMouseLeftButtonDown", "PreviewMouseWheel", "PreviewKeyDown", "MouseMove", "MouseDoubleClick", "Drop" };
                 foreach (var attribute in document.Descendants().Attributes().Where(a => events.Contains(a.Name.LocalName)).ToList()) attribute.Remove();
                 window = (Window)XamlReader.Parse(document.ToString(), new ParserContext
                 {

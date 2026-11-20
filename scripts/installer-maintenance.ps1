@@ -54,8 +54,17 @@ function Invoke-NetGuardianUninstallPreparation([Parameter(Mandatory)][string]$I
     }
     # 先核验归属，再复用停止监督、请求退出及等待收尾的既有流程。
     $null = @(Get-NetGuardianInstallerTasks $directory)
+    $desktop = Join-Path $directory 'NetGuardian.exe'
+    $logonTasks = @(Get-ScheduledTask -ErrorAction Stop | Where-Object {
+        $_.TaskPath -eq '\' -and $_.TaskName.StartsWith('NetGuardian-Logon-', [StringComparison]::Ordinal) -and
+        @($_.Actions).Count -eq 1 -and $_.Actions[0].Execute -and
+        [IO.Path]::GetFullPath($_.Actions[0].Execute) -eq $desktop
+    })
     & (Join-Path $directory 'scripts\unregister-netguardian-task.ps1')
     if (@(Get-NetGuardianInstallerProcesses $directory).Count) { throw '后台仍在运行，已中止卸载；请停止后台后重试。' }
+    foreach ($task in $logonTasks) {
+        Unregister-ScheduledTask -TaskName $task.TaskName -TaskPath $task.TaskPath -Confirm:$false -ErrorAction Stop
+    }
 }
 
 if ($MyInvocation.InvocationName -ne '.') {

@@ -9,6 +9,7 @@ public sealed class WifiClient : IWifiClient
     private readonly IWifiClient _netsh;
     private readonly WifiDeviceInspector _deviceInspector;
     public string? LastConnectionFailure { get; private set; }
+    public string? LastAdapterEnableFailure => _netsh.LastAdapterEnableFailure;
 
     public WifiClient(INativeWifiConnector? nativeConnector = null, IWifiClient? fallback = null,
         WifiDeviceInspector? deviceInspector = null)

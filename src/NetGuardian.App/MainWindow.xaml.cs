@@ -18,6 +18,7 @@ using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 using NetGuardian.App.Presentation;
 using NetGuardian.App.Updates;
+using NetGuardian.App.Startup;
 using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Localization;
 using NetGuardian.Core.Logging;
@@ -49,6 +50,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly MonitoringEngine _engine;
     private readonly IConnectivityTester _connectivityTester;
     private readonly ISystemCommandRunner _commandRunner;
+    private readonly UserLogonStartup _userLogonStartup;
+    private bool _isSyncingUserLogonStartup;
+    private string _userLogonStartupStatusKey = "UserLogonStartupLoading";
     private MonitoringLease? _monitorLease;
     private PolicyEditFeedback? _policyFeedback;
     private readonly ILogSink _fileLog;
@@ -102,7 +106,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NetworkSpeedTestService speedTester,
         ILogSink logSink,
         EventJournal journal,
-        Wpf.Ui.ISnackbarService snackbarService)
+        Wpf.Ui.ISnackbarService snackbarService,
+        UserLogonStartup userLogonStartup)
     {
         _store = store;
         _fileLog = logSink;
@@ -112,6 +117,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _wifi = wifi;
         _connectivityTester = connectivityTester;
         _commandRunner = commandRunner;
+        _userLogonStartup = userLogonStartup;
         _networkConfiguration = networkConfiguration;
         _websiteTester = websiteTester;
         _publicIpInfo = publicIpInfo;
@@ -203,6 +209,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             if (!_resourcesCleaned && _settings.StartMonitoringOnLaunch) await StartMonitoringAsync();
         });
         _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(RefreshScheduledStartupSettingAsync));
+        _ = Dispatcher.BeginInvoke(async () => await RunUiActionAsync(RefreshUserLogonStartupAsync));
 
         if (_settings.StartMinimizedToTray)
         {
@@ -632,6 +639,41 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SaveSettings();
     }
 
+    private async Task RefreshUserLogonStartupAsync()
+    {
+        _isSyncingUserLogonStartup = true;
+        StartOnUserLogonCheckBox.IsEnabled = false;
+        try
+        {
+            var enabled = await Task.Run(_userLogonStartup.IsEnabled);
+            StartOnUserLogonCheckBox.IsChecked = enabled;
+            _userLogonStartupStatusKey = enabled ? "UserLogonStartupEnabled" : "UserLogonStartupDisabled";
+        }
+        catch
+        {
+            _userLogonStartupStatusKey = "UserLogonStartupFailed";
+            throw;
+        }
+        finally
+        {
+            UserLogonStartupStatusText.Text = _localizer.T(_userLogonStartupStatusKey);
+            StartOnUserLogonCheckBox.IsEnabled = true;
+            _isSyncingUserLogonStartup = false;
+        }
+    }
+
+    private async void UserLogonStartup_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || _isSyncingUserLogonStartup) return;
+        var enabled = StartOnUserLogonCheckBox.IsChecked == true;
+        await RunUiActionAsync(async () =>
+        {
+            StartOnUserLogonCheckBox.IsEnabled = false;
+            try { await Task.Run(() => _userLogonStartup.SetEnabled(enabled)); }
+            finally { await RefreshUserLogonStartupAsync(); }
+        });
+    }
+
     private async void ScheduledStartup_Changed(object sender, RoutedEventArgs e)
     {
         if (!IsLoaded || _isSyncingScheduledStartup)
@@ -674,7 +716,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         });
     }
 
-    private void ProfileEnabledToggle_Changed(object sender, RoutedEventArgs e)
+    private void ProfileEnabledToggle_Changed(object sender, System.Windows.Data.DataTransferEventArgs e)
     {
         if (!IsLoaded)
         {
@@ -1518,7 +1560,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 _localizer.T("SelectedProfileWifi"),
                 _nearbySavedWifi.GetPriority(profile),
                 DisplaySsid(profile.Ssid),
-                profile.Enabled ? _localizer.T("Enabled") : _localizer.T("Disabled"));
+                profile.ParticipatesInRecovery ? _localizer.T("Enabled") : _localizer.T("Disabled"));
             SetWifiSelectionVisual(true);
         }
         else
@@ -1911,7 +1953,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyClearFilterButton.Content = _localizer.T("WifiClearFilter");
         PriorityListTitle.Text = _localizer.T("PriorityList");
         NearbyEmptyText.Text = _localizer.T("NoNearbyWifiRows");
-        ProfileEmptyText.Text = _localizer.T("NoPriorityWifiRows");
         RecentEventsEmptyText.Text = _localizer.T("NoRecentEvents");
         WebsiteEmptyText.Text = _localizer.T("NoWebsiteRows");
         IpInfoEmptyText.Text = _localizer.T("NoIpInfoRows");
@@ -1928,7 +1969,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ProfileSsidColumn.Header = _localizer.T("Ssid");
         ProfilePriorityColumn.Header = _localizer.T("Priority");
         ProfileCredentialColumn.Header = _localizer.T("CredentialSaved");
-        ProfileEnabledColumn.Header = _localizer.T("Enabled");
+        ProfileEnabledColumn.Header = _localizer.T("WifiRecoveryParticipation");
         ProfileFailuresColumn.Header = _localizer.T("Failures");
         NearbyPriorityColumn.Header = _localizer.T("PriorityState");
         PolicyTitle.Text = _localizer.T("Policy");
@@ -2038,6 +2079,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         LanguageLabel.Text = _localizer.T("Language");
         TrayTitle.Text = _localizer.T("Tray");
         CloseBehaviorLabel.Text = _localizer.T("CloseBehavior");
+        StartOnUserLogonCheckBox.Content = _localizer.T("StartOnUserLogon");
+        UserLogonStartupStatusText.Text = _localizer.T(_userLogonStartupStatusKey);
         StartMonitoringOnLaunchCheckBox.Content = _localizer.T("StartMonitoringOnLaunch");
         StartMinimizedToTrayCheckBox.Content = _localizer.T("StartMinimizedToTray");
         ScheduledStartupCheckBox.Content = _localizer.T("ScheduledStartup");
@@ -2137,6 +2180,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SetTooltip(DnsFlushCheckBox, "DnsFlushPolicyTip");
         SetTooltip(CloseBehaviorComboBox, "CloseBehaviorTip");
         SetTooltip(StartMonitoringOnLaunchCheckBox, "StartMonitoringOnLaunchTip");
+        SetTooltip(StartOnUserLogonCheckBox, "StartOnUserLogonTip");
         SetTooltip(StartMinimizedToTrayCheckBox, "StartMinimizedToTrayTip");
         SetTooltip(ScheduledStartupCheckBox, "ScheduledStartupTip");
         ApplyUpdateText();

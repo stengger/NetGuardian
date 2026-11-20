@@ -11,11 +11,14 @@ namespace NetGuardian.Core.Wifi;
 public sealed partial class NetshWifiClient : IWifiClient
 {
     private readonly ISystemCommandRunner _commands;
+    private readonly IWifiRadioController _radio;
     public string? LastConnectionFailure { get; private set; }
+    public string? LastAdapterEnableFailure { get; private set; }
 
-    public NetshWifiClient(ISystemCommandRunner? commands = null)
+    public NetshWifiClient(ISystemCommandRunner? commands = null, IWifiRadioController? radio = null)
     {
         _commands = commands ?? CreateCommandRunner();
+        _radio = radio ?? new NativeWifiScanner();
     }
 
     private static ProcessCommandRunner CreateCommandRunner()
@@ -152,15 +155,19 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     public async Task<bool> TryEnableWifiAdapterAsync(string? adapterName, CancellationToken cancellationToken = default)
     {
+        LastAdapterEnableFailure = null;
+        cancellationToken.ThrowIfCancellationRequested();
         if (adapterName?.StartsWith("PCI\\", StringComparison.OrdinalIgnoreCase) == true
             || adapterName?.StartsWith("USB\\", StringComparison.OrdinalIgnoreCase) == true)
         {
             var enabled = await _commands.RunAsync("pnputil.exe", ["/enable-device", adapterName], cancellationToken);
+            if (!enabled.Ok) LastAdapterEnableFailure = $"PnP 设备启用失败（退出码 {enabled.ExitCode}）：{enabled.Output}";
             return enabled.Ok;
         }
         var name = string.IsNullOrWhiteSpace(adapterName) ? GetPrimaryWifiInterface()?.Name : adapterName.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
+            LastAdapterEnableFailure = "未找到可启用的 Wi-Fi 接口。";
             return false;
         }
 
@@ -170,7 +177,15 @@ public sealed partial class NetshWifiClient : IWifiClient
             await RunNetshAsync(["wlan", "set", "autoconfig", "enabled=yes", $"interface={name}"], cancellationToken);
         }
 
-        return result.ExitCode == 0;
+        // 管理状态已启用不等于软件无线电已打开；接口命令失败也必须尝试原生无线电恢复。
+        cancellationToken.ThrowIfCancellationRequested();
+        var radioEnabled = _radio.TryEnableSoftwareRadio(name, cancellationToken);
+        if (!radioEnabled)
+        {
+            var interfaceFailure = result.ExitCode == 0 ? "" : $"接口启用失败（退出码 {result.ExitCode}）：{result.Output}；";
+            LastAdapterEnableFailure = interfaceFailure + (_radio.LastRadioFailure ?? "软件无线电启用失败。");
+        }
+        return radioEnabled;
     }
 
     public async Task<string?> GetSavedPasswordAsync(string ssid, CancellationToken cancellationToken = default)
