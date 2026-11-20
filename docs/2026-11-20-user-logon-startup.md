@@ -76,4 +76,10 @@ System.Management.Automation.MethodInvocationException: Exception calling "IsEna
 
 通过验证后提交源码，从目标提交隔离导出并发布 UI，附提交构建标识。更新 `C:\Program Files\NetGuardian` 与项目 `dist\NetGuardian` 中有差异的界面组件、README 和卸载维护脚本，先备份并校验 SHA256；保持后台文件、运行进程及原 SYSTEM 任务不变。
 
-实际部署结果将在完成后补记。登录任务试启动可以验证任务能够打开安装目录中的新版程序，仍需用户下次真实重启并登录 Windows 后确认端到端效果，本轮不重启电脑。
+账户格式修正提交为 `1bdbfabc4ef4d3bef0a11cf9cb8658ebea04d20e`，隔离发布包为 `package-1bdbfabc`，版本为 `1.1.8+1bdbfabc4ef4d3bef0a11cf9cb8658ebea04d20e`；发布包 19 个文件全部通过 SHA256 校验。
+
+2026-11-20 11:21（北京时间）通过正常 UAC 完成本机更新，部署结果为 `deployment-result-1.1.8-20261120-112119.json`，日志为 `deployment-1.1.8-20261120-112119.log`。`C:\Program Files\NetGuardian` 与 `dist\NetGuardian` 各更新 18 个差异文件，启动器保留原文件并通过换行归一化比较；备份目录为 `deployment-backup-20261120-112119`。用户配置哈希未变化，后台进程、SYSTEM 任务和 guardian 文件哈希未变化。
+
+产品服务真实注册、读回和删除预检通过；随后为 Qiu 注册并开启 `NetGuardian-Logon-S-1-5-21-2207229147-3366026182-3346659124-1001`。任务状态为 Ready，试启动结果打开了 `C:\Program Files\NetGuardian\NetGuardian.exe`，进程 PID 为 41912、会话为 1，设置 `StartMinimizedToTray=true`，因此按现有设置进入托盘。独立 UAC 复核 `installed-verification.json` 退出码 0，确认两处安装文件、登录任务、界面所有者、后台和配置均符合预期。
+
+本轮没有重启电脑；下次实际重启并登录 Windows 后仍需观察一次端到端行为。当前已完成的任务试启动证明计划任务可以在当前交互账户中打开已安装界面。
