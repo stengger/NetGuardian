@@ -1,4 +1,5 @@
 using System.IO;
+using System.Security.Principal;
 using System.Xml.Linq;
 using NetGuardian.App.Startup;
 using Xunit;
@@ -57,6 +58,56 @@ public sealed class UserLogonStartupTests
 
         Assert.False(startup.IsEnabled());
         Assert.Null(store.Xml);
+    }
+
+    [Theory]
+    [InlineData("Principal")]
+    [InlineData("LogonTrigger")]
+    public void Windows将当前用户转换为账户名后仍识别并管理任务(string element)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var store = new MemoryTaskStore();
+        var startup = new UserLogonStartup(store, Executable, identity.User!.Value);
+        startup.SetEnabled(true);
+
+        void NormalizeUser()
+        {
+            var xml = XDocument.Parse(store.Xml!);
+            xml.Descendants(Ns + element).Single().Element(Ns + "UserId")!.Value = identity.Name;
+            store.Xml = xml.ToString();
+        }
+
+        NormalizeUser();
+        Assert.True(startup.IsEnabled());
+        startup.SetEnabled(true);
+        Assert.True(startup.IsEnabled());
+
+        NormalizeUser();
+        startup.SetEnabled(false);
+        Assert.False(startup.IsEnabled());
+        Assert.Null(store.Xml);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void 不覆盖或删除映射到其他用户或无法解析的账户名任务(bool useExistingAccount)
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var store = new MemoryTaskStore();
+        var startup = new UserLogonStartup(store, Executable, UserId);
+        startup.SetEnabled(true);
+        var xml = XDocument.Parse(store.Xml!);
+        xml.Descendants(Ns + "LogonTrigger").Single().Element(Ns + "UserId")!.Value = useExistingAccount
+            ? identity.Name
+            : Environment.MachineName + "\\NetGuardianMissing" + Guid.NewGuid().ToString("N");
+        store.Xml = xml.ToString();
+        var previous = store.Xml;
+
+        Assert.False(startup.IsEnabled());
+        Assert.Throws<InvalidOperationException>(() => startup.SetEnabled(true));
+        Assert.Throws<InvalidOperationException>(() => startup.SetEnabled(false));
+        Assert.Equal(previous, store.Xml);
     }
 
     [Theory]

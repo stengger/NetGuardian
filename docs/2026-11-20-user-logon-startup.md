@@ -52,6 +52,26 @@ System.Management.Automation.MethodInvocationException: Exception calling "IsEna
 
 最终完整重跑使用同一 `dotnet test NetGuardian.sln` 命令，将日志前缀改为 `logon-final`、结果目录改为 `.dotnet-home/validation/user-logon-20261120/final`。Core 339/339、WPF 462/462，共 801 项通过，0 失败、0 跳过，退出码 0；新增真实 Windows 查询回归通过。编译保留原有 `WFAC010` 高 DPI 配置警告，本轮未修改 DPI 设置。
 
+## 真实 Windows 注册回归
+
+安装前通过沙箱外的 `WindowsIdentity`、桌面 `explorer.exe` 的所有者 SID 和 `Win32_ComputerSystem.UserName` 交叉核实实际登录账户为 Qiu，未使用沙箱账户注册登录任务。
+
+真实任务注册后，Windows 保留主体的 SID，却把 `LogonTrigger/UserId` 转换为 `计算机名\用户名`，并省略默认开启的 `Enabled` 元素。原先直接比较 SID 文本，使产品读回状态为关闭，随后拒绝再次管理该任务。
+
+`UserLogonStartup.IsCurrentUser` 现在把账户名解析为 `SecurityIdentifier`，只接受与目标 SID 相同的账户；无法解析及其他用户仍拒绝。增加四项回归，覆盖主体和触发器的等价账户名，以及其他账户、无法解析的账户。定向命令沿用前述 `dotnet test tests/NetGuardian.App.Tests`，过滤器为 `FullyQualifiedName~UserLogonStartupTests`：
+
+- 修改前 2 项预期失败、11 项通过，0 跳过，退出码 1。完整错误为 `Assert.True() Failure`、`Expected: True`、`Actual: False`，均位于新增账户名转换测试；完整调用栈保存在 `account-normalization-red.trx`。
+- 修改后 13/13 通过，0 失败、0 跳过，退出码 0，结果为 `account-normalization-green.trx`。
+
+账户识别修正后的完整回归命令为 `dotnet test NetGuardian.sln --configuration Release --no-restore --verbosity minimal --logger 'trx;LogFilePrefix=logon-account-final' --logger 'console;verbosity=normal' --blame-hang --blame-hang-timeout 2m --results-directory .dotnet-home/validation/user-logon-20261120/account-final`：Core 339/339、WPF 466/466，共 805 项通过，0 失败、0 跳过，退出码 0。随后运行 `dotnet build NetGuardian.sln --configuration Release --no-restore --verbosity minimal`：0 警告、0 错误，退出码 0。部署辅助脚本语法解析与 `git diff --check` 均通过，退出码 0。
+
+部署辅助脚本也改为独立进程调用产品服务，并使用明确构造签名及 CLR 字符串参数；子进程退出后释放 DLL，避免阻塞文件恢复。它只位于 Git 忽略的本机验收目录，不属于产品安装包。
+
+两次安装尝试均退出码 1，未试启动界面；随后通过正常 UAC 从已校验的备份恢复 18 项文件并核对配置，恢复命令退出码均为 0。第二次创建的任务在核对账户 SID、目标路径、交互登录及权限级别后删除。失败及恢复的完整记录保存在验收目录：
+
+- `deployment-1.1.8-20261120-110425.log`、`deployment-result-1.1.8-20261120-110425.json`：`System.MissingMethodException: Constructor on type 'NetGuardian.App.Startup.UserLogonStartup' not found.`；同进程加载导致即时恢复报 `System.IO.IOException: The process cannot access the file 'C:\Program Files\NetGuardian\NetGuardian.dll' because it is being used by another process.`。进程退出后单独恢复成功。
+- `deployment-1.1.8-20261120-110858.log`、`deployment-result-1.1.8-20261120-110858.json`：`System.Management.Automation.RuntimeException: 注册后实际登录任务状态不是开启。`；原产品恢复任务时报 `System.InvalidOperationException: 已有登录启动任务的用户或程序路径不匹配，请先从原安装目录关闭登录启动。`。此处暴露了上述账户名规范化问题，随后完成精确清理与文件恢复。
+
 ## 本机更新与验收范围
 
 通过验证后提交源码，从目标提交隔离导出并发布 UI，附提交构建标识。更新 `C:\Program Files\NetGuardian` 与项目 `dist\NetGuardian` 中有差异的界面组件、README 和卸载维护脚本，先备份并校验 SHA256；保持后台文件、运行进程及原 SYSTEM 任务不变。

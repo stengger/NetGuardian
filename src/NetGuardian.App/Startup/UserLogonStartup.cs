@@ -53,14 +53,28 @@ public sealed class UserLogonStartup
         var triggers = task.Root?.Element(Ns + "Triggers")?.Elements().ToArray();
         return principals is { Length: 1 } && actions is { Length: 1 } && triggers is { Length: 1 }
             && principals[0].Name == Ns + "Principal"
-            && principals[0].Element(Ns + "UserId")?.Value == _userId
+            && IsCurrentUser(principals[0].Element(Ns + "UserId")?.Value)
             && principals[0].Element(Ns + "LogonType")?.Value == "InteractiveToken"
             && principals[0].Element(Ns + "RunLevel")?.Value == "HighestAvailable"
             && triggers[0].Name == Ns + "LogonTrigger"
-            && triggers[0].Element(Ns + "UserId")?.Value == _userId
+            && IsCurrentUser(triggers[0].Element(Ns + "UserId")?.Value)
             && actions[0].Name == Ns + "Exec"
             && string.Equals(actions[0].Element(Ns + "Command")?.Value, _executable, StringComparison.OrdinalIgnoreCase)
             && string.IsNullOrEmpty(actions[0].Element(Ns + "Arguments")?.Value);
+    }
+
+    private bool IsCurrentUser(string? value)
+    {
+        if (string.Equals(value, _userId, StringComparison.OrdinalIgnoreCase)) return true;
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        try
+        {
+            // Windows 注册任务后可能将 SID 规范化为账户名，仍须核实最终 SID。
+            var sid = (SecurityIdentifier)new NTAccount(value).Translate(typeof(SecurityIdentifier));
+            return string.Equals(sid.Value, _userId, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (IdentityNotMappedException) { return false; }
+        catch (ArgumentException) { return false; }
     }
 
     private XDocument CreateDefinition() => new(new XElement(Ns + "Task", new XAttribute("version", "1.2"),
