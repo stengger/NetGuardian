@@ -70,13 +70,31 @@ public sealed class UpdateSessionTests
     {
         var cached = new DownloadedUpdate(Release.Version, "安装包", "摘要");
         using var session = new UpdateSession(new Service { Release = Release }, new Version(1, 1, 0),
-            (_, _) => Task.FromResult<DownloadedUpdate?>(cached));
+            (_, _) => Task.FromResult(new UpdateCacheState(cached, null)));
         for (var i = 0; i < 2; i++)
         {
             await session.CheckAsync();
             Assert.Equal(UpdatePhase.Ready, session.Phase);
             Assert.Equal(cached, session.Downloaded);
         }
+    }
+
+    [Fact]
+    public async Task 重新检查可恢复未完成进度且继续下载时不会先归零()
+    {
+        var service = new Service { Release = Release, Wait = new TaskCompletionSource<DownloadedUpdate>() };
+        var saved = new UpdateProgress(40, 100);
+        using var session = new UpdateSession(service, new Version(1, 1, 0), (_, _) => Task.FromResult(new UpdateCacheState(null, saved)));
+        await session.CheckAsync();
+        Assert.Equal(UpdatePhase.Available, session.Phase);
+        Assert.Null(session.Downloaded);
+        Assert.Equal(saved, session.Progress);
+        var downloading = session.DownloadAsync("缓存");
+        Assert.Equal(saved, session.Progress);
+        service.Wait.SetException(new UpdateException(UpdateError.VerificationFailed, "校验失败"));
+        await downloading;
+        Assert.Equal(UpdatePhase.Failed, session.Phase);
+        Assert.Null(session.Progress);
     }
 
     private static readonly UpdateRelease Release = new(new Version(1, 2, 0), "说明", new Uri("https://github.com"),

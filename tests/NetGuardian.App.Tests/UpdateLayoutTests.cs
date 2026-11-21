@@ -69,12 +69,39 @@ public sealed class UpdateLayoutTests
         }, theme);
     }
 
-    private sealed class Service : IUpdateService
+    [Theory]
+    [InlineData("zh-CN", "继续下载")]
+    [InlineData("en-US", "Resume download")]
+    public void 下载中断时显示已保存的真实进度并可继续(string language, string action)
+    {
+        DesktopFixture.Run(window =>
+        {
+            var text = new Localizer();
+            text.SetLanguage(language);
+            var interrupted = new UpdateException(UpdateError.Network, "断流") { SavedProgress = new UpdateProgress(40, 100) };
+            var version = new Version(1, 1, 0);
+            using var session = new UpdateSession(new Service(interrupted), version);
+            session.CheckAsync().GetAwaiter().GetResult();
+            session.DownloadAsync("缓存").GetAwaiter().GetResult();
+            UpdatePresentation.Apply(window, session, version, text, true);
+            var resume = (Button)window.FindName("UpdateDownloadButton");
+            Assert.Equal(action, resume.Content);
+            Assert.True(resume.IsEnabled);
+            var bar = (ProgressBar)window.FindName("UpdateProgressBar");
+            Assert.Equal(Visibility.Visible, bar.Visibility);
+            Assert.False(bar.IsIndeterminate);
+            Assert.Equal(40d, bar.Value);
+            Assert.Contains("40%", ((TextBlock)window.FindName("UpdateStatusText")).Text);
+            Assert.Equal(Visibility.Collapsed, ((Button)window.FindName("UpdateInstallButton")).Visibility);
+        });
+    }
+
+    private sealed class Service(UpdateException? failure = null) : IUpdateService
     {
         public Task<UpdateRelease?> CheckAsync(Version version, CancellationToken token) => Task.FromResult<UpdateRelease?>(new(
             new Version(1, 2, 0), string.Join("\n", Enumerable.Repeat("发布说明 / Release notes", 80)), new Uri("https://github.com"),
             new UpdateAsset("包", new Uri("https://github.com"), 100, null), new UpdateAsset("摘要", new Uri("https://github.com"), 100, null)));
         public Task<DownloadedUpdate> DownloadAsync(UpdateRelease release, string directory, IProgress<UpdateProgress>? progress, CancellationToken token) =>
-            Task.FromResult(new DownloadedUpdate(release.Version, "安装包", "摘要"));
+            failure is null ? Task.FromResult(new DownloadedUpdate(release.Version, "安装包", "摘要")) : Task.FromException<DownloadedUpdate>(failure);
     }
 }

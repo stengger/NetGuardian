@@ -8,11 +8,14 @@ public sealed record UpdateProgress(long Received, long Total)
     public double Percentage => Total > 0 ? Math.Clamp(100d * Received / Total, 0, 100) : 0;
 }
 
+public readonly record struct UpdateCacheState(DownloadedUpdate? Downloaded, UpdateProgress? Partial);
+
 public enum UpdateError { Network, RateLimited, InvalidRelease, VerificationFailed }
 
 public sealed class UpdateException(UpdateError error, string message, Exception? inner = null) : Exception(message, inner)
 {
     public UpdateError Error { get; } = error;
+    public UpdateProgress? SavedProgress { get; init; }
 }
 
 public interface IUpdateService

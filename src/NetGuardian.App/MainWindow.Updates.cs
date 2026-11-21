@@ -31,15 +31,12 @@ public partial class MainWindow
 
     private void InitializeUpdates()
     {
-        var service = new GitHubUpdateService(_updateHttp);
+        var service = new GitHubUpdateService(_updateHttp, UpdateStorage.AssertProtected, UpdateStorage.CreatePartial);
         _updateSession = new UpdateSession(service, CurrentAppVersion, async (release, token) =>
         {
             var directory = Path.Combine(_updateStorage.Root, "downloads");
-            var file = new FileInfo(Path.Combine(directory, release.Installer.Name));
-            if (!file.Exists) return null;
-            _updateStorage.PrepareDownloads();
-            UpdateStorage.AssertProtected(file);
-            return await service.FindCachedAsync(release, directory, token);
+            if (!Directory.Exists(directory)) return default;
+            return await service.InspectCacheAsync(release, _updateStorage.PrepareDownloads(), token);
         });
         _updateSession.Changed += ApplyUpdateText;
         LoadPreviousUpdateResult();

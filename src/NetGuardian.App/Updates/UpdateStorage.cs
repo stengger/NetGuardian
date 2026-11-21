@@ -52,13 +52,25 @@ internal sealed class UpdateStorage
     public static void ProtectFile(string path)
     {
         AssertNoReparsePoints(path);
+        new FileInfo(path).SetAccessControl(TrustedFileSecurity());
+        AssertProtected(new FileInfo(path));
+    }
+
+    internal static FileStream CreatePartial(FileInfo file)
+    {
+        AssertNoReparsePoints(file.FullName);
+        return file.Create(FileMode.CreateNew, FileSystemRights.Read | FileSystemRights.Write, FileShare.Delete,
+            81920, FileOptions.Asynchronous, TrustedFileSecurity());
+    }
+
+    private static FileSecurity TrustedFileSecurity()
+    {
         var security = new FileSecurity();
         security.SetAccessRuleProtection(true, false);
         security.SetOwner(new SecurityIdentifier(Trusted[1]));
         foreach (var sid in Trusted.Take(2))
             security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(sid), FileSystemRights.FullControl, AccessControlType.Allow));
-        new FileInfo(path).SetAccessControl(security);
-        AssertProtected(new FileInfo(path));
+        return security;
     }
 
     internal static void AssertNoReparsePoints(string path)
