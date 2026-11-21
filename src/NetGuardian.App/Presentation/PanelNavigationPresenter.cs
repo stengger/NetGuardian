@@ -55,7 +55,13 @@ internal static class PanelNavigationPresenter
         Actions.TryGetValue(context, out var selectedAction);
         foreach (var action in Actions.Values)
             ((UIElement)window.FindName(action)).Visibility = action == selectedAction ? Visibility.Visible : Visibility.Collapsed;
-        ((UIElement)window.FindName("PageActionBar")).Visibility = selectedAction is null ? Visibility.Collapsed : Visibility.Visible;
+        var bar = (FrameworkElement)window.FindName("PageActionBar");
+        var inline = selectedAction is "QualityPageActions" or "IpInfoPageActions" or "ReportPageActions"
+            or "NetworkPageActions" or "DnsPageActions" or "PolicyPageActions" or "LogPageActions";
+        Grid.SetRow(bar, inline ? 0 : 1);
+        Grid.SetColumn(bar, inline ? 1 : 0);
+        Grid.SetColumnSpan(bar, inline ? 1 : 2);
+        bar.Visibility = selectedAction is null ? Visibility.Collapsed : Visibility.Visible;
         ((UIElement)window.FindName("HomeMonitorActions")).Visibility = target.Name == "StatusPanel" ? Visibility.Visible : Visibility.Collapsed;
         ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.Title);
         var subtitle = (TextBlock)window.FindName("PageSubtitleText");

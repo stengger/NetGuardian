@@ -183,9 +183,9 @@ public sealed class UiAuditCaptureTests
         }, theme == "Light" ? Wpf.Ui.Appearance.ApplicationTheme.Light : Wpf.Ui.Appearance.ApplicationTheme.Dark);
     }
 
-    private static void PopulateLabels(Window window)
+    internal static void PopulateLabels(Window window, Localizer? language = null)
     {
-        var localizer = new Localizer();
+        var localizer = language ?? new Localizer();
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/NetGuardian.App"));
         // 只读取现有本地化赋值，不执行窗口构造器、事件或业务刷新。
         foreach (var source in Directory.EnumerateFiles(root, "MainWindow*.cs"))

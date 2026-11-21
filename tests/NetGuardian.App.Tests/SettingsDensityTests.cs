@@ -56,12 +56,12 @@ public sealed class SettingsDensityTests
                 toggle.IsEnabled = true;
                 toggle.IsChecked = true;
             }
-            ((TextBlock)Find("UpdateVersionText")).Text = string.Format(text.T("UpdateCurrentVersion"), "1.1.14");
+            ((TextBlock)Find("UpdateVersionText")).Text = string.Format(text.T("UpdateCurrentVersion"), "1.1.15");
             ((Button)Find("UpdateCheckButton")).Content = text.T("UpdateCheck");
-            var previous = (TextBlock)Find("UpdatePreviousResultText");
-            previous.Text = string.Format(text.T("UpdatePreviousResult"), text.T("UpdatePreviousSucceeded"),
-                @"C:\ProgramData\NetGuardian\updates\offline-1.1.13\update.log", "1.1.13", new DateTime(2026, 11, 21));
-            previous.Visibility = Visibility.Visible;
+            const string logPath = @"C:\ProgramData\NetGuardian\updates\offline-1.1.13\update.log";
+            var history = (Expander)Find("UpdateHistoryExpander");
+            var path = (TextBox)Find("UpdateLogPathText");
+            UpdatePresentation.ApplyHistory(window, text, true, "1.1.13", new DateTime(2026, 11, 21), logPath);
             DesktopFixture.Layout(window, width, height);
             DesktopFixture.Save(window, $"settings-{language}-{(int)width}.png");
 
@@ -85,6 +85,18 @@ public sealed class SettingsDensityTests
             Assert.InRange(scroll.ScrollableWidth, 0, 1);
             Assert.True(Bounds("UpdateCheckButton").Bottom <= Bounds("SettingsScrollViewer").Bottom);
             if (width >= 1178) Assert.True(Bounds("UpdatePreviousResultText").Bottom <= Bounds("SettingsScrollViewer").Bottom);
+            Assert.True(history.IsVisible);
+            Assert.False(path.IsVisible);
+            Assert.DoesNotContain(logPath, ((TextBlock)Find("UpdatePreviousResultText")).Text);
+            history.IsExpanded = true;
+            DesktopFixture.Layout(window, width, height);
+            Assert.True(path.IsVisible && path.IsReadOnly);
+            Assert.Equal(logPath, path.Text);
+            UpdatePresentation.ApplyHistory(window, text, false, "1.1.13", new DateTime(2026, 11, 21), logPath);
+            Assert.Contains(text.T("UpdatePreviousFailed"), ((TextBlock)Find("UpdatePreviousResultText")).Text);
+            Assert.True(history.IsExpanded);
+            UpdatePresentation.ApplyHistory(window, text, null, null, default, null);
+            Assert.False(history.IsVisible || history.IsExpanded);
         }, theme);
     }
 }

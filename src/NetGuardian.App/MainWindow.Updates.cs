@@ -48,13 +48,7 @@ public partial class MainWindow
         if (_updateSession is null) return;
         UpdatePresentation.Apply(this, _updateSession, CurrentAppVersion, _localizer,
             UpdateInstallLauncher.IsInstalledDirectory(AppContext.BaseDirectory));
-        if (_previousUpdateSucceeded is { } success)
-        {
-            UpdatePreviousResultText.Text = string.Format(_localizer.T("UpdatePreviousResult"),
-                _localizer.T(success ? "UpdatePreviousSucceeded" : "UpdatePreviousFailed"), _previousUpdateLog, _previousUpdateVersion, _previousUpdateTime);
-            UpdatePreviousResultText.Visibility = Visibility.Visible;
-        }
-        else UpdatePreviousResultText.Visibility = Visibility.Collapsed;
+        UpdatePresentation.ApplyHistory(this, _localizer, _previousUpdateSucceeded, _previousUpdateVersion, _previousUpdateTime, _previousUpdateLog);
     }
 
     private void LoadPreviousUpdateResult()

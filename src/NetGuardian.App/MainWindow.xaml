@@ -122,73 +122,90 @@
                 <Border Width="1" HorizontalAlignment="Right" Background="{DynamicResource CardStrokeColorDefaultBrush}" IsHitTestVisible="False" />
             </Grid>
 
-            <Grid Grid.Column="1" Margin="{DynamicResource SpacingPageBody}">
+            <Grid x:Name="WorkspaceBody" Grid.Column="1" Margin="{DynamicResource SpacingPageBody}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Grid Grid.Row="0" Margin="{DynamicResource SpacingBlockGap}">
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                    <StackPanel VerticalAlignment="Center" Margin="{DynamicResource SpacingInlineGap}">
-                        <TextBlock x:Name="PageTitleText" FontSize="{DynamicResource FontTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
-                        <TextBlock x:Name="PageSubtitleText" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingValidationGap}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Border x:Name="HeaderStatusPill" Background="{DynamicResource ControlFillColorDefaultBrush}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeControlThickness}" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingControlPadding}" Margin="{DynamicResource SpacingInlineGroupGap}">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <Ellipse x:Name="StatusDot" Width="10" Height="10" Fill="{DynamicResource TextFillColorTertiaryBrush}" Margin="{DynamicResource SpacingInlineGap}" />
-                                <TextBlock x:Name="HeaderStateText" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontWeight="SemiBold" AutomationProperties.LiveSetting="Polite" />
-                            </StackPanel>
-                        </Border>
-                        <StackPanel x:Name="HomeMonitorActions" Orientation="Horizontal">
-                            <Button x:Name="CheckNowButton" Style="{StaticResource PrimaryButtonStyle}" Click="CheckNow_Click" />
-                            <Button x:Name="StartMonitorButton" Click="StartMonitor_Click" Margin="{DynamicResource SpacingLeadingGap}" />
-                            <Button x:Name="StopButton" Click="StopMonitor_Click" Margin="{DynamicResource SpacingLeadingGap}" />
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
-
-            <StackPanel x:Name="PageActionBar" Grid.Row="1" Margin="{DynamicResource SpacingFieldGap}" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite">
-                <ScrollViewer x:Name="WifiPageActions" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" Focusable="False" AutomationProperties.Name="Wi-Fi 操作">
+                <StackPanel VerticalAlignment="Center" Margin="{DynamicResource SpacingFieldGap}">
                     <WrapPanel>
-                        <StackPanel Orientation="Horizontal" Margin="{DynamicResource SpacingInlineGap}">
-                            <Button x:Name="ScanButton" Click="Scan_Click" Style="{StaticResource WifiToolbarPrimaryButtonStyle}" />
-                            <Button x:Name="WifiScanCancelButton" Click="WifiScanCancel_Click" Style="{StaticResource ToolbarButtonStyle}" Visibility="Collapsed" Margin="{DynamicResource SpacingLeadingGap}" />
-                            <Button x:Name="ConnectButton" Click="Connect_Click" Style="{StaticResource ToolbarFixedButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" />
-                        </StackPanel>
-                        <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeInlineDivider}" Padding="{DynamicResource SpacingActionDivider}">
+                        <TextBlock x:Name="PageTitleText" FontSize="{DynamicResource FontTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                        <Border x:Name="HeaderStatusPill" VerticalAlignment="Center" Margin="{DynamicResource SpacingLeadingGroupGap}" Padding="{DynamicResource SpacingCompactInset}"
+                                Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="{DynamicResource CornerCard}">
                             <StackPanel Orientation="Horizontal">
-                                <Button x:Name="AddSelectedButton" Click="AddSelected_Click" Style="{StaticResource ToolbarButtonStyle}" />
-                                <Button x:Name="WifiMoreButton" Content="更多" Click="WifiMenu_Click" Style="{StaticResource ToolbarButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" Tag="{Binding ElementName=WifiMoreSources}">
-                                    <Button.ContextMenu><ContextMenu>
-                                        <MenuItem Header="{Binding PlacementTarget.Tag.Children[0].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[0].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="SetPassword_Click" />
-                                        <MenuItem Header="{Binding PlacementTarget.Tag.Children[1].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[1].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="ImportPassword_Click" />
-                                        <MenuItem Header="{Binding PlacementTarget.Tag.Children[2].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[2].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="AddManual_Click" />
-                                        <Separator />
-                                        <MenuItem x:Name="ShowAllWifiProfilesMenuItem" Header="查看全部恢复配置" IsCheckable="True" Click="ShowAllWifiProfiles_Click" />
-                                    </ContextMenu></Button.ContextMenu>
-                                </Button>
-                                <Button x:Name="WifiSelectionInfoButton" Content="ⓘ" Style="{StaticResource ToolbarIconButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" ToolTip="{Binding Text, ElementName=CurrentWifiSelectionText}" AutomationProperties.Name="{Binding Text, ElementName=CurrentWifiSelectionText}" />
+                                <Ellipse x:Name="StatusDot" Width="8" Height="8" VerticalAlignment="Center" Fill="{DynamicResource TextFillColorTertiaryBrush}" Margin="{DynamicResource SpacingIconGap}" />
+                                <TextBlock x:Name="HeaderStateText" Foreground="{DynamicResource TextFillColorPrimaryBrush}" FontSize="{DynamicResource FontCaption}" AutomationProperties.LiveSetting="Polite" />
                             </StackPanel>
                         </Border>
-                        <StackPanel Orientation="Horizontal">
-                                        <Button x:Name="MoveUpButton" Click="MoveUp_Click" Style="{StaticResource ToolbarButtonStyle}" />
-                                        <Button x:Name="MoveDownButton" Click="MoveDown_Click" Style="{StaticResource ToolbarButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" />
-                                        <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeInlineDivider}" Padding="{DynamicResource SpacingActionDivider}" Margin="{DynamicResource SpacingLeadingGap}"><Button x:Name="RemoveButton" Click="Remove_Click" Style="{StaticResource WifiToolbarDangerButtonStyle}" /></Border>
-                                    </StackPanel>
+                    </WrapPanel>
+                    <TextBlock x:Name="PageSubtitleText" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingValidationGap}" />
+                </StackPanel>
+                <StackPanel x:Name="HomeMonitorActions" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{DynamicResource SpacingFieldGap}">
+                    <Button x:Name="CheckNowButton" Style="{StaticResource PrimaryButtonStyle}" Click="CheckNow_Click" />
+                    <Button x:Name="StartMonitorButton" Click="StartMonitor_Click" Margin="{DynamicResource SpacingLeadingGap}" />
+                    <Button x:Name="StopButton" Click="StopMonitor_Click" Margin="{DynamicResource SpacingLeadingGap}" />
+                </StackPanel>
+
+            <StackPanel x:Name="PageActionBar" Grid.Row="1" Grid.ColumnSpan="2" Visibility="Collapsed" AutomationProperties.LiveSetting="Polite">
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Margin" Value="{DynamicResource SpacingFieldGap}" />
+                        <Style.Triggers>
+                            <Trigger Property="Grid.Row" Value="0">
+                                <Setter Property="VerticalAlignment" Value="Center" />
+                                <Setter Property="HorizontalAlignment" Value="Right" />
+                                <Setter Property="MaxWidth" Value="{Binding ActualWidth, ElementName=WorkspaceBody, Converter={StaticResource ViewportFractionConverter}, ConverterParameter=0.56}" />
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <ScrollViewer x:Name="WifiPageActions" Visibility="Collapsed" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" Focusable="False" AutomationProperties.Name="Wi-Fi 操作">
+                    <Grid>
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                        <WrapPanel>
+                            <StackPanel Orientation="Horizontal" Margin="{DynamicResource SpacingInlineGap}">
+                                <Button x:Name="ScanButton" Click="Scan_Click" Style="{StaticResource WifiToolbarPrimaryButtonStyle}" />
+                                <Button x:Name="WifiScanCancelButton" Click="WifiScanCancel_Click" Style="{StaticResource ToolbarButtonStyle}" Visibility="Collapsed" Margin="{DynamicResource SpacingLeadingGap}" />
+                                <Button x:Name="ConnectButton" Click="Connect_Click" Style="{StaticResource ToolbarFixedButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" />
+                            </StackPanel>
+                            <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeInlineDivider}" Padding="{DynamicResource SpacingActionDivider}">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="AddSelectedButton" Click="AddSelected_Click" Style="{StaticResource ToolbarButtonStyle}" />
+                                    <Button x:Name="WifiMoreButton" Content="更多" Click="WifiMenu_Click" Style="{StaticResource ToolbarButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" Tag="{Binding ElementName=WifiMoreSources}">
+                                        <Button.ContextMenu><ContextMenu>
+                                            <MenuItem Header="{Binding PlacementTarget.Tag.Children[0].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[0].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="SetPassword_Click" />
+                                            <MenuItem Header="{Binding PlacementTarget.Tag.Children[1].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[1].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="ImportPassword_Click" />
+                                            <MenuItem Header="{Binding PlacementTarget.Tag.Children[2].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[2].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="AddManual_Click" />
+                                            <Separator />
+                                            <MenuItem x:Name="ShowAllWifiProfilesMenuItem" Header="查看全部恢复配置" IsCheckable="True" Click="ShowAllWifiProfiles_Click" />
+                                        </ContextMenu></Button.ContextMenu>
+                                    </Button>
+                                    <Button x:Name="WifiSelectionInfoButton" Content="ⓘ" Style="{StaticResource ToolbarIconButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" ToolTip="{Binding Text, ElementName=CurrentWifiSelectionText}" AutomationProperties.Name="{Binding Text, ElementName=CurrentWifiSelectionText}" />
+                                </StackPanel>
+                            </Border>
+                        </WrapPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                            <Button x:Name="MoveUpButton" Click="MoveUp_Click" Style="{StaticResource ToolbarButtonStyle}" />
+                            <Button x:Name="MoveDownButton" Click="MoveDown_Click" Style="{StaticResource ToolbarButtonStyle}" Margin="{DynamicResource SpacingLeadingGap}" />
+                            <Button x:Name="RemoveButton" Click="Remove_Click" Style="{StaticResource WifiToolbarDangerButtonStyle}" Margin="{DynamicResource SpacingLeadingGroupGap}" />
+                        </StackPanel>
                         <StackPanel x:Name="WifiMoreSources" Visibility="Collapsed">
                             <Button x:Name="SetPasswordButton" Click="SetPassword_Click" />
                             <Button x:Name="ImportPasswordButton" Click="ImportPassword_Click" />
                             <Button x:Name="AddManualButton" Click="AddManual_Click" />
                         </StackPanel>
-                    </WrapPanel>
+                    </Grid>
                 </ScrollViewer>
                 <WrapPanel x:Name="QualityPageActions" Visibility="Collapsed" AutomationProperties.Name="网络质量操作">
-                    <Button x:Name="QualityRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="QualityRun_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="QualityCancelButton" Click="QualityCancel_Click" Margin="{DynamicResource SpacingItemGap}" Visibility="Collapsed" />
-                    <Button x:Name="QualityOpenSettingsButton" Click="ToolsNetworkSettings_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="QualityRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="QualityRun_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="QualityCancelButton" Click="QualityCancel_Click" Margin="{DynamicResource SpacingHeaderCommand}" Visibility="Collapsed" />
+                    <Button x:Name="QualityOpenSettingsButton" Click="ToolsNetworkSettings_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
                 </WrapPanel>
                 <WrapPanel x:Name="ToolsPageActions" Visibility="Collapsed" AutomationProperties.Name="诊断快捷操作">
                     <Button x:Name="ToolsCheckButton" Style="{StaticResource PrimaryButtonStyle}" Click="CheckNow_Click" Margin="{DynamicResource SpacingItemGap}" />
@@ -206,37 +223,38 @@
                     <Button x:Name="WebsiteCancelButton" Click="WebsiteCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
                 </WrapPanel>
                 <WrapPanel x:Name="IpInfoPageActions" Visibility="Collapsed" AutomationProperties.Name="IP 信息操作">
-                    <Button x:Name="IpInfoRefreshButton" Style="{StaticResource PrimaryButtonStyle}" Click="IpInfoRefresh_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="IpInfoCancelButton" Click="IpInfoCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="IpInfoRefreshButton" Style="{StaticResource PrimaryButtonStyle}" Click="IpInfoRefresh_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="IpInfoCancelButton" Click="IpInfoCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingHeaderCommand}" />
                 </WrapPanel>
                 <WrapPanel x:Name="ReportPageActions" Visibility="Collapsed" AutomationProperties.Name="诊断报告操作">
-                    <Button x:Name="ReportRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="ReportRun_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="ReportCancelButton" Click="ReportCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="ReportRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="ReportRun_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="ReportCancelButton" Click="ReportCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingHeaderCommand}" />
                 </WrapPanel>
                 <WrapPanel x:Name="DnsPageActions" Visibility="Collapsed" AutomationProperties.Name="DNS 操作">
-                    <Button x:Name="DnsRefreshButton" Click="DnsRefresh_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="DnsFlushButton" Click="ToolsFlushDns_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="DnsApplyButton" Style="{StaticResource PrimaryButtonStyle}" Click="DnsApply_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="DnsRefreshButton" Click="DnsRefresh_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="DnsFlushButton" Click="ToolsFlushDns_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="DnsApplyButton" Style="{StaticResource PrimaryButtonStyle}" Click="DnsApply_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
                 </WrapPanel>
                 <WrapPanel x:Name="NetworkPageActions" Visibility="Collapsed" AutomationProperties.Name="网络适配器操作">
-                    <Button x:Name="AdapterRefreshButton" Click="AdapterRefresh_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="AdapterSettingsButton" Click="ToolsNetworkSettings_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="AdapterRenewDhcpButton" Click="ToolsRenewDhcp_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="AdapterRefreshButton" Click="AdapterRefresh_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="AdapterSettingsButton" Click="ToolsNetworkSettings_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="AdapterRenewDhcpButton" Click="ToolsRenewDhcp_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
                 </WrapPanel>
                 <WrapPanel x:Name="PolicyPageActions" Visibility="Collapsed" AutomationProperties.Name="恢复策略操作">
-                    <Button x:Name="SavePolicyButton" Style="{StaticResource PrimaryButtonStyle}" MinWidth="96" Click="SavePolicy_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="SavePolicyButton" Style="{StaticResource PrimaryButtonStyle}" MinWidth="96" Click="SavePolicy_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
                 </WrapPanel>
                 <WrapPanel x:Name="LogPageActions" Visibility="Collapsed" AutomationProperties.Name="事件日志操作">
-                    <Button x:Name="LogBackButton" Click="CloseEventLog_Click" Margin="{DynamicResource SpacingItemGap}" />
-                    <Button x:Name="ExportLogsButton" Click="ExportLogs_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="LogBackButton" Click="CloseEventLog_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="ExportLogsButton" Click="ExportLogs_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
                 </WrapPanel>
             </StackPanel>
 
-                <Grid Grid.Row="2">
+                <Grid Grid.Row="2" Grid.ColumnSpan="2">
                     <ScrollViewer x:Name="StatusPanel" presentation:ScrollWheelChaining.IsEnabled="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="{DynamicResource SpacingInlineGap}">
  <StackPanel>
   <Border Style="{DynamicResource StatusHeroCardStyle}" Margin="{DynamicResource SpacingGroupGap}">
-   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+   <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="5*" /><ColumnDefinition Width="2*" /><ColumnDefinition Width="2*" /></Grid.ColumnDefinitions>
     <Grid Margin="{DynamicResource SpacingWideInlineGap}"><Grid.ColumnDefinitions><ColumnDefinition Width="56"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
      <Border Width="40" Height="40" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="{DynamicResource SpacingBlockStart}" Background="{DynamicResource SurfaceCardBrush}" CornerRadius="{DynamicResource CornerCard}">
          <TextBlock x:Name="HealthStateIcon" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" AutomationProperties.Name="{Binding Text, ElementName=HealthStateText}" />
@@ -249,15 +267,15 @@
       <TextBlock x:Name="FirstRunGuideText" Foreground="{DynamicResource StatusInfoBrush}" Margin="{DynamicResource SpacingBlockStart}" TextWrapping="Wrap" Visibility="Collapsed" />
      </StackPanel>
     </Grid>
-    <StackPanel Grid.Column="1">
+    <StackPanel Grid.Column="1" Margin="{DynamicResource SpacingInlineGroupGap}" VerticalAlignment="Top">
      <TextBlock x:Name="MonitorStateLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" />
      <TextBlock x:Name="MonitorStateText" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="{DynamicResource SpacingStatusValue}" TextWrapping="Wrap" />
-     <WrapPanel><TextBlock x:Name="NextCheckLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingInlineGap}"/><TextBlock x:Name="NextCheckText" FontWeight="SemiBold"/></WrapPanel>
-     <Border BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeTopDivider}" Margin="{DynamicResource SpacingSectionStart}" Padding="{DynamicResource SpacingSectionStart}"><StackPanel>
-      <TextBlock x:Name="CurrentNetworkLabel" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-      <TextBlock x:Name="CurrentSsidText" FontWeight="SemiBold" TextWrapping="Wrap" Margin="{DynamicResource SpacingStatusValue}" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
-      <WrapPanel><TextBlock x:Name="FailureStreakLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingInlineGap}"/><TextBlock x:Name="FailureStreakText" FontWeight="SemiBold"/></WrapPanel>
-     </StackPanel></Border>
+     <WrapPanel><TextBlock x:Name="NextCheckLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingInlineGap}" /><TextBlock x:Name="NextCheckText" FontWeight="SemiBold" /></WrapPanel>
+    </StackPanel>
+    <StackPanel Grid.Column="2" Margin="{DynamicResource SpacingLeadingGap}" VerticalAlignment="Top">
+     <TextBlock x:Name="CurrentNetworkLabel" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+     <TextBlock x:Name="CurrentSsidText" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" TextWrapping="Wrap" Margin="{DynamicResource SpacingStatusValue}" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
+     <WrapPanel><TextBlock x:Name="FailureStreakLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingInlineGap}" /><TextBlock x:Name="FailureStreakText" FontWeight="SemiBold" /></WrapPanel>
     </StackPanel>
    </Grid>
   </Border>
@@ -456,85 +474,100 @@
                 </ScrollViewer>
                 </Border>
 
-                <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="PolicyPanel" Visibility="Collapsed" Style="{DynamicResource SectionBorderStyle}">
+                <Border x:Name="PolicyPanel" Visibility="Collapsed">
                     <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="{DynamicResource SpacingScrollViewport}">
-                        <StackPanel MaxWidth="{DynamicResource FormMaxWidth}" HorizontalAlignment="Stretch">
-                        <TextBlock x:Name="PolicyTitle" Visibility="Collapsed" />
-                        <Border Style="{DynamicResource FormGroupStyle}"><StackPanel>
-                            <DockPanel>
-                                <Button x:Name="RecoveryLogsButton" DockPanel.Dock="Right" Style="{StaticResource WorkspaceLinkStyle}" Click="OpenEventLog_Click" />
-                                <TextBlock x:Name="RecentRecoveryTitle" VerticalAlignment="Center" FontWeight="SemiBold" FontSize="{DynamicResource FontSection}" />
-                            </DockPanel>
-                            <TextBlock x:Name="RecentRecoveryEmpty" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="{DynamicResource SpacingBlockStart}" />
-                            <ItemsControl x:Name="RecoveryEventsList" ItemTemplate="{Binding ItemTemplate, ElementName=RecentEventsList}" />
-                        </StackPanel></Border>
-                        <Border Style="{DynamicResource FormGroupStyle}" Margin="{DynamicResource SpacingFieldGap}"><StackPanel>
-                        <TextBlock x:Name="PolicyDetectionTitle" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="{DynamicResource SpacingFieldGap}" />
-                        <Grid Margin="{DynamicResource SpacingFieldGap}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="{DynamicResource FormLabelColumnWidth}" />
-                                <ColumnDefinition Width="120" />
-                                <ColumnDefinition Width="150" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="IntervalLabel" VerticalAlignment="Center" />
-                            <ui:NumberBox x:Name="IntervalTextBox" Grid.Column="1" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=IntervalLabel}" />
-                            <ComboBox x:Name="IntervalUnitComboBox" AutomationProperties.LabeledBy="{Binding ElementName=IntervalLabel}" Grid.Column="2" Margin="{DynamicResource SpacingLeadingGap}">
-                                <ComboBoxItem Tag="1" />
-                                <ComboBoxItem Tag="60" />
-                                <ComboBoxItem Tag="3600" />
-                            </ComboBox>
-                        </Grid>
-                        <Grid Margin="{DynamicResource SpacingFieldGap}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="{DynamicResource FormLabelColumnWidth}" />
-                                <ColumnDefinition Width="120" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="FailuresBeforeRecoveryLabel" VerticalAlignment="Center" />
-                            <ui:NumberBox x:Name="FailuresTextBox" Grid.Column="1" Minimum="1" Maximum="100" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=FailuresBeforeRecoveryLabel}" />
-                        </Grid>
-                        <Grid Margin="{DynamicResource SpacingFieldGap}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="{DynamicResource FormLabelColumnWidth}" />
-                                <ColumnDefinition Width="120" />
-                                <ColumnDefinition Width="150" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock x:Name="CooldownLabel" VerticalAlignment="Center" />
-                            <ui:NumberBox x:Name="CooldownTextBox" Grid.Column="1" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=CooldownLabel}" />
-                            <ComboBox x:Name="CooldownUnitComboBox" AutomationProperties.LabeledBy="{Binding ElementName=CooldownLabel}" Grid.Column="2" Margin="{DynamicResource SpacingLeadingGap}">
-                                <ComboBoxItem Tag="1" />
-                                <ComboBoxItem Tag="60" />
-                                <ComboBoxItem Tag="3600" />
-                            </ComboBox>
-                        </Grid>
-                        </StackPanel></Border>
-                        <Border Style="{DynamicResource FormGroupStyle}" Margin="{DynamicResource SpacingFieldGap}"><StackPanel>
-                        <TextBlock x:Name="PolicyActionsTitle" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="{DynamicResource SpacingFieldGap}" />
-                        <ui:ToggleSwitch x:Name="AutoSwitchCheckBox" Margin="{DynamicResource SpacingToggleRow}" />
-                        <ui:ToggleSwitch x:Name="SoftReconnectCheckBox" Margin="{DynamicResource SpacingToggleRow}" />
-                        <ui:ToggleSwitch x:Name="WifiAutoEnableCheckBox" Margin="{DynamicResource SpacingToggleRow}" />
-                        <ui:ToggleSwitch x:Name="DnsFlushCheckBox" Margin="{DynamicResource SpacingToggleRow}" />
-                        <Border BorderBrush="{DynamicResource StatusWarningBrush}" BorderThickness="{DynamicResource StrokeControlThickness}" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCardPadding}" Margin="{DynamicResource SpacingSectionStart}"><Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                        <ui:SymbolIcon Symbol="Warning24" FontSize="{DynamicResource FontMetric}" Foreground="{DynamicResource StatusWarningBrush}" Margin="{DynamicResource SpacingInlineGap}" />
-                        <StackPanel Grid.Column="1">
-                        <ui:ToggleSwitch x:Name="HighRiskCheckBox" Margin="{DynamicResource SpacingToggleRow}" Checked="HighRiskCheckBox_Checked" />
-                        <TextBlock x:Name="HighRiskTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="{DynamicResource SpacingFieldCaptionGap}" />
-                        </StackPanel></Grid></Border>
-                        </StackPanel></Border>
-                        <Border Style="{DynamicResource FormGroupStyle}"><StackPanel>
-                        <TextBlock x:Name="PolicyTargetsTitle" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" Margin="{DynamicResource SpacingFieldGap}" />
-                        <TextBlock x:Name="DnsProbeHostsLabel" Margin="{DynamicResource SpacingFormCaption}" />
-                        <TextBox x:Name="DnsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=DnsProbeHostsLabel}" />
-                        <TextBlock x:Name="HttpsProbeHostsLabel" Margin="{DynamicResource SpacingFormCaption}" />
-                        <TextBox x:Name="HttpsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=HttpsProbeHostsLabel}" />
-                        <TextBlock x:Name="ProbeTargetsTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="{DynamicResource SpacingBlockStart}" />
-                        </StackPanel></Border>
-                        </StackPanel>
+                        <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock x:Name="PolicyTitle" Visibility="Collapsed" />
+                                <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
+                                    <StackPanel>
+                                        <DockPanel Margin="{DynamicResource SpacingFieldGap}">
+                                            <ui:SymbolIcon Symbol="DesktopSignal24" Style="{DynamicResource SectionGlyphStyle}" />
+                                            <TextBlock x:Name="PolicyDetectionTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" />
+                                                <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" /><ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <TextBlock Grid.Column="0" x:Name="IntervalLabel" TextWrapping="Wrap" Margin="{DynamicResource SpacingFieldCaptionGap}" />
+                                            <Grid Grid.Row="1" Grid.Column="0">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <ui:NumberBox x:Name="IntervalTextBox" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=IntervalLabel}" />
+                                                <ComboBox x:Name="IntervalUnitComboBox" Grid.Column="1" Margin="{DynamicResource SpacingLeadingGap}" AutomationProperties.LabeledBy="{Binding ElementName=IntervalLabel}">
+                                                    <ComboBoxItem Tag="1" /><ComboBoxItem Tag="60" /><ComboBoxItem Tag="3600" />
+                                                </ComboBox>
+                                            </Grid>
+                                            <TextBlock Grid.Column="2" x:Name="FailuresBeforeRecoveryLabel" TextWrapping="Wrap" Margin="{DynamicResource SpacingFieldCaptionGap}" />
+                                            <ui:NumberBox Grid.Row="1" Grid.Column="2" x:Name="FailuresTextBox" Minimum="1" Maximum="100" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=FailuresBeforeRecoveryLabel}" />
+                                            <TextBlock Grid.Column="4" x:Name="CooldownLabel" TextWrapping="Wrap" Margin="{DynamicResource SpacingFieldCaptionGap}" />
+                                            <Grid Grid.Row="1" Grid.Column="4">
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <ui:NumberBox x:Name="CooldownTextBox" Minimum="1" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=CooldownLabel}" />
+                                                <ComboBox x:Name="CooldownUnitComboBox" Grid.Column="1" Margin="{DynamicResource SpacingLeadingGap}" AutomationProperties.LabeledBy="{Binding ElementName=CooldownLabel}">
+                                                    <ComboBoxItem Tag="1" /><ComboBoxItem Tag="60" /><ComboBoxItem Tag="3600" />
+                                                </ComboBox>
+                                            </Grid>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
+                                    <StackPanel>
+                                        <DockPanel Margin="{DynamicResource SpacingFieldGap}">
+                                            <ui:SymbolIcon Symbol="Shield24" Style="{DynamicResource SectionGlyphStyle}" />
+                                            <TextBlock x:Name="PolicyActionsTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <ui:ToggleSwitch x:Name="AutoSwitchCheckBox" Grid.Row="0" Grid.Column="0" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" />
+                                            <ui:ToggleSwitch x:Name="SoftReconnectCheckBox" Grid.Row="0" Grid.Column="2" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" />
+                                            <ui:ToggleSwitch x:Name="WifiAutoEnableCheckBox" Grid.Row="1" Grid.Column="0" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" />
+                                            <ui:ToggleSwitch x:Name="DnsFlushCheckBox" Grid.Row="1" Grid.Column="2" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" />
+                                        </Grid>
+                                        <Border Background="{DynamicResource WarningSurfaceBrush}" BorderBrush="{DynamicResource StatusWarningBrush}" BorderThickness="{DynamicResource StrokeControlThickness}"
+                                                CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingBlockStart}">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                                <ui:SymbolIcon Symbol="Warning24" FontSize="{DynamicResource FontSection}" VerticalAlignment="Top" Margin="{DynamicResource SpacingIconGap}" Foreground="{DynamicResource StatusWarningBrush}" />
+                                                <StackPanel Grid.Column="1">
+                                                    <ui:ToggleSwitch x:Name="HighRiskCheckBox" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" Checked="HighRiskCheckBox_Checked" />
+                                                    <TextBlock x:Name="HighRiskTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
+                                    <StackPanel>
+                                        <DockPanel Margin="{DynamicResource SpacingFieldGap}">
+                                            <ui:SymbolIcon Symbol="Globe24" Style="{DynamicResource SectionGlyphStyle}" />
+                                            <TextBlock x:Name="PolicyTargetsTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <Grid>
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <TextBlock Grid.Column="0" x:Name="DnsProbeHostsLabel" TextWrapping="Wrap" Margin="{DynamicResource SpacingFieldCaptionGap}" />
+                                            <TextBox Grid.Row="1" Grid.Column="0" x:Name="DnsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=DnsProbeHostsLabel}" />
+                                            <TextBlock Grid.Column="2" x:Name="HttpsProbeHostsLabel" TextWrapping="Wrap" Margin="{DynamicResource SpacingFieldCaptionGap}" />
+                                            <TextBox Grid.Row="1" Grid.Column="2" x:Name="HttpsProbeHostsTextBox" AutomationProperties.LabeledBy="{Binding ElementName=HttpsProbeHostsLabel}" />
+                                        </Grid>
+                                        <TextBlock x:Name="ProbeTargetsTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="{DynamicResource SpacingBlockStart}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
+                                    <StackPanel>
+                                        <DockPanel>
+                                            <Button x:Name="RecoveryLogsButton" DockPanel.Dock="Right" Style="{StaticResource WorkspaceLinkStyle}" Click="OpenEventLog_Click" />
+                                            <TextBlock x:Name="RecentRecoveryTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <TextBlock x:Name="RecentRecoveryEmpty" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="{DynamicResource SpacingBlockStart}" />
+                                        <ItemsControl x:Name="RecoveryEventsList" ItemTemplate="{Binding ItemTemplate, ElementName=RecentEventsList}" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
                         </ScrollViewer>
                         <Border Grid.Row="1" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeTopDivider}" Padding="{DynamicResource SpacingSectionStart}" Margin="{DynamicResource SpacingBlockStart}">
                             <DockPanel LastChildFill="True">
@@ -578,30 +611,32 @@
                                         </StackPanel>
                                         <ScrollViewer x:Name="QualityBodyScrollViewer" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="{DynamicResource SpacingTrailingGroupGap}" presentation:ScrollWheelChaining.IsEnabled="True">
                                         <Grid>
-                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                        <TextBlock x:Name="QualityScopeText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" Margin="{DynamicResource SpacingFieldGap}" />
-                                        <StackPanel Grid.Row="1" Margin="{DynamicResource SpacingStatusBody}">
+                                        <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                        <StackPanel Margin="{DynamicResource SpacingFieldGap}">
                                             <TextBlock x:Name="QualityStateText" FontSize="{DynamicResource FontStatus}" FontWeight="SemiBold" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite" />
                                             <TextBlock x:Name="QualityPassedText" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingStatusBody}" TextWrapping="Wrap" />
-                                        <UniformGrid Columns="3">
-                                            <Border Style="{DynamicResource SectionBorderStyle}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingInlineGap}"><StackPanel>
-                                                <TextBlock x:Name="QualityGatewayLabel" TextWrapping="Wrap" />
-                                                <TextBlock x:Name="QualityGatewayValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingVerticalCompact}" />
-                                                <TextBlock x:Name="QualityGatewaySamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            </StackPanel></Border>
-                                            <Border Style="{DynamicResource SectionBorderStyle}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingInlineGap}"><StackPanel>
-                                                <TextBlock x:Name="QualityDnsLabel" TextWrapping="Wrap" />
-                                                <TextBlock x:Name="QualityDnsValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingVerticalCompact}" />
-                                                <TextBlock x:Name="QualityDnsSamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            </StackPanel></Border>
-                                            <Border Style="{DynamicResource SectionBorderStyle}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingInlineGap}"><StackPanel>
-                                                <TextBlock x:Name="QualityHttpsLabel" TextWrapping="Wrap" />
-                                                <TextBlock x:Name="QualityHttpsValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingVerticalCompact}" />
-                                                <TextBlock x:Name="QualityHttpsSamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                            </StackPanel></Border>
-                                        </UniformGrid>
+                                        <TextBlock x:Name="QualityScopeText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" Margin="{DynamicResource SpacingBlockGap}" />
+                                        <Border Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="{DynamicResource CornerCard}">
+                                            <UniformGrid Columns="3">
+                                                <Border Padding="{DynamicResource SpacingCompactCardPadding}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeInlineDivider}"><StackPanel>
+                                                    <TextBlock x:Name="QualityGatewayLabel" TextWrapping="Wrap" />
+                                                    <TextBlock x:Name="QualityGatewayValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingVerticalCompact}" />
+                                                    <TextBlock x:Name="QualityGatewaySamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                </StackPanel></Border>
+                                                <Border Padding="{DynamicResource SpacingCompactCardPadding}" BorderBrush="{DynamicResource CardStrokeColorDefaultBrush}" BorderThickness="{DynamicResource StrokeInlineDivider}"><StackPanel>
+                                                    <TextBlock x:Name="QualityDnsLabel" TextWrapping="Wrap" />
+                                                    <TextBlock x:Name="QualityDnsValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingVerticalCompact}" />
+                                                    <TextBlock x:Name="QualityDnsSamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                </StackPanel></Border>
+                                                <Border Padding="{DynamicResource SpacingCompactCardPadding}"><StackPanel>
+                                                    <TextBlock x:Name="QualityHttpsLabel" TextWrapping="Wrap" />
+                                                    <TextBlock x:Name="QualityHttpsValue" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingVerticalCompact}" />
+                                                    <TextBlock x:Name="QualityHttpsSamples" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                </StackPanel></Border>
+                                            </UniformGrid>
+                                        </Border>
                                         </StackPanel>
-                                        <Grid Grid.Row="2">
+                                        <Grid Grid.Row="1">
                                         <Grid><DataGrid x:Name="QualityProbeGrid" MinHeight="100" ScrollViewer.VerticalScrollBarVisibility="Disabled" AutomationProperties.Name="{Binding Text, ElementName=QualityToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
                                             <DataGrid.Columns>
                                                 <DataGridTextColumn x:Name="QualityProbeColumn" Binding="{Binding Name}" Width="2*" MinWidth="180" ElementStyle="{StaticResource GridTextStyle}" />
@@ -616,7 +651,7 @@
                  </StackPanel></Border></ContentControl></Grid>
 
                                         </Grid>
-                                        <TextBlock x:Name="QualityStatusText" TextWrapping="Wrap"  Grid.Row="3" Margin="{DynamicResource SpacingSectionStart}" />
+                                        <TextBlock x:Name="QualityStatusText" TextWrapping="Wrap"  Grid.Row="2" Margin="{DynamicResource SpacingSectionStart}" />
                                         </Grid>
                                         </ScrollViewer>
                                     </Grid>
@@ -726,21 +761,24 @@
                     </Grid>
                 </Border>
 
-                <Grid x:Name="ConfigurationWorkspace" Visibility="Collapsed">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
-                    <DockPanel Margin="{DynamicResource SpacingFieldGap}" LastChildFill="False">
-                        <TextBlock x:Name="AdapterTargetLabel" VerticalAlignment="Center" Margin="{DynamicResource SpacingInlineGroupGap}" />
-                        <ComboBox x:Name="AdapterTargetComboBox" MinWidth="204" MaxWidth="320" SelectionChanged="ConfigurationTarget_Changed" AutomationProperties.LabeledBy="{Binding ElementName=AdapterTargetLabel}" ToolTip="{Binding SelectedItem.Name, RelativeSource={RelativeSource Self}}" />
-                    </DockPanel>
-                    <TabControl x:Name="ConfigurationTabs" Grid.Row="1" SelectedIndex="0" SelectionChanged="WorkspaceTab_Changed" Template="{StaticResource ConfigurationTabsTemplate}">
+                <Grid x:Name="ConfigurationWorkspace" Visibility="Collapsed" Grid.IsSharedSizeScope="True">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" SharedSizeGroup="ConfigTargetColumn" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" SharedSizeGroup="ConfigHeaderRow" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TabControl x:Name="ConfigurationTabs" Grid.RowSpan="2" Grid.ColumnSpan="2" SelectedIndex="0" SelectionChanged="WorkspaceTab_Changed" Template="{StaticResource ConfigurationTabsTemplate}">
                         <TabItem x:Name="AdapterConfigTab" Header="接口概览">
                             <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="NetworkPanel" Style="{DynamicResource SectionBorderStyle}">
                                 <Grid>
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                                     <StackPanel>
                                     <TextBlock x:Name="AdapterToolsTitle" Visibility="Collapsed" />
-                                    <TextBlock x:Name="AdapterToolsHint" TextWrapping="Wrap" Margin="{DynamicResource SpacingSectionStart}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-                                    <TextBlock x:Name="AdapterStatusText" Margin="{DynamicResource SpacingSectionBody}" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="AdapterToolsHint" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <TextBlock x:Name="AdapterStatusText" Margin="{DynamicResource SpacingStatusBody}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Grid Grid.Row="1">
                                     <DataGrid x:Name="AdapterGrid" SelectionChanged="ConfigurationRow_Changed" IsEnabled="{Binding IsEnabled, ElementName=AdapterTargetComboBox}" presentation:ResultTablePresentation.CompactColumns="1,4,5" AutomationProperties.Name="{Binding Text, ElementName=AdapterToolsTitle}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}" ColumnHeaderHeight="{DynamicResource GridHeaderHeight}">
@@ -814,6 +852,10 @@
                             </Border>
                         </TabItem>
                     </TabControl>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="{DynamicResource SpacingFieldGap}">
+                        <TextBlock x:Name="AdapterTargetLabel" VerticalAlignment="Center" Margin="{DynamicResource SpacingInlineGap}" />
+                        <ComboBox x:Name="AdapterTargetComboBox" MinWidth="180" MaxWidth="260" SelectionChanged="ConfigurationTarget_Changed" AutomationProperties.LabeledBy="{Binding ElementName=AdapterTargetLabel}" ToolTip="{Binding SelectedItem.Name, RelativeSource={RelativeSource Self}}" />
+                    </StackPanel>
                 </Grid>
 
                 <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="LogPanel" Visibility="Collapsed" Style="{DynamicResource SectionBorderStyle}">
@@ -892,11 +934,14 @@
                         <StackPanel>
                             <Border x:Name="AppearanceSettingsCard" Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
                                 <StackPanel>
-                                    <TextBlock x:Name="SettingsTitle" Style="{DynamicResource SectionTitleStyle}" />
+                                    <DockPanel Margin="{DynamicResource SpacingFieldGap}">
+                                        <ui:SymbolIcon Symbol="Settings24" Style="{DynamicResource SectionGlyphStyle}" />
+                                        <TextBlock x:Name="SettingsTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                    </DockPanel>
                                     <Grid>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource SettingsColumnGap}" />
-                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource SettingsColumnGap}" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
@@ -928,10 +973,12 @@
 
                             <Border x:Name="StartupSettingsCard" Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
                                 <StackPanel>
-                                    <TextBlock x:Name="TrayTitle" Style="{DynamicResource SectionTitleStyle}" />
+                                    <DockPanel Margin="{DynamicResource SpacingFieldGap}">
+                                        <ui:SymbolIcon Symbol="Play24" Style="{DynamicResource SectionGlyphStyle}" />
+                                        <TextBlock x:Name="TrayTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                    </DockPanel>
                                     <Grid>
                                         <Grid.Resources>
-                                            <DataTemplate x:Key="SettingLabelTemplate"><TextBlock Text="{Binding}" TextWrapping="Wrap" /></DataTemplate>
                                             <Style x:Key="SettingHelpStyle" TargetType="TextBlock">
                                                 <Setter Property="Foreground" Value="{DynamicResource TextFillColorSecondaryBrush}" />
                                                 <Setter Property="FontSize" Value="{DynamicResource FontCaption}" />
@@ -940,25 +987,25 @@
                                             </Style>
                                         </Grid.Resources>
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource SettingsColumnGap}" /><ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" /><ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                         <StackPanel Margin="{DynamicResource SpacingBlockGap}">
                                             <ui:ToggleSwitch x:Name="StartOnUserLogonCheckBox" MinHeight="{DynamicResource ToolbarControlHeight}"
-                                                             ContentTemplate="{StaticResource SettingLabelTemplate}" IsEnabled="False" Checked="UserLogonStartup_Changed" Unchecked="UserLogonStartup_Changed"
+                                                             ContentTemplate="{StaticResource FormToggleLabelTemplate}" IsEnabled="False" Checked="UserLogonStartup_Changed" Unchecked="UserLogonStartup_Changed"
                                                              AutomationProperties.HelpText="{Binding Text, ElementName=UserLogonStartupStatusText}" />
                                             <TextBlock x:Name="UserLogonStartupStatusText" Style="{StaticResource SettingHelpStyle}" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" Margin="{DynamicResource SpacingBlockGap}">
                                             <ui:ToggleSwitch x:Name="ScheduledStartupCheckBox" MinHeight="{DynamicResource ToolbarControlHeight}"
-                                                             ContentTemplate="{StaticResource SettingLabelTemplate}" Checked="ScheduledStartup_Changed" Unchecked="ScheduledStartup_Changed"
+                                                             ContentTemplate="{StaticResource FormToggleLabelTemplate}" Checked="ScheduledStartup_Changed" Unchecked="ScheduledStartup_Changed"
                                                              AutomationProperties.HelpText="{Binding Text, ElementName=ScheduledStartupStatusText}" />
                                             <TextBlock x:Name="ScheduledStartupStatusText" Style="{StaticResource SettingHelpStyle}" />
                                         </StackPanel>
                                         <ui:ToggleSwitch x:Name="StartMinimizedToTrayCheckBox" MinHeight="{DynamicResource ToolbarControlHeight}"
-                                                         ContentTemplate="{StaticResource SettingLabelTemplate}" Grid.Row="1" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
+                                                         ContentTemplate="{StaticResource FormToggleLabelTemplate}" Grid.Row="1" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                                         <ui:ToggleSwitch x:Name="StartMonitoringOnLaunchCheckBox" MinHeight="{DynamicResource ToolbarControlHeight}"
-                                                         ContentTemplate="{StaticResource SettingLabelTemplate}" Grid.Row="1" Grid.Column="2" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
+                                                         ContentTemplate="{StaticResource FormToggleLabelTemplate}" Grid.Row="1" Grid.Column="2" Checked="SettingsCheckBox_Changed" Unchecked="SettingsCheckBox_Changed" />
                                     </Grid>
                                 </StackPanel>
                             </Border>
@@ -968,6 +1015,7 @@
                                     <Grid>
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
                                         <WrapPanel VerticalAlignment="Center" Margin="{DynamicResource SpacingInlineGap}">
+                                            <ui:SymbolIcon Symbol="ArrowSync24" Style="{DynamicResource SectionGlyphStyle}" />
                                             <TextBlock x:Name="UpdateTitleText" Style="{DynamicResource SectionTitleStyle}" Margin="{DynamicResource SpacingInlineGroupGap}" VerticalAlignment="Center" />
                                             <TextBlock x:Name="UpdateVersionText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
                                         </WrapPanel>
@@ -983,7 +1031,12 @@
                                     <Expander x:Name="UpdateNotesExpander" Style="{DynamicResource ContentExpanderStyle}" Visibility="Collapsed" Margin="{DynamicResource SpacingBlockStart}">
                                         <TextBlock x:Name="UpdateNotesText" TextWrapping="Wrap" Margin="{DynamicResource SpacingOptionGap}" />
                                     </Expander>
-                                    <TextBlock x:Name="UpdatePreviousResultText" Visibility="Collapsed" TextWrapping="Wrap" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingBlockStart}" />
+                                    <Expander x:Name="UpdateHistoryExpander" AutomationProperties.Name="{Binding Text, ElementName=UpdatePreviousResultText}" Style="{DynamicResource ContentExpanderStyle}" Visibility="Collapsed" Margin="{DynamicResource SpacingBlockStart}">
+                                        <Expander.Header>
+                                            <TextBlock x:Name="UpdatePreviousResultText" TextWrapping="Wrap" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </Expander.Header>
+                                        <TextBox x:Name="UpdateLogPathText" IsReadOnly="True" TextWrapping="Wrap" />
+                                    </Expander>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

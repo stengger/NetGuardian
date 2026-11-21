@@ -9,6 +9,25 @@ namespace NetGuardian.App.Presentation;
 
 internal static class UpdatePresentation
 {
+    public static void ApplyHistory(Window window, Localizer text, bool? succeeded, string? version, DateTime time, string? logPath)
+    {
+        var history = (Expander)window.FindName("UpdateHistoryExpander");
+        var summary = (TextBlock)window.FindName("UpdatePreviousResultText");
+        var path = (TextBox)window.FindName("UpdateLogPathText");
+        if (succeeded is not { } success)
+        {
+            history.Visibility = Visibility.Collapsed;
+            history.IsExpanded = false;
+            summary.Text = path.Text = string.Empty;
+            return;
+        }
+        summary.Text = string.Format(text.T("UpdatePreviousResult"), version, time,
+            text.T(success ? "UpdatePreviousSucceeded" : "UpdatePreviousFailed"));
+        path.Text = logPath ?? string.Empty;
+        System.Windows.Automation.AutomationProperties.SetName(path, text.T("UpdateLogLocation"));
+        history.Visibility = Visibility.Visible;
+    }
+
     public static void Apply(Window window, UpdateSession session, Version version, Localizer text, bool installed)
     {
         T Get<T>(string name) => (T)window.FindName(name);

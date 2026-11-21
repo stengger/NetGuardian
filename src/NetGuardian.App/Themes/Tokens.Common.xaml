@@ -47,6 +47,7 @@
 
     <!-- Spacing scale. -->
     <Thickness x:Key="SpacingCardPadding">16</Thickness>
+    <Thickness x:Key="SpacingHeaderCommand">8,2,0,2</Thickness>
     <Thickness x:Key="SpacingItemGap">0,0,8,8</Thickness>
     <Thickness x:Key="SpacingControlPadding">12,8</Thickness>
     <Thickness x:Key="SpacingSectionGap">0,0,0,24</Thickness>
@@ -133,7 +134,7 @@
     <sys:Double x:Key="TrafficChartHeight">56</sys:Double>
     <Thickness x:Key="StrokeGroupDivider">0,0,0,1</Thickness>
     <Thickness x:Key="SpacingGroupBody">0,0,0,16</Thickness>
-    <GridLength x:Key="SettingsColumnGap">16</GridLength>
+    <GridLength x:Key="FormColumnGap">16</GridLength>
     <Thickness x:Key="SettingsHelpInset">48,0,0,0</Thickness>
     <sys:Double x:Key="FormMaxWidth">720</sys:Double>
     <GridLength x:Key="FormLabelColumnWidth">180</GridLength>
