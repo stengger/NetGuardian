@@ -871,7 +871,7 @@
                                 <StackPanel Grid.Column="1" Margin="{DynamicResource SpacingTrailingGroupGap}">
                                     <TextBlock x:Name="LogLevelLabel" Margin="{DynamicResource SpacingFieldCaptionGap}" />
                                     <ComboBox x:Name="LogLevelComboBox" SelectedIndex="0" SelectionChanged="LogFilter_Changed" AutomationProperties.LabeledBy="{Binding ElementName=LogLevelLabel}">
-                                        <ComboBoxItem Tag="all" /><ComboBoxItem Tag="Information" /><ComboBoxItem Tag="Warning" /><ComboBoxItem Tag="Error" />
+                                        <ComboBoxItem Tag="Key" /><ComboBoxItem Tag="all" /><ComboBoxItem Tag="Information" /><ComboBoxItem Tag="Warning" /><ComboBoxItem Tag="Error" />
                                     </ComboBox>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Margin="{DynamicResource SpacingTrailingGroupGap}">

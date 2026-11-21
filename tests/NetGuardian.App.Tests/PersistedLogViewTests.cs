@@ -10,6 +10,49 @@ namespace NetGuardian.App.Tests;
 public sealed class PersistedLogViewTests
 {
     [Fact]
+    public void 日志默认显示恢复切换和故障且仍能查到普通记录()
+    {
+        DesktopFixture.Run(window =>
+        {
+            EventLogPresentation.ResetFilters(window);
+            var level = (ComboBox)window.FindName("LogLevelComboBox");
+            Assert.Equal("Key", ((ComboBoxItem)level.SelectedItem).Tag);
+            Assert.Contains(level.Items.Cast<ComboBoxItem>(), item => Equals(item.Tag, "all"));
+            var store = new EventLogStore(new Localizer());
+            var scan = store.Add("扫描完成", UiLogLevel.Information, UiLogSource.Interface);
+            var connect = store.Add("手动连接", UiLogLevel.Information, UiLogSource.Network);
+            var recovery = store.Add("尝试切换", UiLogLevel.Information, UiLogSource.Recovery);
+            var failure = store.Add("扫描失败", UiLogLevel.Error, UiLogSource.Diagnostic);
+            Assert.False(scan.Matches(null, null, null, keyEventsOnly: true));
+            Assert.True(scan.Matches(null, null, null));
+            Assert.All(new[] { connect, recovery, failure }, entry => Assert.True(entry.Matches(null, null, null, keyEventsOnly: true)));
+        });
+    }
+
+    [Fact]
+    public void 已绑定并筛选的表格能一次导入超过容量的历史记录()
+    {
+        DesktopFixture.Run(window =>
+        {
+            var store = new EventLogStore(new Localizer(), 20);
+            var grid = (DataGrid)window.FindName("LogGrid");
+            var view = CollectionViewSource.GetDefaultView(store.Entries);
+            view.Filter = row => ((UiLogEntry)row).Matches("", null, null);
+            grid.ItemsSource = view;
+            store.Add("当前界面记录", UiLogLevel.Information, UiLogSource.Interface);
+            DesktopFixture.ShowPage(window, "LogPanel");
+            DesktopFixture.Layout(window, 1040, 660);
+            var now = DateTimeOffset.Now;
+            var records = Enumerable.Range(0, 36).Select(i => new PersistedLogEntry(i.ToString(), now.AddMinutes(i - 40),
+                "后台记录" + i, UiLogLevel.Information, i == 2 ? UiLogSource.Recovery : UiLogSource.Background,
+                IsRecoveryEvent: i == 2)).ToArray();
+            EventLogPresentation.ImportHistory(grid, store, records, now);
+            Assert.Equal(20, grid.Items.Count);
+            Assert.Equal(store.Entries.ToArray(), view.Cast<UiLogEntry>().ToArray());
+        });
+    }
+
+    [Fact]
     public void 真实日志表格显示历史后台与恢复来源并支持筛选和原文阅读()
     {
         DesktopFixture.Run(window =>

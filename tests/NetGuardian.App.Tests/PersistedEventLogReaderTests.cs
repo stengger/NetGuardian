@@ -16,6 +16,17 @@ public sealed class PersistedEventLogReaderTests : IDisposable
     private void Append(string name, string text) => File.AppendAllText(FilePath(name), text, new UTF8Encoding(false));
 
     [Fact]
+    public void 历史切换与重连尝试在大量例行检测后仍可从恢复历史读取()
+    {
+        Write("app-20261116.log", "2026-11-16 18:30:00 +08:00  RecoverySwitchWifi：办公网络\n" +
+            "2026-11-16 18:30:01 +08:00  RecoveryReconnectCurrent：原网络\n" +
+            string.Concat(Enumerable.Range(10, 20).Select(i => $"2026-11-16 18:31:{i} +08:00  轻量检测：Healthy，已连通\n")));
+        var entries = Reader(4).Read().Entries;
+        Assert.Contains(entries, item => item.IsRecoveryEvent && item.DisplayMessage!.Contains("尝试切换") && item.DisplayMessage.Contains("办公网络"));
+        Assert.Contains(entries, item => item.IsRecoveryEvent && item.DisplayMessage!.Contains("原网络"));
+    }
+
+    [Fact]
     public void 加载历史运行记录保留原始时间级别来源与多行详情()
     {
         Write("app-20261115.log", "2026-11-15 09:01:02 +08:00  [Warning/Network] 第一行\n第二行：中文详情\n2026-11-15 10:00:00 +08:00  RecoveryDnsFlush：\n");

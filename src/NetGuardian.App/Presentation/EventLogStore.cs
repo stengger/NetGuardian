@@ -20,14 +20,16 @@ internal sealed class UiLogEntry(DateTimeOffset time, string message, UiLogLevel
     public string Summary => (_displayMessage ?? Message).ReplaceLineEndings(" ");
     public UiLogLevel Level { get; private set; } = level;
     public UiLogSource Source { get; private set; } = source;
-    public bool IsRecoveryEvent { get; private set; } = isRecoveryEvent;
+    public bool IsRecoveryEvent { get; private set; } = isRecoveryEvent || source == UiLogSource.Recovery;
+    public bool IsKeyEvent => IsRecoveryEvent || Level != UiLogLevel.Information || Source == UiLogSource.Network;
     public string? PersistedId { get; private set; } = persistedId;
     public string LevelText => localizer.T($"LogLevel{Level}");
     public string SourceText => localizer.T($"LogSource{Source}");
     public event PropertyChangedEventHandler? PropertyChanged;
 
-    public bool Matches(string? search, UiLogLevel? level, UiLogSource? source)
+    public bool Matches(string? search, UiLogLevel? level, UiLogSource? source, bool keyEventsOnly = false)
     {
+        if (keyEventsOnly && !IsKeyEvent) return false;
         if (level.HasValue && level.Value != Level || source.HasValue && source.Value != Source) return false;
         var text = search?.Trim();
         return string.IsNullOrEmpty(text) || Message.Contains(text, StringComparison.OrdinalIgnoreCase)
@@ -105,7 +107,8 @@ internal sealed class EventLogStore
         while (Entries.Count > _capacity)
         {
             // 关键断网/恢复事件优先，避免高频运行明细把统计依据挤出列表。
-            var oldest = Entries.FirstOrDefault(item => !item.IsRecoveryEvent) ?? Entries[0];
+            var oldest = Entries.FirstOrDefault(item => !item.IsKeyEvent)
+                ?? Entries.FirstOrDefault(item => !item.IsRecoveryEvent) ?? Entries[0];
             Entries.Remove(oldest);
         }
     }
