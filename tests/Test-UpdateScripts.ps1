@@ -183,6 +183,16 @@ try {
     $path = New-TestUpdateRequest 'NoHeartbeat'
     $result = Invoke-TestUpdate $path
     Assert-Update (-not $result.Success -and $result.RollbackSucceeded -and $result.Message -like '*心跳*') '后台任务运行但守护未就绪不能算更新成功。'
+    $path = New-TestUpdateRequest 'LockedDesktop'
+    $target = Join-Path $script:TestInstall 'NetGuardian.dll'
+    $locked = [IO.File]::Open($target, 'Open', 'Read', 'Read')
+    try {
+        $result = Invoke-TestUpdate $path
+        Assert-Update ($result.Stage -eq 'CheckingFiles' -and $script:InstallCalls -eq 0 -and $script:RestoreCalls -eq 0 -and $script:LaunchCalls -eq 1) '桌面 DLL 被占用时应在停止后台前返回并重新打开界面。'
+        $job = Split-Path -Parent $path
+        $saved = Get-Content -Raw (Join-Path $job 'manifest.json') | ConvertFrom-Json
+        Restore-NetGuardianUpdateFiles $script:TestInstall (Join-Path $job 'backup') $saved
+    } finally { $locked.Dispose() }
     $path = New-TestUpdateRequest 'OldGuardian'
     $result = Invoke-TestUpdate $path
     Assert-Update (-not $result.Success -and $result.RollbackSucceeded -and $result.Message -like '*Guardian.dll*版本不匹配*') '旧版守护必须触发恢复。'
