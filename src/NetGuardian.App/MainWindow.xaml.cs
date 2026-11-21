@@ -61,9 +61,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly ObservableCollection<WifiProfile> _profiles = [];
     private readonly NearbySavedWifiView _nearbySavedWifi;
     private readonly WifiListView _nearbyView;
-    private readonly ObservableCollection<string> _recentEvents = [];
+    private readonly ObservableCollection<UiLogEntry> _recentEvents = [];
     private readonly ObservableCollection<DnsServerRow> _dnsRows = [];
-    private readonly ObservableCollection<DnsAdapterOption> _dnsAdapterOptions = [];
     private readonly ObservableCollection<AdapterRow> _adapterRows = [];
     private readonly ObservableCollection<QualityProbeRow> _qualityRows = [];
     private readonly ObservableCollection<WebsiteTestRow> _websiteRows = [];
@@ -165,8 +164,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         WifiPasswordDetails.SetPasswordReader(ProfileGrid, _wifi.GetSavedPasswordAsync);
         RecentEventsList.ItemsSource = _recentEvents;
         DnsGrid.ItemsSource = _dnsRows;
-        DnsAdapterComboBox.ItemsSource = _dnsAdapterOptions;
-        DnsAdapterComboBox.DisplayMemberPath = nameof(DnsAdapterOption.Name);
+        AdapterTargetComboBox.DisplayMemberPath = nameof(NetworkAdapterCandidate.Name);
         AdapterGrid.ItemsSource = _adapterRows;
         QualityProbeGrid.ItemsSource = _qualityRows;
         WebsiteGrid.ItemsSource = _websiteRows;
@@ -194,8 +192,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         ResetSpeedUi();
         ResetIpInfoUi();
         ResetReportUi();
-        RefreshDnsInfo();
-        RefreshAdapterInfo();
+        RefreshConfiguration();
         RootNavigation.SelectPanel("StatusPanel");
         UpdateMonitorStatus();
         UpdateSidebarSpeed();
@@ -431,23 +428,23 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         await RunUiActionAsync(async () => await RunSystemNetworkCommandAsync("ipconfig.exe", ["/flushdns"], _localizer.T("FlushDns")));
         var commandStatus = DnsStatusText.Text;
-        var refreshed = RefreshDnsInfo();
+        var refreshed = RefreshConfiguration();
         DnsStatusText.Text = refreshed ? commandStatus : $"{commandStatus} {_localizer.T("NetworkReadFailed")}";
     }
 
     private void DnsRefresh_Click(object sender, RoutedEventArgs e)
     {
-        RefreshDnsInfo();
+        RefreshConfiguration();
     }
 
-    private void DnsAdapterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void ConfigurationTarget_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (_isSyncingDnsControls)
         {
             return;
         }
 
-        FillDnsFieldsFromSelectedAdapter();
+        RefreshTargetDetails();
         SelectDnsPreset("none");
         ApplyDnsPresetToFields();
     }
@@ -467,6 +464,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (_isApplyingDns) return;
         _isApplyingDns = true;
         DnsEditor.IsEnabled = false;
+        AdapterTargetComboBox.IsEnabled = false;
+        AdapterRefreshButton.IsEnabled = false;
         DnsRefreshButton.IsEnabled = false;
         DnsFlushButton.IsEnabled = false;
         DnsApplyButton.IsEnabled = false;
@@ -478,6 +477,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             _isApplyingDns = false;
             DnsEditor.IsEnabled = true;
+            AdapterTargetComboBox.IsEnabled = true;
+            AdapterRefreshButton.IsEnabled = true;
+            UpdateRenewAvailability();
             DnsRefreshButton.IsEnabled = true;
             DnsFlushButton.IsEnabled = true;
             UpdateDnsApplyAvailability();
@@ -486,7 +488,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async void ToolsRenewDhcp_Click(object sender, RoutedEventArgs e)
     {
-        if (AdapterTargetComboBox.SelectedItem is not NetworkAdapterCandidate target)
+        if (AdapterTargetComboBox.SelectedItem is not NetworkAdapterCandidate { IsUp: true, SupportsIpv4: true, IsDhcpEnabled: true } target)
         {
             SetDhcpOperationMessage("SelectDhcpAdapter", false);
             return;
@@ -495,6 +497,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         {
             AdapterTargetComboBox.IsEnabled = false;
             AdapterRefreshButton.IsEnabled = false;
+            DnsRefreshButton.IsEnabled = false;
+            UpdateDnsApplyAvailability();
             try
             {
                 if (!await ConfirmActionAsync(_localizer.T("ConfirmDhcpTitle"),
@@ -517,7 +521,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                         SetDhcpOperationMessage("DhcpRenewingTarget", false, target.Name);
                         commandStarted = true;
                         var result = await _networkConfiguration.RenewDhcpAsync(target.Name);
-                        var refreshed = RefreshAdapterInfo();
+                        var refreshed = RefreshConfiguration();
                         var status = SetDhcpOperationMessage(result.Success ? "DhcpTargetDone" : "DhcpTargetFailed", !refreshed, target.Name, result.ExitCode);
                         NetworkLog(status, result.Success ? UiLogLevel.Information : UiLogLevel.Error);
                         if (!string.IsNullOrWhiteSpace(result.Output)) NetworkLog(result.Output);
@@ -527,7 +531,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     }
                     catch (Exception ex) when (ex is NetworkInformationException or System.ComponentModel.Win32Exception or InvalidOperationException or IOException or OperationCanceledException)
                     {
-                        var refreshed = RefreshAdapterInfo();
+                        var refreshed = RefreshConfiguration();
                         var status = SetDhcpOperationMessage(commandStarted ? "DhcpInterruptedCheckCurrent" : "NetworkTargetChanged", !refreshed, target.Name);
                         NetworkLog($"{target.Name}: {ex.Message}", UiLogLevel.Error);
                         ShowFeedback(_localizer.T("ActionFailedTitle"), status, FeedbackSeverity.Warning);
@@ -539,14 +543,17 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             {
                 AdapterTargetComboBox.IsEnabled = true;
                 AdapterRefreshButton.IsEnabled = true;
+                DnsRefreshButton.IsEnabled = true;
+                UpdateRenewAvailability();
+                UpdateDnsApplyAvailability();
             }
         }
-        AdapterRenewDhcpButton.IsEnabled = !_isNetworkActionRunning && AdapterTargetComboBox.Items.Count > 0;
+        UpdateRenewAvailability();
     }
 
     private void AdapterRefresh_Click(object sender, RoutedEventArgs e)
     {
-        RefreshAdapterInfo();
+        RefreshConfiguration();
     }
 
     private async void QualityRun_Click(object sender, RoutedEventArgs e)
@@ -731,23 +738,41 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (sender.SelectedItem is Wpf.Ui.Controls.NavigationViewItem item)
         {
+            _logParent = null;
             ShowPanelByTag(item.Tag?.ToString());
         }
     }
 
-    private void ToolsTabControl_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private void WorkspaceTab_Changed(object sender, SelectionChangedEventArgs e)
     {
-        if (e.OriginalSource != ToolsTabControl || ToolsPanel.Visibility != Visibility.Visible)
-        {
-            return;
-        }
+        if (sender != e.OriginalSource || sender is not TabControl { IsVisible: true }) return;
+        PanelNavigationPresenter.Show(this, sender == ToolsTabControl ? "ToolsPanel" : "ConfigurationWorkspace", _localizer);
+    }
 
-        PanelNavigationPresenter.Show(this, "ToolsPanel", _localizer);
+    private void OpenDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        RootNavigation.SelectPanel("ToolsPanel");
+        ShowPanelByTag("QualityPanel");
+        if (_reportSelection.Report is not { } report || !_qualitySession.Preview(report, _reportSelection.Origin)) return;
+        RefreshQualityUi();
+        var group = (sender as Button)?.Tag as string;
+        var probe = report.Probes.Where(item => group switch
+        {
+            "Gateway" => item.Name is "Gateway ping" or "Default gateway",
+            "Dns" => item.Name.StartsWith("DNS ", StringComparison.OrdinalIgnoreCase),
+            "Https" => item.Name.StartsWith("HTTPS ", StringComparison.OrdinalIgnoreCase),
+            _ => true
+        }).OrderBy(item => item.Ok).FirstOrDefault();
+        if (probe is null) return;
+        var index = report.Probes.IndexOf(probe);
+        QualityProbeGrid.SelectedIndex = index;
+        QualityProbeGrid.ScrollIntoView(_qualityRows[index]);
     }
 
     private void ShowPanelByTag(string? tag)
     {
         PanelNavigationPresenter.Show(this, tag, _localizer);
+        if (tag == "LogPanel") RenderLogContext();
         RenderCurrentWifi();
         if (tag == "SettingsPanel" && _updateSession is not null)
         {
@@ -1907,12 +1932,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         TitleBar.Title = _localizer.T("AppTitle");
         StatusNavButton.Content = _localizer.T("Status");
         WifiNavButton.Content = _localizer.T("Wifi");
-        PolicyNavButton.Content = _localizer.T("Policy");
-        ToolsNavButton.Content = _localizer.T("Tools");
-        DnsNavButton.Content = _localizer.T("DnsTools");
-        QualityNavButton.Content = _localizer.T("QualityTools");
-        AdapterNavButton.Content = _localizer.T("AdapterTools");
-        LogNavButton.Content = _localizer.T("Log");
+        PolicyNavButton.Content = _localizer.T("RecoveryWorkspace");
+        ToolsNavButton.Content = _localizer.T("DiagnosticsWorkspace");
+        AdapterNavButton.Content = _localizer.T("ConfigurationWorkspace");
         ExportLogsButton.Content = _localizer.T("ExportLogs");
         RefreshLogLanguage();
         SettingsNavButton.Content = _localizer.T("Settings");
@@ -1928,7 +1950,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NextCheckLabel.Text = _localizer.T("NextCheck");
         CurrentNetworkLabel.Text = _localizer.T("CurrentNetwork");
         FailureStreakLabel.Text = _localizer.T("FailureStreak");
-        ProbeTitleText.Text = _localizer.T("CheckNow");
+        ProbeTitleText.Text = _localizer.T("ProbeDetails");
+        HomeDiagnosticsButton.Content = _localizer.T("OpenDiagnostics");
+        HomeLogsButton.Content = _localizer.T("ViewAllEvents");
+        RecoveryLogsButton.Content = _localizer.T("ViewRecoveryHistory");
+        RecentRecoveryTitle.Text = _localizer.T("RecentRecovery");
+        RecentRecoveryEmpty.Text = _localizer.T("NoRecoveryHistory");
+        QualityToolsTab.Header = _localizer.T("ConnectivityTab");
+        AdapterConfigTab.Header = _localizer.T("AdapterOverview");
+        DnsConfigTab.Header = _localizer.T("DnsTools");
         RecentEventsTitle.Text = _localizer.T("RecentEvents");
         UpdateWeeklySummary();
         ProbeNameColumn.Header = _localizer.T("Probe");
@@ -2012,12 +2042,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         DnsFlushButton.Content = _localizer.T("FlushDns");
         DnsApplyButton.Content = _localizer.T("ApplyDns");
         DnsToolsHint.Text = _localizer.T("DnsToolsHint");
-        DnsTargetLabel.Text = _localizer.T("DnsTargetLabel");
         DnsPlanLabel.Text = _localizer.T("DnsPlanLabel");
         DnsPrimaryLabel.Text = _localizer.T("DnsPrimaryLabel");
         DnsSecondaryLabel.Text = _localizer.T("DnsSecondaryLabel");
-        AdapterTargetLabel.Text = _localizer.T("AdapterTargetLabel");
-        AdapterTargetComboBox.DisplayMemberPath = nameof(NetworkAdapterCandidate.Name);
+        AdapterTargetLabel.Text = _localizer.T("ConfigurationTarget");
         DnsAdapterColumn.Header = _localizer.T("Adapter");
         DnsServersColumn.Header = _localizer.T("DnsServersAll");
         DnsSourceColumn.Header = _localizer.T("Source");
@@ -2029,13 +2057,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 "cloudflare" => "CloudflareDns", "google" => "GoogleDns", "custom" => "CustomDns", _ => "SelectDnsPlan"
             });
         RelocalizeNetworkInfo();
-        FillDnsFieldsFromSelectedAdapter();
-        if (_dnsReadFailed) DnsCurrentText.Text = DnsEmptyText.Text = _localizer.T("NetworkReadFailed");
-        if (_adapterReadFailed) AdapterEmptyText.Text = _localizer.T("NetworkReadFailed");
-        DnsStatusText.Text = _dnsOperationMessage?.Format(_localizer) ?? (_dnsReadFailed ? _localizer.T("NetworkReadFailed")
+        RefreshTargetDetails();
+        if (_configurationReadFailed) DnsCurrentText.Text = DnsEmptyText.Text = _localizer.T("NetworkReadFailed");
+        if (_configurationReadFailed) AdapterEmptyText.Text = _localizer.T("NetworkReadFailed");
+        DnsStatusText.Text = _dnsOperationMessage?.Format(_localizer) ?? (_configurationReadFailed ? _localizer.T("NetworkReadFailed")
             : _dnsRows.Count == 0 ? _localizer.T("NoDnsServers") : string.Format(_localizer.T("DnsServerCount"), _dnsRows.Count));
-        AdapterStatusText.Text = _dhcpOperationMessage?.Format(_localizer) ?? (_adapterReadFailed ? _localizer.T("NetworkReadFailed")
-            : AdapterTargetComboBox.Items.Count == 0 ? _localizer.T("NoDhcpAdapter") : string.Format(_localizer.T("AdapterCount"), _adapterRows.Count));
+        AdapterStatusText.Text = _dhcpOperationMessage?.Format(_localizer) ?? (_configurationReadFailed ? _localizer.T("NetworkReadFailed")
+            : string.Format(_localizer.T("AdapterCount"), _adapterRows.Count));
         QualityToolsTitle.Text = _localizer.T("QualityCheckTitle");
         QualityScopeText.Text = _localizer.T("QualityCheckScope");
         QualityRunButton.Content = _localizer.T("RunQualityCheck");
@@ -2127,7 +2155,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateEmptyStates();
         UpdateMonitorStatus();
         UpdateTrayText();
-        ShowPanelByTag((RootNavigation.SelectedItem as Wpf.Ui.Controls.NavigationViewItem)?.Tag?.ToString());
+        ShowPanelByTag(_logParent is null ? (RootNavigation.SelectedItem as Wpf.Ui.Controls.NavigationViewItem)?.Tag?.ToString() : "LogPanel");
     }
 
     private void UpdateEmptyStates()
@@ -2140,6 +2168,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         NearbyClearFilterButton.Visibility = filteredEmpty ? Visibility.Visible : Visibility.Collapsed;
         NearbyEmptyAction.Visibility = filteredEmpty ? Visibility.Collapsed : Visibility.Visible;
         ProfileEmptyText.Visibility = ProfileGrid.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+        RecentRecoveryEmpty.Visibility = RecoveryEventsList.Items.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         RecentEventsEmptyText.Visibility = _recentEvents.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         WebsiteEmptyText.Visibility = _websiteRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         IpInfoEmptyText.Visibility = _ipInfoRows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -2558,22 +2587,22 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void SetToolOutput(string text)
     {
-        if (ToolsPanel.Visibility == Visibility.Visible)
+        if (ToolsPanel.IsVisible)
         {
             ToolsOutputText.Text = text;
         }
 
-        if (DnsPanel.Visibility == Visibility.Visible)
+        if (DnsPanel.IsVisible)
         {
             DnsStatusText.Text = text;
         }
 
-        if (NetworkPanel.Visibility == Visibility.Visible)
+        if (NetworkPanel.IsVisible)
         {
             AdapterStatusText.Text = text;
         }
 
-        if (QualityPanel.Visibility == Visibility.Visible)
+        if (QualityPanel.IsVisible)
         {
             QualityStatusText.Text = text;
         }
@@ -2595,7 +2624,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private async Task ApplyDnsSettingsCoreAsync()
     {
-        if (DnsAdapterComboBox.SelectedItem is not DnsAdapterOption adapter)
+        if (AdapterTargetComboBox.SelectedItem is not NetworkAdapterCandidate { IsUp: true, SupportsIpv4: true } adapter)
         {
             SetDnsOperationMessage("SelectAdapter", false);
             return;
@@ -2641,7 +2670,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                     adapter.Name,
                     primary, string.IsNullOrWhiteSpace(secondary) ? null : secondary);
 
-            var refreshed = RefreshDnsInfo();
+            var refreshed = RefreshConfiguration();
             var status = SetDnsOperationMessage(result.Success ? "DnsTargetApplied" : result.WasCanceled ? "DnsPartialCanceled" : result.MayHaveChanged ? "DnsMayHaveChanged" : "DnsApplyFailed",
                 !refreshed, result.Success ? [adapter.Name] : [result.ExitCode]);
             NetworkLog(status, result.Success ? UiLogLevel.Information : UiLogLevel.Error);
@@ -2662,7 +2691,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or IOException or OperationCanceledException)
         {
-            var refreshed = RefreshDnsInfo();
+            var refreshed = RefreshConfiguration();
             SetDnsOperationMessage("DnsInterruptedCheckCurrent", !refreshed);
             NetworkLog(ex.Message, UiLogLevel.Error);
             ShowFeedback(_localizer.T("ActionFailedTitle"), DnsStatusText.Text, FeedbackSeverity.Warning);
@@ -2691,21 +2720,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void FillDnsFieldsFromSelectedAdapter()
     {
-        if (DnsAdapterComboBox.SelectedItem is not DnsAdapterOption adapter)
+        if (AdapterTargetComboBox.SelectedItem is not NetworkAdapterCandidate { IsUp: true, SupportsIpv4: true } adapter)
         {
             DnsCurrentText.Text = _localizer.T("SelectDnsTarget");
             UpdateDnsApplyAvailability();
             return;
         }
-        var row = _dnsRows.FirstOrDefault(item => item.Adapter.Equals(adapter.Name, StringComparison.OrdinalIgnoreCase));
+        var row = _dnsRows.FirstOrDefault(item => item.Id == adapter.Id);
         DnsCurrentText.Text = string.Format(_localizer.T("DnsCurrentAddresses"), row?.Servers ?? "—");
         UpdateDnsApplyAvailability();
     }
 
     private void UpdateDnsApplyAvailability()
     {
-        DnsApplyButton.IsEnabled = !_isApplyingDns && !_isNetworkActionRunning
-            && DnsAdapterComboBox.SelectedItem is DnsAdapterOption && GetSelectedDnsPreset() != "none";
+        DnsApplyButton.IsEnabled = !_isApplyingDns && !_isNetworkActionRunning && AdapterTargetComboBox.IsEnabled
+            && AdapterTargetComboBox.SelectedItem is NetworkAdapterCandidate { IsUp: true, SupportsIpv4: true } && GetSelectedDnsPreset() != "none";
     }
 
     private void SelectDnsPreset(string key)
@@ -2745,101 +2774,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         return IPAddress.TryParse(value, out var address) && address.AddressFamily == AddressFamily.InterNetwork;
     }
 
-    private void RefreshDnsInfoCore()
-    {
-        var selectedAdapter = (DnsAdapterComboBox.SelectedItem as DnsAdapterOption)?.Id;
-        _isSyncingDnsControls = true;
-        try
-        {
-            _dnsAdapterOptions.Clear();
-            _dnsRows.Clear();
-            foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces()
-                .Where(item => item.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-                .OrderByDescending(item => item.OperationalStatus == OperationalStatus.Up)
-                .ThenBy(item => item.Name))
-            {
-                var properties = networkInterface.GetIPProperties();
-                var servers = NetworkAdapterPresentation.Addresses(properties.DnsAddresses);
-
-                if (servers == "—" && networkInterface.OperationalStatus != OperationalStatus.Up)
-                {
-                    continue;
-                }
-
-                if (networkInterface.OperationalStatus == OperationalStatus.Up)
-                {
-                    _dnsAdapterOptions.Add(new DnsAdapterOption(networkInterface.Id, networkInterface.Name,
-                        properties.GatewayAddresses.Any(item => item.Address.AddressFamily == AddressFamily.InterNetwork && !item.Address.Equals(IPAddress.Any))));
-                }
-
-                _dnsRows.Add(new DnsServerRow(
-                    networkInterface.Name,
-                    servers,
-                    _localizer.T("DnsOriginUnknown"),
-                    LocalizeOperationalStatus(networkInterface.OperationalStatus), networkInterface.OperationalStatus));
-            }
-
-            DnsStatusText.Text = _dnsRows.Count == 0
-                ? _localizer.T("NoDnsServers")
-                : string.Format(_localizer.T("DnsServerCount"), _dnsRows.Count);
-
-            var chosenId = NetworkAdapterSelection.Choose(_dnsAdapterOptions.Select(item =>
-                new NetworkAdapterCandidate(item.Id, item.Name, true, item.HasDefaultGateway)), selectedAdapter);
-            DnsAdapterComboBox.SelectedItem = _dnsAdapterOptions.FirstOrDefault(item => item.Id == chosenId);
-            if (selectedAdapter != chosenId) { SelectDnsPreset("none"); ApplyDnsPresetToFields(); }
-        }
-        finally { _isSyncingDnsControls = false; }
-        FillDnsFieldsFromSelectedAdapter();
-        UpdateEmptyStates();
-    }
-
-    private void RefreshAdapterInfoCore()
-    {
-        var previousId = (AdapterTargetComboBox.SelectedItem as NetworkAdapterCandidate)?.Id;
-        var dhcpTargets = new List<NetworkAdapterCandidate>();
-        _adapterRows.Clear();
-        foreach (var networkInterface in NetworkInterface.GetAllNetworkInterfaces()
-            .Where(item => item.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-            .OrderByDescending(item => item.OperationalStatus == OperationalStatus.Up)
-            .ThenBy(item => item.Name))
-        {
-            var properties = networkInterface.GetIPProperties();
-            if (networkInterface.OperationalStatus == OperationalStatus.Up && networkInterface.Supports(NetworkInterfaceComponent.IPv4))
-            {
-                var ipv4Properties = properties.GetIPv4Properties();
-                if (ipv4Properties?.IsDhcpEnabled == true)
-                    dhcpTargets.Add(new(networkInterface.Id, networkInterface.Name, true,
-                        properties.GatewayAddresses.Any(item => item.Address.AddressFamily == AddressFamily.InterNetwork && !item.Address.Equals(IPAddress.Any))));
-            }
-            var ipv4 = properties.UnicastAddresses
-                .Where(item => item.Address.AddressFamily == AddressFamily.InterNetwork)
-                .Select(item => item.Address.ToString())
-                .ToList();
-            var gateways = properties.GatewayAddresses
-                .Where(item => item.Address.AddressFamily == AddressFamily.InterNetwork)
-                .Select(item => item.Address.ToString())
-                .ToList();
-            var dns = NetworkAdapterPresentation.Addresses(properties.DnsAddresses);
-
-            _adapterRows.Add(new AdapterRow(
-                networkInterface.Name,
-                NetworkAdapterPresentation.Type(networkInterface.NetworkInterfaceType, _localizer),
-                LocalizeOperationalStatus(networkInterface.OperationalStatus),
-                ipv4.Count == 0 ? "-" : string.Join(", ", ipv4),
-                gateways.Count == 0 ? "-" : string.Join(", ", gateways),
-                dns, networkInterface.NetworkInterfaceType, networkInterface.OperationalStatus));
-        }
-
-        AdapterStatusText.Text = string.Format(_localizer.T("AdapterCount"), _adapterRows.Count);
-        AdapterTargetComboBox.ItemsSource = dhcpTargets;
-        var chosenId = NetworkAdapterSelection.Choose(dhcpTargets, previousId);
-        AdapterTargetComboBox.SelectedItem = dhcpTargets.FirstOrDefault(item => item.Id == chosenId);
-        if (dhcpTargets.Count == 0) AdapterStatusText.Text = _localizer.T("NoDhcpAdapter");
-        UpdateEmptyStates();
-    }
-
     private static bool NetworkTargetStillMatches(string id, string name) => NetworkInterface.GetAllNetworkInterfaces()
-        .Any(adapter => adapter.Id == id && adapter.Name == name && adapter.OperationalStatus == OperationalStatus.Up);
+        .Any(adapter => adapter.Id == id && adapter.Name == name && adapter.OperationalStatus == OperationalStatus.Up && adapter.Supports(NetworkInterfaceComponent.IPv4));
 
     private static NetworkAdapterCandidate ReadDhcpCandidate(NetworkInterface adapter)
     {
@@ -3136,9 +3072,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private sealed record WebsiteTestRow(string Name, string Status, string HttpStatus, string DnsLatency, string HttpLatency, string Address, string Detail, string TimeText);
     private sealed record IpInfoRow(string Name, string Value);
     private sealed record DiagnosticReportRow(string Item, string Result, string Advice);
-    private sealed record DnsAdapterOption(string Id, string Name, bool HasDefaultGateway);
-    private sealed record DnsServerRow(string Adapter, string Servers, string Source, string Status, OperationalStatus LinkState);
-    private sealed record AdapterRow(string Name, string Type, string Status, string Ipv4, string Gateway, string DnsServers,
+    private sealed record DnsServerRow(string Id, string Adapter, string Servers, string Source, string Status, OperationalStatus LinkState);
+    private sealed record AdapterRow(string Id, string Name, string Type, string Status, string Ipv4, string Gateway, string DnsServers,
         NetworkInterfaceType InterfaceType, OperationalStatus LinkState);
 
     private sealed class NearbyWifiRow(

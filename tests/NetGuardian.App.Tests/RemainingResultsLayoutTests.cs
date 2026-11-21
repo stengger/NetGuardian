@@ -21,7 +21,7 @@ public sealed class RemainingResultsLayoutTests
             DesktopFixture.ShowPage(window, page);
             var grid = (DataGrid)window.FindName(name);
             grid.ItemsSource = Enumerable.Range(1, 12).Select(i => new { Name = $"检查-{i}", ResultText = "通过", LatencyText = "10ms", Detail = "完整结果" }).ToArray();
-            ((ListBox)window.FindName("RecentEventsList")).ItemsSource = Enumerable.Range(1, 20).Select(i => $"最近事件-{i}").ToArray();
+            ((ListBox)window.FindName("RecentEventsList")).ItemsSource = Enumerable.Range(1, 20).Select(i => new { TimeText = "14:10", Summary = $"最近事件-{i}" }).ToArray();
             DesktopFixture.Layout(window, 1040, 660);
             DesktopFixture.Save(window, $"natural-{name}.png");
             var outer = (ScrollViewer)window.FindName(scrollName);

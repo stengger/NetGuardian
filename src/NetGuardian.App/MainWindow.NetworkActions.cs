@@ -82,7 +82,7 @@ public partial class MainWindow
         UpdateMonitorStatus();
         UpdateDnsApplyAvailability();
         DnsFlushButton.IsEnabled = !_isNetworkActionRunning && !_isApplyingDns;
-        AdapterRenewDhcpButton.IsEnabled = !_isNetworkActionRunning && AdapterTargetComboBox.Items.Count > 0;
+        UpdateRenewAvailability();
         AddManualButton.IsEnabled = !_isNetworkActionRunning;
         if (_isNetworkActionRunning && _networkActionStatusKey is not null)
         {

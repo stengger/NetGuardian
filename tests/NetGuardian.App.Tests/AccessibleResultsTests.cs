@@ -23,12 +23,12 @@ public sealed class AccessibleResultsTests
                 localizer.SetLanguage(language);
                 foreach (var (controlName, labelName, key) in new[]
                 {
-                    ("ProbeGrid", "ProbeTitleText", "CheckNow"), ("RecentEventsList", "RecentEventsTitle", "RecentEvents"),
+                    ("ProbeGrid", "ProbeTitleText", "ProbeDetails"), ("RecentEventsList", "RecentEventsTitle", "RecentEvents"),
                     ("NearbyGrid", "NearbyNetworksTitle", "NearbyNetworks"), ("ProfileGrid", "PriorityListTitle", "PriorityList"),
                     ("DnsGrid", "DnsToolsTitle", "DnsTools"), ("QualityProbeGrid", "QualityToolsTitle", "QualityCheckTitle"),
                     ("AdapterGrid", "AdapterToolsTitle", "AdapterTools"), ("WebsiteGrid", "WebsiteToolsTab", "WebsiteTools"),
                     ("IpInfoGrid", "IpInfoToolsTab", "IpInfoTools"), ("ReportGrid", "ReportToolsTab", "ReportTools"),
-                    ("LogGrid", "LogNavButton", "Log"), ("LogDetailsTextBox", "LogDetailsExpander", "LogSelectedDetails")
+                    ("LogGrid", "PageTitleText", "Log"), ("LogDetailsTextBox", "LogDetailsExpander", "LogSelectedDetails")
                 })
                 {
                     var label = window.FindName(labelName);

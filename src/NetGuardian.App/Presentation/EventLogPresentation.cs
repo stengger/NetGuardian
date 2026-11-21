@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 
@@ -12,10 +13,12 @@ internal static class EventLogPresentation
         ((Button)root.FindName("LogResetFilterButton")).Visibility = total > 0 && visible == 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    public static void ResetFilters(FrameworkElement root)
+    public static void ResetFilters(FrameworkElement root, bool recoveryOnly = false)
     {
         ((TextBox)root.FindName("LogSearchTextBox")).Clear();
         ((ComboBox)root.FindName("LogLevelComboBox")).SelectedIndex = 0;
-        ((ComboBox)root.FindName("LogSourceComboBox")).SelectedIndex = 0;
+        var source = (ComboBox)root.FindName("LogSourceComboBox");
+        source.IsEnabled = !recoveryOnly;
+        source.SelectedItem = source.Items.Cast<ComboBoxItem>().Single(item => Equals(item.Tag, recoveryOnly ? "Recovery" : "all"));
     }
 }

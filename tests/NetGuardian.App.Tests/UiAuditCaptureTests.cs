@@ -16,6 +16,66 @@ namespace NetGuardian.App.Tests;
 public sealed class UiAuditCaptureTests
 {
     [Theory]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Dark)]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Light)]
+    public void 首页指标与诊断入口在明暗主题下均完整可见(Wpf.Ui.Appearance.ApplicationTheme theme)
+    {
+        DesktopFixture.Run(window =>
+        {
+            PopulateLabels(window);
+            var localizer = new Localizer();
+            void Text(string name, string value) => ((TextBlock)window.FindName(name)).Text = value;
+            var nav = (PanelNavigationView)window.FindName("RootNavigation");
+            nav.SelectionChanged += (_, _) => PanelNavigationPresenter.Show(window, (nav.SelectedItem as PanelNavigationItem)?.Tag as string, localizer);
+            nav.SelectPanel("StatusPanel");
+            // 示例数据仅用于离屏渲染，固定组数便于发现点击区域或文字裁切。
+            Text("HealthStateText", localizer.T("Healthy")); Text("HealthStateIcon", "✓");
+            Text("HeaderStateText", localizer.T("BackgroundMonitoring")); Text("MonitorStateText", localizer.T("BackgroundMonitoring"));
+            Text("SummaryText", "网关、DNS 和 HTTPS 检查均已通过。"); Text("CurrentSsidText", "Lab Wi-Fi");
+            Text("NextCheckText", "45 s"); Text("FailureStreakText", "0");
+            Text("WeeklySummaryText", "近 7 天共记录 2 次断网，两次均已恢复。"); Text("WeeklyOutagesText", "2"); Text("WeeklyRateText", "100%");
+            Text("SidebarUploadSpeedText", "12.4"); Text("SidebarDownloadSpeedText", "86.0");
+            Text("SidebarUploadUnitText", "KiB/s"); Text("SidebarDownloadUnitText", "KiB/s");
+            foreach (var (name, value) in new[] { ("Gateway", "2 ms"), ("Dns", "14 ms"), ("Https", "86 ms") })
+            {
+                Text($"Home{name}Value", value); Text($"Home{name}Samples", "2 / 2 个样本成功");
+            }
+            foreach (var name in new[] { "HealthStateText", "HealthStateIcon" })
+                AppThemePolicy.BindBrush((TextBlock)window.FindName(name), TextBlock.ForegroundProperty, "StatusHealthyBrush");
+            ((System.Windows.Shapes.Ellipse)window.FindName("StatusDot")).SetResourceReference(System.Windows.Shapes.Shape.FillProperty, "StatusHealthyBrush");
+            ((DataGrid)window.FindName("ProbeGrid")).ItemsSource = new[] { new { Name = "网关 Ping", ResultText = "通过", LatencyText = "2 ms", Detail = "网关可达" } };
+            ((ListBox)window.FindName("RecentEventsList")).ItemsSource = new[] { new { TimeText = "09:41", Summary = "连接正常，后台守护继续监控。" } };
+            ((TextBlock)window.FindName("RecentEventsEmptyText")).Visibility = Visibility.Collapsed;
+            DesktopFixture.Layout(window, 1180, 760);
+            var metrics = new[] { "Gateway", "Dns", "Https" }.Select(name => (Button)window.FindName($"Home{name}Link")).ToArray();
+            foreach (var metric in metrics)
+            {
+                var bounds = metric.TransformToAncestor(window).TransformBounds(new Rect(metric.RenderSize));
+                Assert.InRange(bounds.Right, 1, window.ActualWidth); Assert.InRange(bounds.Bottom, 1, window.ActualHeight);
+                Assert.Equal(metrics[0].ActualHeight, metric.ActualHeight);
+            }
+            DesktopFixture.Save(window, $"首页-{theme}.png");
+            nav.SelectPanel("ToolsPanel");
+            Text("QualityStateText", localizer.T("Healthy")); Text("QualityPassedText", "6 / 6 项检查通过 · Lab Wi-Fi");
+            foreach (var (name, value) in new[] { ("Gateway", "2 ms"), ("Dns", "14 ms"), ("Https", "86 ms") })
+            {
+                Text($"Quality{name}Value", value); Text($"Quality{name}Samples", "2 / 2 个样本成功");
+            }
+            ((DataGrid)window.FindName("QualityProbeGrid")).ItemsSource = new[]
+            {
+                new { Name = "网关 Ping", ResultText = "通过", LatencyText = "2 ms", Detail = "网关可达" },
+                new { Name = "DNS 查询", ResultText = "通过", LatencyText = "14 ms", Detail = "域名解析成功" },
+                new { Name = "HTTPS 响应", ResultText = "通过", LatencyText = "86 ms", Detail = "收到响应" }
+            };
+            ((TextBlock)window.FindName("QualityEmptyText")).Visibility = Visibility.Collapsed;
+            DesktopFixture.Layout(window, 1180, 760);
+            Assert.True(((Button)window.FindName("QualityRunButton")).IsVisible);
+            Assert.False(((Button)window.FindName("CheckNowButton")).IsVisible);
+            DesktopFixture.Save(window, $"网络诊断-{theme}.png");
+        }, theme);
+    }
+
+    [Theory]
     [InlineData("Dark")]
     [InlineData("Light")]
     [InlineData("HighContrast")]

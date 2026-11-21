@@ -7,6 +7,20 @@ namespace NetGuardian.App.Tests;
 public sealed class QualityCheckSessionTests
 {
     [Fact]
+    public void 首页快照保留来源且不能覆盖进行中的检查()
+    {
+        var session = new QualityCheckSession();
+        var snapshot = new ConnectivityReport { State = NetworkState.DnsIssue };
+        Assert.True(session.Preview(snapshot, ConnectivityReportOrigin.Background));
+        Assert.Same(snapshot, session.Report);
+        Assert.Equal(ConnectivityReportOrigin.Background, session.PreviewOrigin);
+        session.Begin();
+        Assert.Null(session.PreviewOrigin);
+        Assert.False(session.Preview(snapshot, ConnectivityReportOrigin.Foreground));
+        Assert.Null(session.Report);
+    }
+
+    [Fact]
     public void 新检查清除旧结果且取消后的迟到成功不能覆盖取消()
     {
         var state = new QualityCheckSession();

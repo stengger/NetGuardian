@@ -78,7 +78,7 @@ public sealed class SmallWorkAreaTests
             ((TextBlock)window.FindName("SidebarSpeedTitle")).Text = "本机接口流量合计";
             ((TextBlock)window.FindName("SidebarSpeedScopeText")).Text = "活动接口合计，非互联网测速";
             DesktopFixture.Layout(window, 960, 500);
-            var item = (FrameworkElement)window.FindName("LogNavButton");
+            var item = (FrameworkElement)window.FindName("PolicyNavButton");
             item.BringIntoView(); window.UpdateLayout();
             var card = (FrameworkElement)window.FindName("SidebarSpeedCard");
             var itemBounds = item.TransformToAncestor(window).TransformBounds(new Rect(item.RenderSize));
@@ -232,17 +232,23 @@ public sealed class SmallWorkAreaTests
         {
             // 仅隔离内容布局；生产窗口最小尺寸尚未适配此工作区。
             window.MinWidth = 960; window.MinHeight = 500;
-            DesktopFixture.ShowPage(window, page);
-            DesktopFixture.Layout(window, 960, 500);
-            foreach (var name in new[] { "CheckNowButton", "StartMonitorButton", "StopButton", actionName })
+            void 检查可达(string name)
             {
                 var action = (FrameworkElement)window.FindName(name);
+                Assert.True(action.IsVisible);
                 action.BringIntoView(); window.UpdateLayout();
                 var bounds = action.TransformToAncestor(window).TransformBounds(new Rect(action.RenderSize));
                 Assert.True(bounds.Left >= 0 && bounds.Right <= 960 && bounds.Top >= 0 && bounds.Bottom <= 500,
                     $"{page}/{name} 超出工作区：{bounds}");
                 Assert.True(action.ActualHeight >= 28);
             }
+            DesktopFixture.ShowPage(window, "StatusPanel");
+            DesktopFixture.Layout(window, 960, 500);
+            foreach (var name in new[] { "CheckNowButton", "StartMonitorButton", "StopButton" }) 检查可达(name);
+            DesktopFixture.ShowPage(window, page);
+            DesktopFixture.Layout(window, 960, 500);
+            Assert.False(((FrameworkElement)window.FindName("HomeMonitorActions")).IsVisible);
+            检查可达(actionName);
             DesktopFixture.Save(window, $"small-workarea-{page}.png");
         });
     }

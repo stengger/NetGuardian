@@ -34,7 +34,7 @@ public sealed class PanelNavigationTests
             ((System.Windows.Controls.TextBlock)window.FindName("HighRiskText")).Text = localizer.T("HighRiskReserved");
             foreach (var (tab, key) in new[] { ("QuickToolsTab", "QuickTools"), ("SpeedToolsTab", "SpeedTools"), ("WebsiteToolsTab", "WebsiteTools"), ("IpInfoToolsTab", "IpInfoTools"), ("ReportToolsTab", "ReportTools") })
                 ((System.Windows.Controls.TabItem)window.FindName(tab)).Header = localizer.T(key);
-            foreach (var tabName in new[] { "QuickToolsTab", "SpeedToolsTab", "WebsiteToolsTab", "IpInfoToolsTab", "ReportToolsTab" })
+            foreach (var tabName in new[] { "QualityToolsTab", "QuickToolsTab", "SpeedToolsTab", "WebsiteToolsTab", "IpInfoToolsTab", "ReportToolsTab" })
             {
                 tabs.SelectedItem = window.FindName(tabName);
                 PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
@@ -191,8 +191,8 @@ public sealed class PanelNavigationTests
             Assert.IsAssignableFrom<ISelectionProvider>(selection.SelectionContainer.GetPatternProvider(10001));
             Assert.Throws<InvalidOperationException>(selection.RemoveFromSelection);
             var actualItems = peer.GetChildren()!.Where(child => child.GetPattern(PatternInterface.SelectionItem) is ISelectionItemProvider).ToArray();
-            Assert.Equal(9, actualItems.Length);
-            Assert.Equal(9, actualItems.Select(child => child.GetName()).Distinct().Count());
+            Assert.Equal(6, actualItems.Length);
+            Assert.Equal(6, actualItems.Select(child => child.GetName()).Distinct().Count());
         });
     }
 
@@ -208,7 +208,7 @@ public sealed class PanelNavigationTests
             var localizer = new Localizer();
             localizer.SetLanguage(language);
             var items = navigation.MenuItems.Cast<object>().Concat(navigation.FooterMenuItems.Cast<object>()).OfType<PanelNavigationItem>().ToArray();
-            Assert.Equal(9, items.Length);
+            Assert.Equal(6, items.Length);
             var changes = 0;
             navigation.SelectionChanged += (_, _) => changes++;
             navigation.SelectionChanged += (_, _) => PanelNavigationPresenter.Show(window, (navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString(), localizer);
@@ -219,12 +219,11 @@ public sealed class PanelNavigationTests
             var actionMap = new[]
             {
                 ("StatusPanel", (string?)null), ("WifiPanel", "WifiPageActions"),
-                ("QualityPanel", "QualityPageActions"), ("ToolsPanel", "ToolsPageActions"),
-                ("DnsPanel", "DnsPageActions"), ("NetworkPanel", "NetworkPageActions"),
+                ("ToolsPanel", "QualityPageActions"), ("ConfigurationWorkspace", "NetworkPageActions"),
                 ("PolicyPanel", "PolicyPageActions"), ("LogPanel", "LogPageActions"),
                 ("SettingsPanel", (string?)null)
             };
-            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"), ("QualityNavButton", "QualityTools"), ("ToolsNavButton", "Tools"), ("DnsNavButton", "DnsTools"), ("AdapterNavButton", "AdapterTools"), ("PolicyNavButton", "Policy"), ("LogNavButton", "Log"), ("SettingsNavButton", "Settings") })
+            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"), ("ToolsNavButton", "DiagnosticsWorkspace"), ("AdapterNavButton", "ConfigurationWorkspace"), ("PolicyNavButton", "RecoveryWorkspace"), ("SettingsNavButton", "Settings") })
             {
                 var item = (PanelNavigationItem)window.FindName(name);
                 item.Content = localizer.T(key);
@@ -236,7 +235,7 @@ public sealed class PanelNavigationTests
                 Assert.Same(item, navigation.SelectedItem);
                 var panel = (FrameworkElement)window.FindName((string)item.Tag);
                 Assert.Equal(Visibility.Visible, panel.Visibility);
-                Assert.Equal(1, new[] { "StatusPanel", "WifiPanel", "QualityPanel", "ToolsPanel", "DnsPanel", "NetworkPanel", "PolicyPanel", "LogPanel", "SettingsPanel" }
+                Assert.Equal(1, new[] { "StatusPanel", "WifiPanel", "ToolsPanel", "ConfigurationWorkspace", "PolicyPanel", "LogPanel", "SettingsPanel" }
                     .Count(tag => ((FrameworkElement)window.FindName(tag)).Visibility == Visibility.Visible));
                 var expectedAction = actionMap.Single(action => action.Item1 == (string)item.Tag);
                 Assert.Equal(expectedAction.Item2 is not null, ((FrameworkElement)window.FindName("PageActionBar")).Visibility == Visibility.Visible);
@@ -245,7 +244,7 @@ public sealed class PanelNavigationTests
                 Assert.Equal(localizer.T(key), ((System.Windows.Controls.TextBlock)window.FindName("PageTitleText")).Text);
                 Assert.True(navigation.SelectPanel((string)item.Tag));
             }
-            Assert.Equal(9, changes);
+            Assert.Equal(6, changes);
             Assert.False(navigation.SelectPanel("Unknown"));
             var disabled = items[0];
             disabled.IsEnabled = false;
@@ -253,7 +252,7 @@ public sealed class PanelNavigationTests
             var disabledPeer = UIElementAutomationPeer.CreatePeerForElement(disabled)!;
             var disabledSelection = (ISelectionItemProvider)disabledPeer.GetPattern(PatternInterface.SelectionItem);
             Assert.Throws<System.Windows.Automation.ElementNotEnabledException>(disabledSelection.Select);
-            Assert.Equal(9, changes);
+            Assert.Equal(6, changes);
             DesktopFixture.Layout(window, 1040, 660);
             navigation.IsPaneOpen = expanded;
             window.UpdateLayout();
@@ -307,7 +306,7 @@ public sealed class PanelNavigationTests
             var localizer = new Localizer();
             DesktopFixture.ShowPage(window, "ToolsPanel");
             var tabs = (System.Windows.Controls.TabControl)window.FindName("ToolsTabControl");
-            Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("ToolsPageActions")).Visibility);
+            Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("QualityPageActions")).Visibility);
             tabs.SelectedItem = window.FindName("WebsiteToolsTab");
             PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("WebsitePageActions")).Visibility);
@@ -352,6 +351,7 @@ public sealed class PanelNavigationTests
                     Assert.Equal(action.Name == expectedAction ? Visibility.Visible : Visibility.Collapsed, action.Visibility);
                 Assert.Equal(expectedAction is null ? Visibility.Collapsed : Visibility.Visible, actionBar.Visibility);
             }
+            tabs.SelectedItem = window.FindName(tabName);
             PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
             Assert.Equal(Visibility.Visible, ((UIElement)window.FindName(actionName)).Visibility);
         });

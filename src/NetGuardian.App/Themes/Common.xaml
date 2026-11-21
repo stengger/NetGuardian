@@ -3,6 +3,29 @@
  xmlns:sys="clr-namespace:System;assembly=mscorlib" xmlns:presentation="clr-namespace:NetGuardian.App.Presentation">
 
         <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Buttons.xaml" /><ResourceDictionary Source="Filters.xaml" /><ResourceDictionary Source="ScrollBars.xaml" /><ResourceDictionary Source="WifiWorkspace.xaml" /><ResourceDictionary Source="../Views/ListSectionHeader.xaml" /></ResourceDictionary.MergedDictionaries>
+        <ControlTemplate x:Key="ConfigurationTabsTemplate" TargetType="TabControl">
+            <Grid KeyboardNavigation.TabNavigation="Local">
+                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                <TabPanel IsItemsHost="True" Margin="{DynamicResource SpacingFieldGap}" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                <ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent" />
+            </Grid>
+        </ControlTemplate>
+        <Style x:Key="MetricLinkStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="{DynamicResource SpacingCardPadding}" />
+        </Style>
+        <Style x:Key="WorkspaceLinkStyle" TargetType="Button" BasedOn="{StaticResource SecondaryButtonStyle}">
+            <Setter Property="Foreground" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Padding" Value="{DynamicResource SpacingCompactInset}" />
+        </Style>
+        <Style x:Key="EventEntryLinkStyle" TargetType="Button" BasedOn="{StaticResource WorkspaceLinkStyle}">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+        </Style>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <presentation:WifiSignalIconConverter x:Key="WifiSignalIconConverter" />
         <presentation:WifiCurrentRowConverter x:Key="WifiCurrentRowConverter" />
