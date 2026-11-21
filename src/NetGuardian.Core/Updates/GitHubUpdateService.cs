@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace NetGuardian.Core.Updates;
 
-public sealed class GitHubUpdateService(HttpClient client, Action<FileInfo>? validateCacheFile = null,
+public sealed partial class GitHubUpdateService(HttpClient client, Action<FileInfo>? validateCacheFile = null,
     Func<FileInfo, FileStream>? createPartial = null) : IUpdateService
 {
     private const string Repository = "https://github.com/stengger/NetGuardian";
@@ -65,33 +65,34 @@ public sealed class GitHubUpdateService(HttpClient client, Action<FileInfo>? val
             if (cached is not null) return cached;
 
             var partial = PartialFile(directory, name, expected);
+            var ranges = new RangeCache(this, partial, release.Installer.Size);
             // 持有独占读写权直到校验和改名结束，另一次下载不能修改或清除正在写入的分片。
-            await using var output = InspectFile(partial)
-                ? new FileStream(partial.FullName, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete, 81920, true)
-                : createPartial?.Invoke(partial) ?? new FileStream(partial.FullName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Delete, 81920, true);
+            await using var output = OpenPartial(partial);
             try
             {
                 if (output.Length > release.Installer.Size) output.SetLength(0);
-                progress?.Report(new UpdateProgress(output.Length, release.Installer.Size));
-                await DownloadWithRetryAsync(release.Installer, output, progress, token);
+                progress?.Report(new UpdateProgress(ranges.SavedBytes(output.Length), release.Installer.Size));
+                await DownloadWithRetryAsync(release.Installer, output, ranges, progress, token);
                 output.Position = 0;
                 var actual = Convert.ToHexString(await SHA256.HashDataAsync(output, token)).ToLowerInvariant();
                 token.ThrowIfCancellationRequested();
                 if (actual != expected) throw Verification("安装包完整性校验失败。");
                 var destination = Path.Combine(directory, name);
+                ranges.DeleteTails();
                 File.Move(partial.FullName, destination, true);
                 return new DownloadedUpdate(release.Version, destination, actual);
             }
             catch (Exception ex) when (ex is HttpRequestException or UpdateException { Error: UpdateError.RateLimited }
                 || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
             {
-                var saved = new UpdateProgress(output.Length, release.Installer.Size);
-                if (saved.Received == 0) partial.Delete();
+                var saved = new UpdateProgress(ranges.SavedBytes(output.Length), release.Installer.Size);
+                if (saved.Received == 0) { ranges.DeleteTails(); partial.Delete(); }
                 var error = ex is UpdateException failure ? failure.Error : UpdateError.Network;
                 throw new UpdateException(error, "安装包下载中断。", ex) { SavedProgress = saved };
             }
             catch
             {
+                ranges.DeleteTails();
                 partial.Delete();
                 throw;
             }
@@ -101,72 +102,130 @@ public sealed class GitHubUpdateService(HttpClient client, Action<FileInfo>? val
         catch (HttpRequestException ex) { throw new UpdateException(UpdateError.Network, "下载安装包失败。", ex); }
     }
 
-    private async Task DownloadWithRetryAsync(UpdateAsset asset, FileStream output, IProgress<UpdateProgress>? progress, CancellationToken token)
+    private FileStream OpenPartial(FileInfo file) => InspectFile(file)
+        ? new FileStream(file.FullName, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete, 81920, true)
+        : createPartial?.Invoke(file) ?? new FileStream(file.FullName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Delete, 81920, true);
+
+    private static bool CanRetry(HttpRequestException error) =>
+        error.StatusCode is null or HttpStatusCode.RequestTimeout || (int)error.StatusCode >= 500;
+
+    private async Task DownloadWithRetryAsync(UpdateAsset asset, FileStream output, RangeCache ranges,
+        IProgress<UpdateProgress>? progress, CancellationToken token)
     {
-        const int maxAttempts = 3;
-        for (var attempt = 1; ; attempt++)
+        bool parallel = ranges.Enabled;
+        for (int attempt = 1; ; attempt++)
         {
             token.ThrowIfCancellationRequested();
             try
             {
-                await DownloadAttemptAsync(asset, output, progress, token);
+                await ranges.MergeAvailableAsync(output, token);
+                if (output.Length == asset.Size) return;
+                int first = ranges.SegmentAt(output.Length);
+                if (parallel && first < RangeCount - 1)
+                {
+                    // 用第一段的实际响应探测，支持时直接读这段，不支持时直接读返回的整包。
+                    using var probe = await SendAsync(asset.Url, token, output.Length, ranges.Start(first + 1) - 1);
+                    if (probe.StatusCode == HttpStatusCode.OK)
+                    {
+                        parallel = false;
+                        await WriteSequentialAsync(probe, output, asset.Size, progress, token);
+                        return;
+                    }
+                    if (probe.StatusCode != HttpStatusCode.RequestedRangeNotSatisfiable)
+                    {
+                        CheckRange(probe, output.Length, ranges.Start(first + 1) - 1, asset.Size);
+                        try
+                        {
+                            await DownloadRangesAsync(asset, output, ranges, first, probe, progress, token);
+                            await ranges.MergeAvailableAsync(output, token);
+                            if (output.Length != asset.Size) throw Verification("分段合并后安装包长度不匹配。");
+                            return;
+                        }
+                        catch (RangeUnsupportedException)
+                        {
+                            await ranges.MergeAvailableAsync(output, token);
+                            if (output.Length == asset.Size) return;
+                        }
+                    }
+                    parallel = false;
+                }
+                using var response = await SendAsync(asset.Url, token, output.Length);
+                await WriteSequentialAsync(response, output, asset.Size, progress, token);
                 return;
             }
-            catch (HttpRequestException ex) when (attempt < maxAttempts &&
-                (ex.StatusCode is null or HttpStatusCode.RequestTimeout || (int)ex.StatusCode >= 500))
+            catch (HttpRequestException ex) when (attempt < 3 && CanRetry(ex))
             {
                 await Task.Delay(TimeSpan.FromSeconds(attempt), token);
             }
         }
     }
 
-    private async Task DownloadAttemptAsync(UpdateAsset asset, FileStream output, IProgress<UpdateProgress>? progress, CancellationToken token)
+    private static async Task WriteSequentialAsync(HttpResponseMessage response, FileStream output, long size,
+        IProgress<UpdateProgress>? progress, CancellationToken token)
     {
         long offset = output.Length;
-        if (offset == asset.Size) return;
-        using var response = await SendAsync(asset.Url, token, offset);
         if (offset > 0 && response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
         {
             output.SetLength(0);
-            progress?.Report(new UpdateProgress(0, asset.Size));
+            progress?.Report(new UpdateProgress(0, size));
             throw new HttpRequestException("服务端拒绝续传，将重新请求完整安装包。");
         }
-        EnsureSuccess(response);
-        if (response.StatusCode == HttpStatusCode.PartialContent)
+        if (response.StatusCode == HttpStatusCode.OK)
         {
-            var range = response.Content.Headers.ContentRange;
-            if (range?.Unit != "bytes" || range.From != offset || range.To != asset.Size - 1 || range.Length != asset.Size)
-                throw Verification("续传响应范围与安装包不匹配。");
-        }
-        else if (response.StatusCode == HttpStatusCode.OK)
-        {
-            // 服务端忽略 Range 时，当前响应本身就是整包。
-            if (offset > 0) progress?.Report(new UpdateProgress(0, asset.Size));
+            if (offset > 0) progress?.Report(new UpdateProgress(0, size));
             output.SetLength(0);
             offset = 0;
         }
-        else throw Verification("服务端未返回预期的安装包响应。");
-        if (response.Content.Headers.ContentLength is long length && length != asset.Size - offset)
+        else CheckRange(response, offset, size - 1, size);
+        await AppendBodyAsync(response, output, size - offset, new TransferProgress(progress, size, offset), token);
+    }
+
+    private static void CheckRange(HttpResponseMessage response, long start, long end, long size)
+    {
+        EnsureSuccess(response);
+        var range = response.Content.Headers.ContentRange;
+        if (response.StatusCode != HttpStatusCode.PartialContent || range?.Unit != "bytes" ||
+            range.From != start || range.To != end || range.Length != size)
+            throw Verification("续传响应范围与安装包不匹配。");
+    }
+
+    private static async Task AppendBodyAsync(HttpResponseMessage response, FileStream output, long remaining,
+        TransferProgress progress, CancellationToken token)
+    {
+        if (response.Content.Headers.ContentLength is long length && length != remaining)
             throw Verification("下载长度与发布信息不一致。");
-        output.Position = offset;
-        var notifications = Stopwatch.StartNew();
-        await using var input = await response.Content.ReadAsStreamAsync(token);
+        output.Position = output.Length;
+        await using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
         var buffer = new byte[81920];
         while (true)
         {
             int count;
-            try { count = await input.ReadAsync(buffer, token); }
+            try { count = await input.ReadAsync(buffer.AsMemory(), token).ConfigureAwait(false); }
             catch (IOException ex) { throw new HttpRequestException("读取安装包时连接中断。", ex); }
             if (count == 0) break;
-            if (output.Position + count > asset.Size) throw Verification("下载内容超出预期长度。");
-            await output.WriteAsync(buffer.AsMemory(0, count), token);
-            if (notifications.ElapsedMilliseconds >= 100 || output.Position == asset.Size)
+            if (count > remaining) throw Verification("下载内容超出预期长度。");
+            await output.WriteAsync(buffer.AsMemory(0, count), token).ConfigureAwait(false);
+            remaining -= count;
+            progress.Add(count);
+        }
+        if (remaining != 0) throw new HttpRequestException("连接在安装包下载完成前关闭。");
+    }
+
+    private sealed class TransferProgress(IProgress<UpdateProgress>? progress, long total, long received)
+    {
+        private readonly Stopwatch notifications = Stopwatch.StartNew();
+
+        public void Add(int count)
+        {
+            if (progress is null) return;
+            lock (notifications)
             {
-                progress?.Report(new UpdateProgress(output.Position, asset.Size));
+                received += count;
+                if (notifications.ElapsedMilliseconds < 100 && received != total) return;
+                progress.Report(new UpdateProgress(received, total));
                 notifications.Restart();
             }
         }
-        if (output.Position != asset.Size) throw new HttpRequestException("连接在安装包下载完成前关闭。");
     }
 
     public async Task<DownloadedUpdate?> FindCachedAsync(UpdateRelease release, string directory, CancellationToken token)
@@ -193,8 +252,9 @@ public sealed class GitHubUpdateService(HttpClient client, Action<FileInfo>? val
             expected = await ExpectedHashAsync(release, name, token);
         }
         var part = PartialFile(directory, name, expected);
-        if (!InspectFile(part) || part.Length <= 0 || part.Length > release.Installer.Size) return default;
-        return new(null, new UpdateProgress(part.Length, release.Installer.Size));
+        if (!InspectFile(part) || part.Length > release.Installer.Size) return default;
+        long saved = new RangeCache(this, part, release.Installer.Size).SavedBytes(part.Length);
+        return saved == 0 ? default : new(null, new UpdateProgress(saved, release.Installer.Size));
     }
 
     private static FileInfo PartialFile(string directory, string name, string expected) =>
@@ -244,10 +304,10 @@ public sealed class GitHubUpdateService(HttpClient client, Action<FileInfo>? val
         return expected;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(Uri uri, CancellationToken token, long offset = 0)
+    private async Task<HttpResponseMessage> SendAsync(Uri uri, CancellationToken token, long offset = 0, long? end = null)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-        if (offset > 0) request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(offset, null);
+        if (offset > 0 || end.HasValue) request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(offset, end);
         request.Headers.UserAgent.ParseAdd("NetGuardian/1.1.0");
         request.Headers.Accept.ParseAdd(uri.Host == "api.github.com" ? "application/vnd.github+json" : "application/octet-stream");
         return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
