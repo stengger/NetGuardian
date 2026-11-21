@@ -62,8 +62,10 @@ public partial class MainWindow
         string T(string key) => _localizer.T(key);
         var phase = _qualitySession.Phase;
         var report = _qualitySession.Report;
+        QualityScopeText.Text = report is not null && _qualitySession.PreviewOrigin is { } origin
+            ? ConnectivityReportPresentation.Context(report, origin, _localizer) : T("QualityCheckScope");
         QualityRunButton.IsEnabled = !_qualitySession.IsBusy;
-        QualityRunButton.Content = T(phase == QualityCheckPhase.Idle ? "RunQualityCheck" : "QualityCheckAgain");
+        QualityRunButton.Content = T(phase is QualityCheckPhase.Idle or QualityCheckPhase.Preview ? "RunQualityCheck" : "QualityCheckAgain");
         QualityCancelButton.Visibility = _qualitySession.IsBusy ? Visibility.Visible : Visibility.Collapsed;
         QualityCancelButton.IsEnabled = phase == QualityCheckPhase.Running;
         QualityActivityBar.Visibility = _qualitySession.IsBusy ? Visibility.Visible : Visibility.Collapsed;

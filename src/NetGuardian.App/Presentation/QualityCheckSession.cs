@@ -3,7 +3,7 @@ using NetGuardian.Core.Models;
 
 namespace NetGuardian.App.Presentation;
 
-internal enum QualityCheckPhase { Idle, Running, Cancelling, Complete, Cancelled, Failed }
+internal enum QualityCheckPhase { Idle, Preview, Running, Cancelling, Complete, Cancelled, Failed }
 
 internal sealed class QualityCheckSession
 {
@@ -13,12 +13,25 @@ internal sealed class QualityCheckSession
     public string? Error { get; private set; }
     public bool IsBusy => Phase is QualityCheckPhase.Running or QualityCheckPhase.Cancelling;
 
+    public ConnectivityReportOrigin? PreviewOrigin { get; private set; }
+
+    public bool Preview(ConnectivityReport report, ConnectivityReportOrigin origin)
+    {
+        if (IsBusy) return false;
+        Report = report;
+        PreviewOrigin = origin;
+        Error = null;
+        Phase = QualityCheckPhase.Preview;
+        return true;
+    }
+
     public Guid Begin()
     {
         if (IsBusy) throw new InvalidOperationException("连接检查尚未结束。");
         _runId = Guid.NewGuid();
         Phase = QualityCheckPhase.Running;
         Report = null;
+        PreviewOrigin = null;
         Error = null;
         return _runId;
     }

@@ -130,23 +130,28 @@
     <!-- 共用标签头不依赖库高对比预设中的静态文字色。 -->
     <Style TargetType="TabItem">
         <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
-        <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
-        <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderBrush" Value="Transparent" />
         <Setter Property="FocusVisualStyle" Value="{StaticResource ButtonKeyboardFocusStyle}" />
         <Setter Property="MinHeight" Value="{DynamicResource ControlMinHeight}" />
         <Setter Property="Padding" Value="{DynamicResource SpacingControlPadding}" />
         <Setter Property="Template"><Setter.Value>
             <ControlTemplate TargetType="TabItem">
-                <Border x:Name="HeaderChrome" Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{DynamicResource StrokeControlThickness}"
-                        CornerRadius="{DynamicResource CornerControl}" Padding="{TemplateBinding Padding}">
-                    <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
-                </Border>
+                <Grid>
+                    <Border x:Name="HeaderChrome" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{DynamicResource StrokeControlThickness}"
+                            CornerRadius="{DynamicResource CornerControl}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter x:Name="HeaderLabel" ContentSource="Header" HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                    </Border>
+                    <Border x:Name="ActiveMark" Width="18" Height="3" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                            CornerRadius="2" Background="{DynamicResource FocusRingBrush}" Visibility="Collapsed" />
+                </Grid>
                 <ControlTemplate.Triggers>
                     <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="HeaderChrome" Property="Background" Value="{DynamicResource SurfaceHoverBrush}" /></Trigger>
                     <Trigger Property="IsSelected" Value="True">
                         <Setter TargetName="HeaderChrome" Property="Background" Value="{DynamicResource RowSelectedBrush}" />
-                        <Setter TargetName="HeaderChrome" Property="BorderBrush" Value="{DynamicResource FocusRingBrush}" />
+                        <Setter TargetName="ActiveMark" Property="Visibility" Value="Visible" />
+                        <Setter TargetName="HeaderLabel" Property="TextElement.FontWeight" Value="SemiBold" />
                     </Trigger>
                     <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource DisabledTextBrush}" /></Trigger>
                 </ControlTemplate.Triggers>

@@ -25,11 +25,12 @@ public sealed class SharedSurfaceTests
         DesktopFixture.Run(window =>
         {
             DesktopFixture.ShowPage(window, "ToolsPanel");
-            ((TabControl)window.FindName("ToolsTabControl")).SelectedIndex = 1;
+            ((TabControl)window.FindName("ToolsTabControl")).SelectedItem = window.FindName("SpeedToolsTab");
             DesktopFixture.Layout(window, 1180, 758);
             var speed = (FrameworkElement)window.FindName("SpeedView");
             Assert.Same(window.FindResource("SectionBorderStyle"), ((Border)speed.FindName("DownloadCard")).Style);
-            Assert.Same(window.FindResource("FormGroupStyle"), ((Border)window.FindName("UpdateCard")).Style);
+            foreach (var name in new[] { "AppearanceSettingsCard", "StartupSettingsCard", "UpdateCard" })
+                Assert.Same(window.FindResource("SectionBorderStyle"), ((Border)window.FindName(name)).Style);
         });
     }
 

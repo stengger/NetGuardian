@@ -1,5 +1,8 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <LinearGradientBrush x:Key="DashboardHeroBrush" StartPoint="0,0" EndPoint="1,0.8">
+        <GradientStop Color="#1C304A" Offset="0" /><GradientStop Color="#222830" Offset="1" />
+    </LinearGradientBrush>
     <Color x:Key="AppAccentColor">#6EA8FF</Color>
     <!-- Custom semantic colors — dark theme (U2 §3.3, pre-validated AA). -->
     <SolidColorBrush x:Key="StatusHealthyBrush" Color="#6CCB8A" />

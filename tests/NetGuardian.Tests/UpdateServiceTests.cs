@@ -143,6 +143,144 @@ public sealed class UpdateServiceTests
     }
 
     [Fact]
+    public async Task 三次断流后关闭下载器再打开时仅请求剩余字节()
+    {
+        using var cache = new TemporaryDirectory();
+        var offsets = new List<long?>();
+        using var failing = Client(installerResponse: request =>
+        {
+            offsets.Add(request.Headers.Range?.Ranges.Single().From);
+            if (offsets.Count > 1) throw new HttpRequestException("连接中断");
+            var first = new ByteArrayContent(Package[..3]);
+            first.Headers.ContentLength = Package.Length;
+            return new(HttpStatusCode.OK) { Content = first };
+        });
+        var firstService = new GitHubUpdateService(failing);
+        var release = (await firstService.CheckAsync(new Version(1, 0, 1), default))!;
+        var error = await Assert.ThrowsAsync<UpdateException>(() => firstService.DownloadAsync(release, cache.Path, null, default));
+        Assert.Equal(UpdateError.Network, error.Error);
+        Assert.Equal(new long?[] { null, 3, 3 }, offsets);
+        Assert.Null(await firstService.FindCachedAsync(release, cache.Path, default));
+
+        using var recovered = Client(installerResponse: request =>
+        {
+            offsets.Add(request.Headers.Range?.Ranges.Single().From);
+            if (request.Headers.Range is null) return new(HttpStatusCode.OK) { Content = new ByteArrayContent(Package) };
+            var rest = new ByteArrayContent(Package[3..]);
+            rest.Headers.ContentRange = new(3, Package.Length - 1, Package.Length);
+            return new(HttpStatusCode.PartialContent) { Content = rest };
+        });
+        var nextService = new GitHubUpdateService(recovered);
+        Assert.Equal(new UpdateProgress(3, Package.Length), error.SavedProgress);
+        foreach (var metadata in new[] { release, release with { Installer = release.Installer with { Digest = null } } })
+        {
+            var state = await nextService.InspectCacheAsync(metadata, cache.Path, default);
+            Assert.Null(state.Downloaded);
+            Assert.Equal(error.SavedProgress, state.Partial);
+        }
+        var progress = new ProgressLog();
+        var result = await nextService.DownloadAsync(release, cache.Path, progress, default);
+        Assert.Equal(new long?[] { null, 3, 3, 3 }, offsets);
+        Assert.Equal(new UpdateProgress(3, Package.Length), progress.First());
+        Assert.Equal(Package, await File.ReadAllBytesAsync(result.InstallerPath));
+        Assert.Equal(Hash, result.Sha256);
+        Assert.Single(Directory.GetFiles(cache.Path));
+    }
+
+    [Fact]
+    public async Task 下载超时保留已有分片而主动取消清理分片()
+    {
+        using var cache = new TemporaryDirectory();
+        using var cancellation = new CancellationTokenSource();
+        var requests = 0;
+        using var client = Client(installerResponse: request =>
+        {
+            requests++;
+            if (request.Headers.Range is not null) throw new HttpRequestException("连接仍中断");
+            var first = new ByteArrayContent(Package[..3]);
+            first.Headers.ContentLength = Package.Length;
+            return new(HttpStatusCode.OK) { Content = first };
+        });
+        client.Timeout = TimeSpan.FromMilliseconds(500);
+        var service = new GitHubUpdateService(client);
+        var release = (await service.CheckAsync(new Version(1, 0, 1), default))!;
+        var timeout = await Assert.ThrowsAsync<UpdateException>(() => service.DownloadAsync(release, cache.Path, null, default));
+        Assert.Equal(1, requests);
+        Assert.Equal(UpdateError.Network, timeout.Error);
+        Assert.Equal(new UpdateProgress(3, Package.Length), timeout.SavedProgress);
+
+        using var cancelledClient = Client(installerResponse: request =>
+        {
+            Assert.Equal(3L, request.Headers.Range?.Ranges.Single().From);
+            cancellation.Cancel();
+            throw new OperationCanceledException(cancellation.Token);
+        });
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => new GitHubUpdateService(cancelledClient)
+            .DownloadAsync(release, cache.Path, null, cancellation.Token));
+        Assert.Empty(Directory.GetFiles(cache.Path));
+    }
+
+    [Fact]
+    public async Task 同版本替换附件按新摘要从头下载()
+    {
+        using var cache = new TemporaryDirectory();
+        var release = await SeedInterruptedDownloadAsync(cache.Path);
+        var replacement = new byte[Package.Length];
+        var digest = Convert.ToHexString(SHA256.HashData(replacement)).ToLowerInvariant();
+        using var client = Client(assetHash: digest, installerResponse: request =>
+        {
+            Assert.Null(request.Headers.Range);
+            return new(HttpStatusCode.OK) { Content = new ByteArrayContent(replacement) };
+        });
+        var service = new GitHubUpdateService(client);
+        var next = release with { Installer = release.Installer with { Digest = "sha256:" + digest } };
+        Assert.Null((await service.InspectCacheAsync(next, cache.Path, default)).Partial);
+        var result = await service.DownloadAsync(next, cache.Path, null, default);
+        Assert.Equal(digest, result.Sha256);
+        Assert.Equal(replacement, await File.ReadAllBytesAsync(result.InstallerPath));
+    }
+
+    [Fact]
+    public async Task 缓存分片损坏时整包校验拒绝并清理()
+    {
+        using var cache = new TemporaryDirectory();
+        var release = await SeedInterruptedDownloadAsync(cache.Path);
+        await File.WriteAllBytesAsync(Assert.Single(Directory.GetFiles(cache.Path)), new byte[3]);
+        using var client = Client(installerResponse: request =>
+        {
+            Assert.Equal(3L, request.Headers.Range?.Ranges.Single().From);
+            var rest = new ByteArrayContent(Package[3..]);
+            rest.Headers.ContentRange = new(3, Package.Length - 1, Package.Length);
+            return new(HttpStatusCode.PartialContent) { Content = rest };
+        });
+        var error = await Assert.ThrowsAsync<UpdateException>(() => new GitHubUpdateService(client).DownloadAsync(release, cache.Path, null, default));
+        Assert.Equal(UpdateError.VerificationFailed, error.Error);
+        Assert.Empty(Directory.GetFiles(cache.Path));
+    }
+
+    private static async Task<UpdateRelease> SeedInterruptedDownloadAsync(string directory)
+    {
+        using var client = Client(installerResponse: request =>
+        {
+            if (request.Headers.Range is not null) return new(HttpStatusCode.TooManyRequests);
+            var first = new ByteArrayContent(Package[..3]);
+            first.Headers.ContentLength = Package.Length;
+            return new(HttpStatusCode.OK) { Content = first };
+        });
+        var service = new GitHubUpdateService(client);
+        var release = (await service.CheckAsync(new Version(1, 0, 1), default))!;
+        var error = await Assert.ThrowsAsync<UpdateException>(() => service.DownloadAsync(release, directory, null, default));
+        Assert.Equal(UpdateError.RateLimited, error.Error);
+        Assert.Equal(new UpdateProgress(3, Package.Length), error.SavedProgress);
+        return release;
+    }
+
+    private sealed class ProgressLog : List<UpdateProgress>, IProgress<UpdateProgress>
+    {
+        public void Report(UpdateProgress value) => Add(value);
+    }
+
+    [Fact]
     public async Task 续传范围错位拒绝安装并清理临时文件()
     {
         using var cache = new TemporaryDirectory();
@@ -181,13 +319,14 @@ public sealed class UpdateServiceTests
 
     private static HttpClient Client(string version = "1.2.0", bool draft = false, bool prerelease = false,
         string? installerUrl = null, bool checksum = true, string? failure = null, CancellationTokenSource? cancelDownload = null, Action? onInstaller = null,
-        Func<HttpRequestMessage, HttpResponseMessage>? installerResponse = null)
+        Func<HttpRequestMessage, HttpResponseMessage>? installerResponse = null, string? assetHash = null)
     {
+        assetHash ??= Hash;
         var name = $"NetGuardian-{version}-win-x64-Setup.exe";
         var download = $"https://github.com/stengger/NetGuardian/releases/download/v{version}/{name}";
         var assets = new List<object>
         {
-            new { name, size = Package.Length, browser_download_url = installerUrl ?? download, digest = "sha256:" + Hash }
+            new { name, size = Package.Length, browser_download_url = installerUrl ?? download, digest = "sha256:" + assetHash }
         };
         if (checksum) assets.Add(new { name = name + ".sha256", size = 110, browser_download_url = download + ".sha256", digest = (string?)null });
         var json = JsonSerializer.Serialize(new
@@ -202,7 +341,7 @@ public sealed class UpdateServiceTests
             if (request.RequestUri.AbsolutePath.EndsWith(".sha256"))
                 return new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new StringContent(Hash + "  " + (failure == "校验文件不符" ? "其他文件.exe" : name) + "\n")
+                    Content = new StringContent(assetHash + "  " + (failure == "校验文件不符" ? "其他文件.exe" : name) + "\n")
                 };
             if (installerResponse is not null) return installerResponse(request);
             onInstaller?.Invoke();

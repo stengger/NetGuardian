@@ -83,11 +83,54 @@ public partial class MainWindow
             LogScopeText.Text += Environment.NewLine + string.Format(_localizer.T("LogHistoryReadFailed"), _logReadError);
     }
 
+    private string? _logParent;
+
+    private void OpenEventLog_Click(object sender, RoutedEventArgs e)
+    {
+        _logParent = PolicyPanel.IsVisible ? "PolicyPanel" : "StatusPanel";
+        var recovery = _logParent == "PolicyPanel";
+        var entry = (sender as FrameworkElement)?.DataContext as UiLogEntry;
+        EventLogPresentation.ResetFilters(this, recovery);
+        LogGrid.SelectedItem = null;
+        LogDetailsExpander.IsExpanded = false;
+        ShowPanelByTag("LogPanel");
+        if (entry is not null && _logView?.Contains(entry) == true)
+        {
+            LogFollowCheckBox.IsChecked = false;
+            LogGrid.SelectedItem = entry;
+            LogDetailsExpander.IsExpanded = true;
+            LogGrid.ScrollIntoView(entry);
+        }
+        LogBackButton.Focus();
+    }
+
+    private void RenderLogContext()
+    {
+        var recovery = _logParent == "PolicyPanel";
+        PageTitleText.Text = _localizer.T(recovery ? "RecoveryHistory" : "Log");
+        LogBackButton.Content = _localizer.T(recovery ? "BackToRecovery" : "BackToHome");
+        UpdateLogViewInfo();
+    }
+
+    private void CloseEventLog_Click(object sender, RoutedEventArgs e)
+    {
+        var parent = _logParent ?? "StatusPanel";
+        _logParent = null;
+        ShowPanelByTag(parent);
+        (parent == "PolicyPanel" ? RecoveryLogsButton : HomeLogsButton).Focus();
+    }
+
+    private void ParentWorkspace_Click(object sender, RoutedEventArgs e)
+    {
+        if (_logParent != null) CloseEventLog_Click(sender, e);
+    }
+
     private void RebuildRecentEvents()
     {
         _recentEvents.Clear();
         foreach (var entry in _eventLogStore.Entries.OrderByDescending(entry => entry.Time).Take(6))
-            _recentEvents.Add($"{entry.TimeText}  {entry.Summary}");
+            _recentEvents.Add(entry);
+        RecoveryEventsList.ItemsSource = _eventLogStore.Entries.Reverse().Where(entry => entry.IsRecoveryEvent).Take(2).ToArray();
     }
 
     private void InitializeLogView()
@@ -127,7 +170,7 @@ public partial class MainWindow
         UpdateLogViewInfo();
     }
 
-    private void LogResetFilter_Click(object sender, RoutedEventArgs e) => EventLogPresentation.ResetFilters(this);
+    private void LogResetFilter_Click(object sender, RoutedEventArgs e) => EventLogPresentation.ResetFilters(this, _logParent == "PolicyPanel");
 
     private void LogFollow_Changed(object sender, RoutedEventArgs e)
     {
@@ -145,9 +188,12 @@ public partial class MainWindow
     {
         if (_logView is null) return;
         var count = _logView.Cast<object>().Count();
-        LogCountText.Text = string.Format(_localizer.T("LogVisibleCount"), count, _eventLogStore.Entries.Count);
-        EventLogPresentation.UpdateEmptyActions(this, _eventLogStore.Entries.Count, count);
-        LogEmptyText.Text = _localizer.T(_eventLogStore.Entries.Count == 0 ? "LogNoEntries" : "LogNoMatches");
+        var recovery = _logParent == "PolicyPanel";
+        var total = recovery ? _eventLogStore.Entries.Count(entry => entry.IsRecoveryEvent) : _eventLogStore.Entries.Count;
+        LogCountText.Text = string.Format(_localizer.T("LogVisibleCount"), count, total);
+        EventLogPresentation.UpdateEmptyActions(this, total, count);
+        if (recovery) LogEmptyAction.Visibility = Visibility.Collapsed;
+        LogEmptyText.Text = _localizer.T(total == 0 ? (recovery ? "NoRecoveryHistory" : "LogNoEntries") : "LogNoMatches");
     }
 
     private void RefreshLogLanguage()

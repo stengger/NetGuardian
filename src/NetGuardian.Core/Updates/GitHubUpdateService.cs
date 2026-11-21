@@ -7,7 +7,8 @@ using System.Text.RegularExpressions;
 
 namespace NetGuardian.Core.Updates;
 
-public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
+public sealed class GitHubUpdateService(HttpClient client, Action<FileInfo>? validateCacheFile = null,
+    Func<FileInfo, FileStream>? createPartial = null) : IUpdateService
 {
     private const string Repository = "https://github.com/stengger/NetGuardian";
     private const string Latest = "https://api.github.com/repos/stengger/NetGuardian/releases/latest";
@@ -53,27 +54,51 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
     {
         var name = ValidateAssets(release);
         Directory.CreateDirectory(directory);
-        var temporary = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".part");
+        // ResponseHeadersRead 不限制正文耗时，单独计时才能区别慢连接超时与用户主动取消。
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(client.Timeout);
+        var token = deadline.Token;
         try
         {
-            var expected = await ExpectedHashAsync(release, name, cancellationToken);
-            var cached = await VerifyCacheAsync(release, directory, name, expected, cancellationToken);
+            var expected = await ExpectedHashAsync(release, name, token);
+            var cached = await VerifyCacheAsync(release, directory, name, expected, token);
             if (cached is not null) return cached;
-            string actual;
-            await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920, true))
+
+            var partial = PartialFile(directory, name, expected);
+            // 持有独占读写权直到校验和改名结束，另一次下载不能修改或清除正在写入的分片。
+            await using var output = InspectFile(partial)
+                ? new FileStream(partial.FullName, FileMode.Open, FileAccess.ReadWrite, FileShare.Delete, 81920, true)
+                : createPartial?.Invoke(partial) ?? new FileStream(partial.FullName, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Delete, 81920, true);
+            try
             {
-                await DownloadWithRetryAsync(release.Installer, output, progress, cancellationToken);
+                if (output.Length > release.Installer.Size) output.SetLength(0);
+                progress?.Report(new UpdateProgress(output.Length, release.Installer.Size));
+                await DownloadWithRetryAsync(release.Installer, output, progress, token);
                 output.Position = 0;
-                actual = Convert.ToHexString(await SHA256.HashDataAsync(output, cancellationToken)).ToLowerInvariant();
+                var actual = Convert.ToHexString(await SHA256.HashDataAsync(output, token)).ToLowerInvariant();
+                token.ThrowIfCancellationRequested();
+                if (actual != expected) throw Verification("安装包完整性校验失败。");
+                var destination = Path.Combine(directory, name);
+                File.Move(partial.FullName, destination, true);
+                return new DownloadedUpdate(release.Version, destination, actual);
             }
-            cancellationToken.ThrowIfCancellationRequested();
-            if (actual != expected) throw Verification("安装包完整性校验失败。");
-            var destination = Path.Combine(directory, name);
-            File.Move(temporary, destination, true);
-            return new DownloadedUpdate(release.Version, destination, actual);
+            catch (Exception ex) when (ex is HttpRequestException or UpdateException { Error: UpdateError.RateLimited }
+                || ex is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+            {
+                var saved = new UpdateProgress(output.Length, release.Installer.Size);
+                if (saved.Received == 0) partial.Delete();
+                var error = ex is UpdateException failure ? failure.Error : UpdateError.Network;
+                throw new UpdateException(error, "安装包下载中断。", ex) { SavedProgress = saved };
+            }
+            catch
+            {
+                partial.Delete();
+                throw;
+            }
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        { throw new UpdateException(UpdateError.Network, "下载请求超时。", ex); }
         catch (HttpRequestException ex) { throw new UpdateException(UpdateError.Network, "下载安装包失败。", ex); }
-        finally { if (File.Exists(temporary)) File.Delete(temporary); }
     }
 
     private async Task DownloadWithRetryAsync(UpdateAsset asset, FileStream output, IProgress<UpdateProgress>? progress, CancellationToken token)
@@ -103,6 +128,7 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
         if (offset > 0 && response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
         {
             output.SetLength(0);
+            progress?.Report(new UpdateProgress(0, asset.Size));
             throw new HttpRequestException("服务端拒绝续传，将重新请求完整安装包。");
         }
         EnsureSuccess(response);
@@ -115,6 +141,7 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
         else if (response.StatusCode == HttpStatusCode.OK)
         {
             // 服务端忽略 Range 时，当前响应本身就是整包。
+            if (offset > 0) progress?.Report(new UpdateProgress(0, asset.Size));
             output.SetLength(0);
             offset = 0;
         }
@@ -150,11 +177,41 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
         return await VerifyCacheAsync(release, directory, name, expected, token);
     }
 
-    private static async Task<DownloadedUpdate?> VerifyCacheAsync(UpdateRelease release, string directory, string name, string expected, CancellationToken token)
+    public async Task<UpdateCacheState> InspectCacheAsync(UpdateRelease release, string directory, CancellationToken token)
+    {
+        var name = ValidateAssets(release);
+        if (!Directory.Exists(directory)) return default;
+        var complete = await FindCachedAsync(release, directory, token);
+        if (complete is not null) return new(complete, null);
+
+        string expected;
+        if (release.Installer.Digest is { } digest && Regex.IsMatch(digest, @"\Asha256:[a-fA-F0-9]{64}\z"))
+            expected = digest[7..].ToLowerInvariant();
+        else
+        {
+            if (!Directory.EnumerateFiles(directory, name + ".*.part").Any()) return default;
+            expected = await ExpectedHashAsync(release, name, token);
+        }
+        var part = PartialFile(directory, name, expected);
+        if (!InspectFile(part) || part.Length <= 0 || part.Length > release.Installer.Size) return default;
+        return new(null, new UpdateProgress(part.Length, release.Installer.Size));
+    }
+
+    private static FileInfo PartialFile(string directory, string name, string expected) =>
+        new(Path.Combine(directory, $"{name}.{expected}.part"));
+
+    private bool InspectFile(FileInfo file)
+    {
+        if (!file.Exists) return false;
+        if ((file.Attributes & FileAttributes.ReparsePoint) != 0) throw Verification("更新缓存不能是重解析点。");
+        validateCacheFile?.Invoke(file);
+        return true;
+    }
+
+    private async Task<DownloadedUpdate?> VerifyCacheAsync(UpdateRelease release, string directory, string name, string expected, CancellationToken token)
     {
         var file = new FileInfo(Path.Combine(directory, name));
-        if (!file.Exists || file.Length != release.Installer.Size) return null;
-        if ((file.Attributes & FileAttributes.ReparsePoint) != 0) throw Verification("缓存安装包不能是重解析点。");
+        if (!InspectFile(file) || file.Length != release.Installer.Size) return null;
         await using var input = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
         var actual = Convert.ToHexString(await SHA256.HashDataAsync(input, token));
         return actual.Equals(expected, StringComparison.OrdinalIgnoreCase) ? new DownloadedUpdate(release.Version, file.FullName, expected) : null;

@@ -8,63 +8,65 @@ namespace NetGuardian.App.Presentation;
 
 internal static class PanelNavigationPresenter
 {
-    private static readonly (string Name, string TitleKey)[] Panels =
+    private static readonly (string Name, string Title, string? Subtitle)[] Pages =
     [
-        ("StatusPanel", "Status"), ("WifiPanel", "Wifi"), ("QualityPanel", "QualityTools"),
-        ("ToolsPanel", "Tools"), ("DnsPanel", "DnsTools"), ("NetworkPanel", "AdapterTools"),
-        ("PolicyPanel", "Policy"), ("LogPanel", "Log"), ("SettingsPanel", "Settings")
+        ("StatusPanel", "Status", "HomeWorkspaceHint"), ("WifiPanel", "Wifi", null),
+        ("ToolsPanel", "DiagnosticsWorkspace", "DiagnosticsWorkspaceHint"),
+        ("ConfigurationWorkspace", "ConfigurationWorkspace", "ConfigurationWorkspaceHint"),
+        ("PolicyPanel", "RecoveryWorkspace", "RecoveryWorkspaceHint"),
+        ("LogPanel", "Log", null), ("SettingsPanel", "Settings", null)
     ];
 
-    private static readonly IReadOnlyDictionary<string, string> PageActions = new Dictionary<string, string>
+    private static readonly IReadOnlyDictionary<string, string> Actions = new Dictionary<string, string>
     {
-        ["WifiPanel"] = "WifiPageActions",
-        ["QualityPanel"] = "QualityPageActions",
-        ["ToolsPanel"] = "ToolsPageActions",
-        ["DnsPanel"] = "DnsPageActions",
-        ["NetworkPanel"] = "NetworkPageActions",
-        ["PolicyPanel"] = "PolicyPageActions",
-        ["LogPanel"] = "LogPageActions"
-    };
-
-    private static readonly IReadOnlyDictionary<string, string> ToolActions = new Dictionary<string, string>
-    {
-        ["QuickToolsTab"] = "ToolsPageActions",
-        ["SpeedToolsTab"] = "SpeedPageActions",
-        ["WebsiteToolsTab"] = "WebsitePageActions",
-        ["IpInfoToolsTab"] = "IpInfoPageActions",
-        ["ReportToolsTab"] = "ReportPageActions"
+        ["WifiPanel"] = "WifiPageActions", ["PolicyPanel"] = "PolicyPageActions", ["LogPanel"] = "LogPageActions",
+        ["AdapterConfigTab"] = "NetworkPageActions", ["DnsConfigTab"] = "DnsPageActions",
+        ["QualityToolsTab"] = "QualityPageActions", ["QuickToolsTab"] = "ToolsPageActions",
+        ["SpeedToolsTab"] = "SpeedPageActions", ["WebsiteToolsTab"] = "WebsitePageActions",
+        ["IpInfoToolsTab"] = "IpInfoPageActions", ["ReportToolsTab"] = "ReportPageActions"
     };
 
     public static void Show(Window window, string? tag, Localizer localizer)
     {
-        var target = Panels.FirstOrDefault(panel => panel.Name == tag);
-        if (target.Name is null) target = Panels[0];
-        foreach (var panel in Panels)
-            ((UIElement)window.FindName(panel.Name)).Visibility = panel.Name == target.Name ? Visibility.Visible : Visibility.Collapsed;
-        foreach (var actionName in PageActions.Values.Concat(ToolActions.Values).Distinct())
-            ((UIElement)window.FindName(actionName)).Visibility = Visibility.Collapsed;
-        var actionBar = (FrameworkElement)window.FindName("PageActionBar");
-        PageActions.TryGetValue(target.Name, out var actionNameForPage);
-        if (target.Name == "ToolsPanel" && window.FindName("ToolsTabControl") is TabControl tools)
+        var tools = (TabControl)window.FindName("ToolsTabControl");
+        var config = (TabControl)window.FindName("ConfigurationTabs");
+        switch (tag)
         {
-            var toolTabName = (tools.SelectedIndex < 0 ? 0 : tools.SelectedIndex) switch
-            {
-                0 => "QuickToolsTab",
-                1 => "SpeedToolsTab",
-                2 => "WebsiteToolsTab",
-                3 => "IpInfoToolsTab",
-                4 => "ReportToolsTab",
-                _ => ""
-            };
-            actionNameForPage = ToolActions.TryGetValue(toolTabName, out var toolAction) ? toolAction : null;
+            case "QualityPanel":
+                tools.SelectedItem = window.FindName("QualityToolsTab");
+                tag = "ToolsPanel";
+                break;
+            case "NetworkPanel": case "DnsPanel":
+                config.SelectedItem = window.FindName(tag == "NetworkPanel" ? "AdapterConfigTab" : "DnsConfigTab");
+                tag = "ConfigurationWorkspace";
+                break;
         }
-        actionBar.Visibility = actionNameForPage is not null ? Visibility.Visible : Visibility.Collapsed;
-        if (actionNameForPage is not null)
-            ((UIElement)window.FindName(actionNameForPage)).Visibility = Visibility.Visible;
-        ((Button)window.FindName("CheckNowButton")).Style = (Style)window.FindResource(
-            target.Name == "StatusPanel" ? "PrimaryButtonStyle" : "SecondaryButtonStyle");
-        ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.TitleKey);
-        ((TextBlock)window.FindName("PageSubtitleText")).Text = target.Name == "StatusPanel" ? localizer.T("Summary") : "";
+        var target = Pages.FirstOrDefault(page => page.Name == tag);
+        if (target.Name is null) target = Pages[0];
+        foreach (var page in Pages)
+            ((UIElement)window.FindName(page.Name)).Visibility = page.Name == target.Name ? Visibility.Visible : Visibility.Collapsed;
+
+        var context = target.Name switch
+        {
+            "ToolsPanel" => (tools.SelectedItem as TabItem)?.Name ?? "QualityToolsTab",
+            "ConfigurationWorkspace" => (config.SelectedItem as TabItem)?.Name ?? "AdapterConfigTab",
+            _ => target.Name
+        };
+        Actions.TryGetValue(context, out var selectedAction);
+        foreach (var action in Actions.Values)
+            ((UIElement)window.FindName(action)).Visibility = action == selectedAction ? Visibility.Visible : Visibility.Collapsed;
+        var bar = (FrameworkElement)window.FindName("PageActionBar");
+        var inline = selectedAction is "QualityPageActions" or "IpInfoPageActions" or "ReportPageActions"
+            or "NetworkPageActions" or "DnsPageActions" or "PolicyPageActions" or "LogPageActions";
+        Grid.SetRow(bar, inline ? 0 : 1);
+        Grid.SetColumn(bar, inline ? 1 : 0);
+        Grid.SetColumnSpan(bar, inline ? 1 : 2);
+        bar.Visibility = selectedAction is null ? Visibility.Collapsed : Visibility.Visible;
+        ((UIElement)window.FindName("HomeMonitorActions")).Visibility = target.Name == "StatusPanel" ? Visibility.Visible : Visibility.Collapsed;
+        ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.Title);
+        var subtitle = (TextBlock)window.FindName("PageSubtitleText");
+        subtitle.Text = target.Subtitle is null ? "" : localizer.T(target.Subtitle);
+        subtitle.Visibility = target.Subtitle is null ? Visibility.Collapsed : Visibility.Visible;
         ResponsiveLayout.ApplyWifi(window);
     }
 }

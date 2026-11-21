@@ -29,7 +29,7 @@ public sealed class DesktopLayoutTests
             DesktopFixture.ShowPage(window, "SettingsPanel");
             var localizer = new Localizer();
             localizer.SetLanguage(language);
-            foreach (var (name, key) in new[] { ("LanguageLabel", "Language"), ("ThemeLabel", "ThemeMode"), ("TrayTitle", "Tray"), ("CloseBehaviorLabel", "CloseBehavior") })
+            foreach (var (name, key) in new[] { ("LanguageLabel", "Language"), ("ThemeLabel", "ThemeMode"), ("SettingsTitle", "SettingsAppearance"), ("TrayTitle", "SettingsStartup"), ("CloseBehaviorLabel", "CloseBehavior") })
                 ((TextBlock)window.FindName(name)).Text = localizer.T(key);
             foreach (var (name, key) in new[] { ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
                 ((ContentControl)window.FindName(name)).Content = localizer.T(key);
@@ -228,7 +228,7 @@ public sealed class DesktopLayoutTests
         {
             DesktopFixture.ShowPage(window, "StatusPanel");
             var localizer = new Localizer();
-            foreach (var (name, key) in new[] { ("HealthStateLabel", "HealthState"), ("HealthStateText", "InternetIssue"), ("MonitorStateLabel", "MonitorStatus"), ("MonitorStateText", "BackgroundMonitoring"), ("NextCheckLabel", "NextCheck"), ("CurrentNetworkLabel", "CurrentNetwork"), ("ProbeTitleText", "CheckNow"), ("RecentEventsTitle", "RecentEvents") })
+            foreach (var (name, key) in new[] { ("HealthStateLabel", "HealthState"), ("HealthStateText", "InternetIssue"), ("MonitorStateLabel", "MonitorStatus"), ("MonitorStateText", "BackgroundMonitoring"), ("NextCheckLabel", "NextCheck"), ("CurrentNetworkLabel", "CurrentNetwork"), ("ProbeTitleText", "ProbeDetails"), ("RecentEventsTitle", "RecentEvents") })
                 ((TextBlock)window.FindName(name)).Text = localizer.T(key);
             ((TextBlock)window.FindName("SummaryText")).Text = "公网 HTTPS 探针未达到通过数量，请检查上游网络或代理设置。";
             ((TextBlock)window.FindName("CurrentSsidText")).Text = "实验室_北楼_5GHz_备用网络";
@@ -330,8 +330,6 @@ public sealed class DesktopLayoutTests
     {
         DesktopFixture.Run(window =>
         {
-            ((ComboBox)window.FindName("DnsAdapterComboBox")).Items.Add("实验室无线网络接口（完整目标名称）");
-            ((ComboBox)window.FindName("DnsAdapterComboBox")).SelectedIndex = 0;
             ((ComboBox)window.FindName("DnsPresetComboBox")).SelectedIndex = 0;
             ((Button)window.FindName("DnsApplyButton")).IsEnabled = false;
             ((TextBlock)window.FindName("DnsCurrentText")).Text = "当前系统 DNS 地址：223.5.5.5, 223.6.6.6, fec0:0:0:ffff::1。自动 / 手动来源未确认；IPv6 地址仅供查看。";
@@ -352,7 +350,7 @@ public sealed class DesktopLayoutTests
                     Assert.True(grid.Columns[3].ActualWidth >= 140, $"IPv4 列仅 {grid.Columns[3].ActualWidth} DIP；各列：{string.Join(", ", grid.Columns.Select(c => $"{c.Width}/{c.ActualWidth:F1}"))}");
                 }
                 foreach (var name in page == "DnsPanel"
-                    ? new[] { "DnsAdapterComboBox", "DnsPresetComboBox", "DnsPrimaryTextBox", "DnsSecondaryTextBox", "DnsApplyButton" }
+                    ? new[] { "AdapterTargetComboBox", "DnsPresetComboBox", "DnsPrimaryTextBox", "DnsSecondaryTextBox", "DnsApplyButton" }
                     : new[] { "AdapterTargetComboBox", "AdapterRenewDhcpButton" })
                 {
                     var control = (FrameworkElement)window.FindName(name);
@@ -409,7 +407,7 @@ public sealed class DesktopLayoutTests
         DesktopFixture.Run(window =>
         {
             DesktopFixture.ShowPage(window, "ToolsPanel");
-            ((TabControl)window.FindName("ToolsTabControl")).SelectedIndex = 1;
+            ((TabControl)window.FindName("ToolsTabControl")).SelectedItem = window.FindName("SpeedToolsTab");
             var view = (NetGuardian.App.Views.SpeedTestView)window.FindName("SpeedView");
             var session = new SpeedTestSession();
             var id = session.Begin();
@@ -569,11 +567,11 @@ internal static class DesktopFixture
             ["MoveDownButton"] = "MoveDown", ["RemoveButton"] = "Remove", ["ConnectButton"] = "Connect",
             ["WifiSelectionText"] = "SelectWifiFirst", ["DragHintText"] = "DoubleClickWifiHint",
             ["ToolsTitle"] = "SystemNetworkTools",
-            ["DnsTargetLabel"] = "DnsTargetLabel", ["DnsPlanLabel"] = "DnsPlanLabel",
+            ["DnsPlanLabel"] = "DnsPlanLabel",
             ["DnsPrimaryLabel"] = "DnsPrimaryLabel", ["DnsSecondaryLabel"] = "DnsSecondaryLabel",
             ["DnsRefreshButton"] = "RefreshStatus", ["DnsFlushButton"] = "FlushDns",
             ["DnsApplyButton"] = "ApplyDns", ["DnsToolsHint"] = "DnsToolsHint",
-            ["DnsStatusText"] = "SelectDnsPlan", ["AdapterTargetLabel"] = "AdapterTargetLabel",
+            ["DnsStatusText"] = "SelectDnsPlan", ["AdapterTargetLabel"] = "ConfigurationTarget",
             ["AdapterRefreshButton"] = "RefreshStatus", ["AdapterSettingsButton"] = "OpenNetworkSettings",
             ["AdapterRenewDhcpButton"] = "RenewDhcp", ["AdapterToolsHint"] = "AdapterToolsHint",
             ["AdapterStatusText"] = "SelectDhcpAdapter"
@@ -591,7 +589,7 @@ internal static class DesktopFixture
             ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
         foreach (var (name, key) in new[] { ("NearbySsidColumn", "Ssid"), ("NearbySignalColumn", "Signal"), ("NearbySecurityColumn", "Security"), ("NearbyPriorityColumn", "PriorityState"), ("ProfileSsidColumn", "Ssid"), ("ProfilePriorityColumn", "Priority"), ("ProfileCredentialColumn", "CredentialSaved"), ("ProfileEnabledColumn", "Enabled"), ("ProfileFailuresColumn", "Failures") })
             ((DataGridColumn)window.FindName(name)).Header = localizer.T(key);
-        foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"), ("QualityNavButton", "QualityTools"), ("ToolsNavButton", "Tools"), ("DnsNavButton", "DnsTools"), ("AdapterNavButton", "AdapterTools"), ("PolicyNavButton", "Policy"), ("LogNavButton", "Log"), ("SettingsNavButton", "Settings"), ("CheckNowButton", "CheckNow"), ("StartMonitorButton", "StartMonitor"), ("StopButton", "Stop"), ("QuickToolsTab", "QuickTools"), ("SpeedToolsTab", "SpeedTools"), ("WebsiteToolsTab", "WebsiteTools"), ("IpInfoToolsTab", "IpInfoTools"), ("ReportToolsTab", "ReportTools") })
+        foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"), ("ToolsNavButton", "DiagnosticsWorkspace"), ("AdapterNavButton", "ConfigurationWorkspace"), ("PolicyNavButton", "RecoveryWorkspace"), ("SettingsNavButton", "Settings"), ("CheckNowButton", "CheckNow"), ("StartMonitorButton", "StartMonitor"), ("StopButton", "Stop"), ("QualityToolsTab", "ConnectivityTab"), ("AdapterConfigTab", "AdapterOverview"), ("DnsConfigTab", "DnsTools"), ("HomeLogsButton", "ViewAllEvents"), ("HomeDiagnosticsButton", "OpenDiagnostics"), ("RecoveryLogsButton", "ViewRecoveryHistory"), ("QuickToolsTab", "QuickTools"), ("SpeedToolsTab", "SpeedTools"), ("WebsiteToolsTab", "WebsiteTools"), ("IpInfoToolsTab", "IpInfoTools"), ("ReportToolsTab", "ReportTools") })
         {
             if (window.FindName(name) is HeaderedContentControl header) header.Header = localizer.T(key);
             else if (window.FindName(name) is ContentControl content) content.Content = localizer.T(key);

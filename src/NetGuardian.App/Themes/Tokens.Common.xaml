@@ -4,6 +4,7 @@
     <ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Expansion.xaml" /><ResourceDictionary Source="Surfaces.xaml" /></ResourceDictionary.MergedDictionaries>
     <!-- Theme-independent design tokens (U2 §3.5). -->
     <!-- 中文明确采用简体 UI 字体，英文及数字保留 Segoe UI。 -->
+    <Thickness x:Key="SpacingHeroInset">24,20</Thickness>
     <FontFamily x:Key="AppFontFamily">Segoe UI, Microsoft YaHei UI, Microsoft YaHei</FontFamily>
 
     <!-- Type scale: 6 steps. -->
@@ -46,6 +47,7 @@
 
     <!-- Spacing scale. -->
     <Thickness x:Key="SpacingCardPadding">16</Thickness>
+    <Thickness x:Key="SpacingHeaderCommand">8,2,0,2</Thickness>
     <Thickness x:Key="SpacingItemGap">0,0,8,8</Thickness>
     <Thickness x:Key="SpacingControlPadding">12,8</Thickness>
     <Thickness x:Key="SpacingSectionGap">0,0,0,24</Thickness>
@@ -132,6 +134,8 @@
     <sys:Double x:Key="TrafficChartHeight">56</sys:Double>
     <Thickness x:Key="StrokeGroupDivider">0,0,0,1</Thickness>
     <Thickness x:Key="SpacingGroupBody">0,0,0,16</Thickness>
+    <GridLength x:Key="FormColumnGap">16</GridLength>
+    <Thickness x:Key="SettingsHelpInset">48,0,0,0</Thickness>
     <sys:Double x:Key="FormMaxWidth">720</sys:Double>
     <GridLength x:Key="FormLabelColumnWidth">180</GridLength>
     <sys:Double x:Key="FontSpeedMetric">32</sys:Double>

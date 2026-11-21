@@ -7,7 +7,8 @@
             <Setter Property="Padding" Value="{DynamicResource SpacingCardPadding}" />
         </Style>
         <Style x:Key="StatusHeroCardStyle" TargetType="Border" BasedOn="{StaticResource SectionBorderStyle}">
-            <Setter Property="Background" Value="{DynamicResource SurfaceCardBrush}" />
+            <Setter Property="Background" Value="{DynamicResource DashboardHeroBrush}" />
+            <Setter Property="Padding" Value="{DynamicResource SpacingHeroInset}" />
             <Setter Property="BorderBrush" Value="{DynamicResource CardStrokeColorDefaultBrush}" />
         </Style>
         <Style x:Key="StatusMetricCardStyle" TargetType="Border" BasedOn="{StaticResource SectionBorderStyle}">
