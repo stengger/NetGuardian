@@ -18,6 +18,8 @@ public partial class MainWindow
     private bool _isUpdatePreparing;
     private bool? _previousUpdateSucceeded;
     private string? _previousUpdateLog;
+    private string? _previousUpdateVersion;
+    private DateTime _previousUpdateTime;
     private static Version CurrentAppVersion
     {
         get
@@ -29,7 +31,16 @@ public partial class MainWindow
 
     private void InitializeUpdates()
     {
-        _updateSession = new UpdateSession(new GitHubUpdateService(_updateHttp), CurrentAppVersion);
+        var service = new GitHubUpdateService(_updateHttp);
+        _updateSession = new UpdateSession(service, CurrentAppVersion, async (release, token) =>
+        {
+            var directory = Path.Combine(_updateStorage.Root, "downloads");
+            var file = new FileInfo(Path.Combine(directory, release.Installer.Name));
+            if (!file.Exists) return null;
+            _updateStorage.PrepareDownloads();
+            UpdateStorage.AssertProtected(file);
+            return await service.FindCachedAsync(release, directory, token);
+        });
         _updateSession.Changed += ApplyUpdateText;
         LoadPreviousUpdateResult();
         ApplyUpdateText();
@@ -43,20 +54,25 @@ public partial class MainWindow
         if (_previousUpdateSucceeded is { } success)
         {
             UpdatePreviousResultText.Text = string.Format(_localizer.T("UpdatePreviousResult"),
-                _localizer.T(success ? "UpdatePreviousSucceeded" : "UpdatePreviousFailed"), _previousUpdateLog);
+                _localizer.T(success ? "UpdatePreviousSucceeded" : "UpdatePreviousFailed"), _previousUpdateLog, _previousUpdateVersion, _previousUpdateTime);
             UpdatePreviousResultText.Visibility = Visibility.Visible;
         }
+        else UpdatePreviousResultText.Visibility = Visibility.Collapsed;
     }
 
     private void LoadPreviousUpdateResult()
     {
         try
         {
+            _previousUpdateSucceeded = null;
             var resultFile = Path.Combine(_updateStorage.Root, "last-result.json");
             if (!File.Exists(resultFile)) return;
             UpdateStorage.AssertProtected(new FileInfo(resultFile));
             if (new FileInfo(resultFile).Length > 65536) return;
             using var result = JsonDocument.Parse(File.ReadAllText(resultFile));
+            if (result.RootElement.TryGetProperty("Stage", out var stage) && stage.GetString() == "Installed") return;
+            _previousUpdateVersion = result.RootElement.TryGetProperty("Version", out var version) ? version.GetString() : "—";
+            _previousUpdateTime = File.GetLastWriteTime(resultFile);
             _previousUpdateSucceeded = result.RootElement.GetProperty("Success").GetBoolean();
             var job = result.RootElement.GetProperty("JobDirectory").GetString();
             _previousUpdateLog = Path.Combine(job ?? _updateStorage.Root, "update.log");

@@ -97,8 +97,24 @@ public sealed class UpdateServiceTests
         Assert.Equal(UpdateError.RateLimited, error.Error);
     }
 
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 1)]
+    public async Task 安装包缓存按摘要复用或替换(bool valid, int expectedRequests)
+    {
+        using var cache = new TemporaryDirectory();
+        int requests = 0;
+        using var client = Client(onInstaller: () => requests++);
+        var service = new GitHubUpdateService(client);
+        var release = (await service.CheckAsync(new Version(1, 0, 1), default))!;
+        File.WriteAllBytes(System.IO.Path.Combine(cache.Path, release.Installer.Name), valid ? Package : new byte[Package.Length]);
+        var result = await service.DownloadAsync(release, cache.Path, null, default);
+        Assert.Equal(expectedRequests, requests);
+        Assert.Equal(Package, File.ReadAllBytes(result.InstallerPath));
+    }
+
     private static HttpClient Client(string version = "1.2.0", bool draft = false, bool prerelease = false,
-        string? installerUrl = null, bool checksum = true, string? failure = null, CancellationTokenSource? cancelDownload = null)
+        string? installerUrl = null, bool checksum = true, string? failure = null, CancellationTokenSource? cancelDownload = null, Action? onInstaller = null)
     {
         var name = $"NetGuardian-{version}-win-x64-Setup.exe";
         var download = $"https://github.com/stengger/NetGuardian/releases/download/v{version}/{name}";
@@ -121,6 +137,7 @@ public sealed class UpdateServiceTests
                 {
                     Content = new StringContent(Hash + "  " + (failure == "校验文件不符" ? "其他文件.exe" : name) + "\n")
                 };
+            onInstaller?.Invoke();
             cancelDownload?.Cancel();
             var content = new ByteArrayContent(failure == "摘要不符" ? new byte[Package.Length] : Package);
             if (failure == "长度不符") content.Headers.ContentLength = Package.Length + 1;

@@ -152,6 +152,23 @@ function Test-NetGuardianUpdateTasks($Tasks) {
     } while ([datetime]::UtcNow -lt $deadline)
     return $false
 }
+function Wait-NetGuardianUpdateGuardian([string]$Directory, [string]$DataDirectory) {
+    $path = Join-Path $DataDirectory 'guardian-status.json'
+    $elapsed = [Diagnostics.Stopwatch]::StartNew()
+    do {
+        $guardian = @(Get-NetGuardianUpdateProcesses $Directory | Where-Object { $_.Path -ieq (Join-Path $Directory 'guardian\NetGuardian.Guardian.exe') })
+        if ($guardian.Count -eq 1 -and (Test-Path -LiteralPath $path -PathType Leaf)) {
+            Assert-NetGuardianUpdateSafePath $path
+            $status = Get-Content -Raw -LiteralPath $path | ConvertFrom-Json
+            $age = [DateTimeOffset]::UtcNow - [DateTimeOffset]$status.HeartbeatAt
+            if ($status.State -ne 'Stopped' -and $status.ProcessId -eq $guardian[0].Id -and
+                $guardian[0].StartTime.ToUniversalTime() -eq ([DateTimeOffset]$status.ProcessStartedAt).UtcDateTime -and
+                $age.TotalSeconds -ge 0 -and $age.TotalSeconds -lt 30) { return }
+        }
+        Start-Sleep -Milliseconds 250
+    } while ($elapsed.Elapsed.TotalSeconds -lt 45)
+    throw '后台任务已恢复，但未收到当前守护进程的新鲜心跳。'
+}
 function Get-NetGuardianUpdateFreeBytes([string]$Path) {
     $drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot([IO.Path]::GetFullPath($Path)))
     $drive.AvailableFreeSpace
@@ -259,8 +276,28 @@ function Remove-NetGuardianUpdateInstaller($Request, [string]$UpdatesDirectory) 
     if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ine $Request.Sha256) { throw '安装包已变化，保留文件并跳过清理。' }
     Remove-Item -LiteralPath $installer -Force
 }
-function Start-NetGuardianUpdateInterface([string]$Directory) {
-    Start-Process -FilePath (Join-Path $Directory 'NetGuardian.exe') -WorkingDirectory $Directory | Out-Null
+function Start-NetGuardianUpdateInterface([string]$Directory, [bool]$RequireReady) {
+    $start = @{ FilePath = (Join-Path $Directory 'NetGuardian.exe'); WorkingDirectory = $Directory; PassThru = $true }
+    $ready = $null; $process = $null
+    try {
+        if ($RequireReady) {
+            $id = [guid]::NewGuid().ToString('N')
+            $ready = [Threading.EventWaitHandle]::new($false, [Threading.EventResetMode]::ManualReset, ('Local\NetGuardian.UpdateReady.' + $id))
+            $start.ArgumentList = @('--update-ready', $id)
+        }
+        $process = Start-Process @start
+        if ($RequireReady) {
+            $elapsed = [Diagnostics.Stopwatch]::StartNew()
+            while (-not $ready.WaitOne(200)) {
+                if ($process.HasExited) { throw "界面在就绪前退出，退出码 $($process.ExitCode)。" }
+                if ($elapsed.Elapsed.TotalSeconds -ge 45) { throw '等待新版界面就绪超时。' }
+            }
+        }
+        if ($process.WaitForExit(1000)) { throw "界面在启动后退出，退出码 $($process.ExitCode)。" }
+    } finally {
+        if ($process) { $process.Dispose() }
+        if ($ready) { $ready.Dispose() }
+    }
 }
 
 function New-NetGuardianUpdateMutex {
@@ -293,7 +330,7 @@ function Invoke-NetGuardianUpdateTransaction {
     if ($restartContext.Directory) {
         $installed = $result.Success
         try {
-            Start-NetGuardianUpdateInterface $restartContext.Directory
+            Start-NetGuardianUpdateInterface $restartContext.Directory $installed
             if ($installed) { $result.Stage = 'Completed'; $result.Message = '更新成功并已重新打开界面。' }
             else { $result.Message += '；已恢复并重新打开原界面。' }
         } catch {
@@ -369,10 +406,15 @@ function Invoke-NetGuardianUpdateTransactionCore {
         $result.Stage = 'Installing'; $installationStarted = $true
         $exitCode = Invoke-NetGuardianUpdateInstaller $request
         if ($exitCode -ne 0) { throw "安装器退出码：$exitCode" }
-        if ((Get-NetGuardianUpdateVersion (Join-Path $request.InstallDirectory 'NetGuardian.dll')) -ne $request.Version) { throw '安装后的 NetGuardian.dll ProductVersion 不匹配。' }
+        foreach ($component in @('NetGuardian.dll', 'NetGuardian.Core.dll', 'guardian\NetGuardian.Guardian.dll', 'guardian\NetGuardian.Core.dll')) {
+            if ((Get-NetGuardianUpdateVersion (Join-Path $request.InstallDirectory $component)) -ne $request.Version) { throw "安装后的 $component 版本不匹配。" }
+        }
         $result.Stage = 'RestoringTasks'
         Restore-NetGuardianUpdateTasks $tasks $request.InstallDirectory
         if (-not (Test-NetGuardianUpdateTasks $tasks)) { throw '任务定义或启用、运行状态恢复核验失败。' }
+        if (@($tasks | Where-Object { $_.TaskName -eq 'NetGuardian' -and $_.Running }).Count) {
+            Wait-NetGuardianUpdateGuardian $request.InstallDirectory (Split-Path -Parent $UpdatesDirectory)
+        }
         $tasksChanged = $false
         $RestartContext.Directory = $request.InstallDirectory
         $result.Success = $true; $result.Stage = 'Installed'; $result.Message = '安装已完成并通过核验，等待重新打开界面。'
@@ -383,6 +425,7 @@ function Invoke-NetGuardianUpdateTransactionCore {
         } catch { $result.CleanupWarning = '安装包清理失败，文件已保留：' + $_.Exception.Message }
     } catch {
         $result.Message = $_.Exception.Message
+        if ($parentExited -and -not $tasksChanged -and -not $installationStarted) { $RestartContext.Directory = $request.InstallDirectory }
         if ($installationStarted -or $tasksChanged) {
             try {
                 if ($installationStarted) {

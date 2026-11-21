@@ -749,6 +749,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         PanelNavigationPresenter.Show(this, tag, _localizer);
         RenderCurrentWifi();
+        if (tag == "SettingsPanel" && _updateSession is not null)
+        {
+            LoadPreviousUpdateResult();
+            ApplyUpdateText();
+        }
         if (tag == "WifiPanel") _ = RefreshCurrentWifiAsync();
     }
 

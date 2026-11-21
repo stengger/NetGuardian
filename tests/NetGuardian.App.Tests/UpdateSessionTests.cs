@@ -65,6 +65,20 @@ public sealed class UpdateSessionTests
         await pending;
     }
 
+    [Fact]
+    public async Task 新会话和重复检查均恢复就绪安装包()
+    {
+        var cached = new DownloadedUpdate(Release.Version, "安装包", "摘要");
+        using var session = new UpdateSession(new Service { Release = Release }, new Version(1, 1, 0),
+            (_, _) => Task.FromResult<DownloadedUpdate?>(cached));
+        for (var i = 0; i < 2; i++)
+        {
+            await session.CheckAsync();
+            Assert.Equal(UpdatePhase.Ready, session.Phase);
+            Assert.Equal(cached, session.Downloaded);
+        }
+    }
+
     private static readonly UpdateRelease Release = new(new Version(1, 2, 0), "说明", new Uri("https://github.com"),
         new UpdateAsset("包", new Uri("https://github.com"), 100, null), new UpdateAsset("摘要", new Uri("https://github.com"), 100, null));
 

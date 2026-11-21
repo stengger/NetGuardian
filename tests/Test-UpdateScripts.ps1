@@ -72,6 +72,7 @@ function Restore-NetGuardianUpdateTasks($Tasks) {
     if ($script:TestMode -eq 'RollbackFails') { throw '模拟任务恢复失败' }
     $script:TestTasks = @($Tasks)
 }
+function Wait-NetGuardianUpdateGuardian { if ($script:TestMode -eq 'NoHeartbeat') { throw '未收到当前守护进程的新鲜心跳。' } }
 function Test-NetGuardianUpdateTasks($Tasks) {
     return ($script:TestTasks.Count -eq @($Tasks).Count)
 }
@@ -88,6 +89,12 @@ function Invoke-NetGuardianUpdateInstaller($Request) {
     } finally { $startupProbe.Dispose() }
     $script:InstallCalls++
     [IO.File]::WriteAllText((Join-Path $script:TestInstall 'NetGuardian.dll'), '1.1.0')
+    foreach ($component in @('NetGuardian.Core.dll', 'guardian\NetGuardian.Guardian.dll', 'guardian\NetGuardian.Core.dll')) {
+        $target = Join-Path $script:TestInstall $component
+        [IO.Directory]::CreateDirectory((Split-Path -Parent $target)) | Out-Null
+        [IO.File]::WriteAllText($target, '1.1.0')
+    }
+    if ($script:TestMode -eq 'OldGuardian') { [IO.File]::WriteAllText((Join-Path $script:TestInstall 'guardian\NetGuardian.Guardian.dll'), '1.0.1') }
     [IO.File]::WriteAllText((Join-Path $script:TestInstall '新增.dll'), 'new')
     if ($script:TestMode -in @('InstallerFails', 'RollbackFails')) { return 5 }
     return 0
@@ -131,6 +138,7 @@ try {
         if ($mode -eq 'CancelBeforeReady') { [IO.File]::WriteAllText((Join-Path (Split-Path -Parent $path) 'cancel.request'), '') }
         $result = Invoke-TestUpdate $path
         Assert-Update (-not $result.Success -and $result.Message -like '*取消*' -and $script:InstallCalls -eq 0 -and $script:RestoreCalls -eq 0) ("$mode 必须在安装和任务变更之前退出。")
+        if ($mode -eq 'CancelAfterExit') { Assert-Update ($script:LaunchCalls -eq 1) '取消时原进程已经退出，必须恢复界面。' }
         if ($mode -eq 'CancelBeforeReady') { Assert-Update (-not (Test-Path -LiteralPath (Join-Path (Split-Path -Parent $path) 'ready.json'))) '准备前取消不得生成就绪信号。' }
     }
     Assert-Update ($script:MutexReleases -eq 3 -and $script:MutexDisposals -eq 4) '取消作业必须释放并销毁其拥有的互斥锁。'
@@ -172,6 +180,12 @@ try {
     $request.InstallerPath = Join-Path (Split-Path -Parent $installer) 'NetGuardian-0.9.0-win-x64-Setup.exe'
     Assert-UpdateThrows { Remove-NetGuardianUpdateInstaller $request $script:TestUpdates } '不是本次更新'
     Assert-Update (Test-Path -LiteralPath $request.InstallerPath) '不得清理其他版本安装包。'
+    $path = New-TestUpdateRequest 'NoHeartbeat'
+    $result = Invoke-TestUpdate $path
+    Assert-Update (-not $result.Success -and $result.RollbackSucceeded -and $result.Message -like '*心跳*') '后台任务运行但守护未就绪不能算更新成功。'
+    $path = New-TestUpdateRequest 'OldGuardian'
+    $result = Invoke-TestUpdate $path
+    Assert-Update (-not $result.Success -and $result.RollbackSucceeded -and $result.Message -like '*Guardian.dll*版本不匹配*') '旧版守护必须触发恢复。'
     $path = New-TestUpdateRequest 'RestartFails'
     $result = Invoke-TestUpdate $path
     Assert-Update (-not $result.Success -and $result.Stage -eq 'RestartFailed' -and -not $result.RollbackSucceeded) '界面启动失败应单独报告，不能回滚已完成安装。'
