@@ -59,6 +59,17 @@ public partial class App : Application
         mainWindow.Show();
         // 主窗口拥有 HWND 后，自动主题才能绑定系统消息监听。
         ApplyConfiguredTheme(_services.GetRequiredService<SettingsStore>().Load().Theme);
+        if (e.Args is ["--update-ready", var token] && Guid.TryParseExact(token, "N", out var job))
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, new Action(() =>
+            {
+                if (mainWindow.IsLoaded && !Dispatcher.HasShutdownStarted &&
+                    EventWaitHandle.TryOpenExisting(@"Local\NetGuardian.UpdateReady." + job.ToString("N"), out var ready))
+                {
+                    using (ready) ready.Set();
+                }
+            }));
+        }
     }
 
     /// <summary>优先遵循系统高对比，其余情况保留用户选择。</summary>

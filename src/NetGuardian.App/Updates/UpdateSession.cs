@@ -7,7 +7,8 @@ namespace NetGuardian.App.Updates;
 
 internal enum UpdatePhase { Idle, Checking, NoUpdate, Available, Downloading, Ready, Cancelled, Failed, Installing, WaitingForExit }
 
-internal sealed class UpdateSession(IUpdateService service, Version currentVersion) : IDisposable
+internal sealed class UpdateSession(IUpdateService service, Version currentVersion,
+    Func<UpdateRelease, CancellationToken, Task<DownloadedUpdate?>>? findCached = null) : IDisposable
 {
     private CancellationTokenSource? _cancellation;
     private int _generation;
@@ -27,8 +28,11 @@ internal sealed class UpdateSession(IUpdateService service, Version currentVersi
         {
             var release = await service.CheckAsync(currentVersion, token);
             if (generation != _generation) return;
+            var cached = release is not null && findCached is not null ? await findCached(release, token) : null;
+            if (generation != _generation) return;
+            Downloaded = cached;
             Release = release;
-            Phase = release is null ? UpdatePhase.NoUpdate : UpdatePhase.Available;
+            Phase = release is null ? UpdatePhase.NoUpdate : cached is null ? UpdatePhase.Available : UpdatePhase.Ready;
         }
         catch (Exception ex) { Fail(generation, ex); }
         if (generation == _generation) Changed?.Invoke();

@@ -51,27 +51,14 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
     public async Task<DownloadedUpdate> DownloadAsync(UpdateRelease release, string directory,
         IProgress<UpdateProgress>? progress, CancellationToken cancellationToken)
     {
-        // 即使调用者自行构造模型，也不能改变下载来源或输出文件名。
-        var name = $"NetGuardian-{release.Version}-win-x64-Setup.exe";
-        var tag = release.ReleaseUrl.AbsolutePath.Split('/').Last();
-        ValidateUrl(release.ReleaseUrl.AbsoluteUri, $"{Repository}/releases/tag/{tag}");
-        if (tag != "v" + release.Version && tag != release.Version.ToString()) throw Invalid("版本与发布地址不一致。");
-        if (release.Installer.Name != name || release.Checksum.Name != name + ".sha256") throw Invalid("安装包名称无效。");
-        ValidateUrl(release.Installer.Url.AbsoluteUri, $"{Repository}/releases/download/{tag}/{name}");
-        ValidateUrl(release.Checksum.Url.AbsoluteUri, $"{Repository}/releases/download/{tag}/{name}.sha256");
-        if (release.Installer.Size <= 0 || release.Installer.Size > MaximumInstallerSize) throw Invalid("安装包大小无效。");
+        var name = ValidateAssets(release);
         Directory.CreateDirectory(directory);
         var temporary = Path.Combine(directory, Guid.NewGuid().ToString("N") + ".part");
         try
         {
-            using var checksumResponse = await SendAsync(release.Checksum.Url, cancellationToken);
-            EnsureSuccess(checksumResponse);
-            var checksum = Encoding.UTF8.GetString(await ReadLimitedAsync(checksumResponse.Content, 4096, cancellationToken)).Trim().TrimStart('\uFEFF');
-            var match = Regex.Match(checksum, @"\A([a-fA-F0-9]{64})[ \t]+\*?" + Regex.Escape(name) + @"\z");
-            if (!match.Success) throw Verification("校验文件与安装包不匹配。");
-            var expected = match.Groups[1].Value.ToLowerInvariant();
-            if (release.Installer.Digest is not null && !string.Equals(release.Installer.Digest, "sha256:" + expected, StringComparison.OrdinalIgnoreCase))
-                throw Verification("发布摘要与校验文件不一致。");
+            var expected = await ExpectedHashAsync(release, name, cancellationToken);
+            var cached = await VerifyCacheAsync(release, directory, name, expected, cancellationToken);
+            if (cached is not null) return cached;
             using var response = await SendAsync(release.Installer.Url, cancellationToken);
             EnsureSuccess(response);
             if (response.Content.Headers.ContentLength is long length && length != release.Installer.Size)
@@ -107,6 +94,51 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
         }
         catch (HttpRequestException ex) { throw new UpdateException(UpdateError.Network, "下载安装包失败。", ex); }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    public async Task<DownloadedUpdate?> FindCachedAsync(UpdateRelease release, string directory, CancellationToken token)
+    {
+        var name = ValidateAssets(release);
+        if (!File.Exists(Path.Combine(directory, name))) return null;
+        var expected = await ExpectedHashAsync(release, name, token);
+        return await VerifyCacheAsync(release, directory, name, expected, token);
+    }
+
+    private static async Task<DownloadedUpdate?> VerifyCacheAsync(UpdateRelease release, string directory, string name, string expected, CancellationToken token)
+    {
+        var file = new FileInfo(Path.Combine(directory, name));
+        if (!file.Exists || file.Length != release.Installer.Size) return null;
+        if ((file.Attributes & FileAttributes.ReparsePoint) != 0) throw Verification("缓存安装包不能是重解析点。");
+        await using var input = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+        var actual = Convert.ToHexString(await SHA256.HashDataAsync(input, token));
+        return actual.Equals(expected, StringComparison.OrdinalIgnoreCase) ? new DownloadedUpdate(release.Version, file.FullName, expected) : null;
+    }
+
+    private static string ValidateAssets(UpdateRelease release)
+    {
+        // 即使调用者自行构造模型，也不能改变下载来源或输出文件名。
+        var name = $"NetGuardian-{release.Version}-win-x64-Setup.exe";
+        var tag = release.ReleaseUrl.AbsolutePath.Split('/').Last();
+        ValidateUrl(release.ReleaseUrl.AbsoluteUri, $"{Repository}/releases/tag/{tag}");
+        if (tag != "v" + release.Version && tag != release.Version.ToString()) throw Invalid("版本与发布地址不一致。");
+        if (release.Installer.Name != name || release.Checksum.Name != name + ".sha256") throw Invalid("安装包名称无效。");
+        ValidateUrl(release.Installer.Url.AbsoluteUri, $"{Repository}/releases/download/{tag}/{name}");
+        ValidateUrl(release.Checksum.Url.AbsoluteUri, $"{Repository}/releases/download/{tag}/{name}.sha256");
+        if (release.Installer.Size <= 0 || release.Installer.Size > MaximumInstallerSize) throw Invalid("安装包大小无效。");
+        return name;
+    }
+
+    private async Task<string> ExpectedHashAsync(UpdateRelease release, string name, CancellationToken cancellationToken)
+    {
+        using var checksumResponse = await SendAsync(release.Checksum.Url, cancellationToken);
+        EnsureSuccess(checksumResponse);
+        var checksum = Encoding.UTF8.GetString(await ReadLimitedAsync(checksumResponse.Content, 4096, cancellationToken)).Trim().TrimStart('\uFEFF');
+        var match = Regex.Match(checksum, @"\A([a-fA-F0-9]{64})[ \t]+\*?" + Regex.Escape(name) + @"\z");
+        if (!match.Success) throw Verification("校验文件与安装包不匹配。");
+        var expected = match.Groups[1].Value.ToLowerInvariant();
+        if (release.Installer.Digest is not null && !string.Equals(release.Installer.Digest, "sha256:" + expected, StringComparison.OrdinalIgnoreCase))
+            throw Verification("发布摘要与校验文件不一致。");
+        return expected;
     }
 
     private async Task<HttpResponseMessage> SendAsync(Uri uri, CancellationToken token)
