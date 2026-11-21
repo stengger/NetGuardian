@@ -196,6 +196,16 @@ function Backup-NetGuardianUpdateFiles([string]$Directory, [string]$BackupDirect
     }
     return $manifest
 }
+function Assert-NetGuardianUpdateFilesWritable($Files) {
+    foreach ($file in $Files) {
+        Assert-NetGuardianUpdateSafePath $file.FullName
+        try {
+            # 仅探测写入权限和共享冲突，不截断或修改现有内容。
+            $handle = [IO.File]::Open($file.FullName, 'Open', 'Write', 'ReadWrite')
+            $handle.Dispose()
+        } catch { throw "安装文件无法替换，请关闭占用程序后重试：$($file.FullName)。$($_.Exception.Message)" }
+    }
+}
 function Restore-NetGuardianUpdateFiles([string]$Directory, [string]$BackupDirectory, $Manifest) {
     # 删除范围仅为已核对安装目录内的新增程序文件，配置与日志不参与事务。
     foreach ($file in @(Get-NetGuardianUpdateFiles $Directory)) {
@@ -211,6 +221,7 @@ function Restore-NetGuardianUpdateFiles([string]$Directory, [string]$BackupDirec
         $target = Assert-NetGuardianUpdateChildPath (Join-Path $Directory $entry.Path) $Directory
         Assert-NetGuardianUpdateSafePath $source; Assert-NetGuardianUpdateSafePath $target
         if ((Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash -ne $entry.Sha256) { throw '恢复备份已被修改。' }
+        if ((Test-Path -LiteralPath $target -PathType Leaf) -and (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -eq $entry.Sha256) { continue }
         New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force | Out-Null
         Copy-Item -LiteralPath $source -Destination $target -Force
         if ((Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash -ne $entry.Sha256) { throw "恢复后哈希不一致：$($entry.Path)" }
@@ -398,8 +409,12 @@ function Invoke-NetGuardianUpdateTransactionCore {
         Wait-NetGuardianUpdateParent $request
         $parentExited = $true
         Assert-NetGuardianUpdateNotCancelled $request
+        $result.Stage = 'CheckingFiles'
+        $guardianPrefix = (Join-Path $request.InstallDirectory 'guardian') + '\'
+        Assert-NetGuardianUpdateFilesWritable @($files | Where-Object { -not $_.FullName.StartsWith($guardianPrefix, [StringComparison]::OrdinalIgnoreCase) })
         $result.Stage = 'StoppingBackground'; $tasksChanged = $true
         Stop-NetGuardianUpdateBackground -Directory $request.InstallDirectory -StopScriptPath $stopScript -ExpectedSha256 $stopScriptSha256 -ProgramFilesDirectory $ProgramFilesDirectory -ScriptProtectionRoot $ProgramFilesDirectory
+        Assert-NetGuardianUpdateFilesWritable $files
         # 等待界面退出后再次核对安装包与目录，避免准备期间发生文件替换。
         Assert-NetGuardianUpdateSafePath $request.InstallDirectory; Assert-NetGuardianUpdateSafePath $request.InstallerPath
         if ((Get-FileHash -LiteralPath $request.InstallerPath -Algorithm SHA256).Hash -ine $request.Sha256) { throw '准备期间安装包发生变化。' }
