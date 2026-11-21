@@ -32,6 +32,38 @@ public sealed class UpdateCoordinatorProcessTests
     }
 
     [Fact]
+    public async Task 协调进程使用系统模块读取权限和计算安装包摘要()
+    {
+        var directory = Directory.CreateTempSubdirectory("NetGuardian 更新模块 ");
+        try
+        {
+            var request = Path.Combine(directory.FullName, "request.json");
+            var script = Path.Combine(directory.FullName, "探针.ps1");
+            await File.WriteAllTextAsync(request, "{}");
+            await File.WriteAllTextAsync(script, """
+                param([string]$RequestFile)
+                $ErrorActionPreference = 'Stop'
+                $null = Get-Acl -LiteralPath $RequestFile
+                $null = Get-Command Get-ScheduledTask -ErrorAction Stop
+                (Get-FileHash -LiteralPath $RequestFile -Algorithm SHA256).Hash
+                """, new System.Text.UTF8Encoding(true));
+
+            var info = UpdateCoordinatorProcess.CreateStartInfo(script, request, directory.FullName);
+            info.RedirectStandardOutput = true;
+            using var process = Process.Start(info)!;
+            var stderr = process.StandardError.ReadToEndAsync();
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(20));
+
+            Assert.True(process.ExitCode == 0, await stderr);
+            var expected = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(await File.ReadAllBytesAsync(request)));
+            Assert.Equal(expected, (await stdout).Trim());
+            Assert.Equal(Path.Combine(Path.GetDirectoryName(info.FileName)!, "Modules"), info.Environment["PSModulePath"], ignoreCase: true);
+        }
+        finally { directory.Delete(true); }
+    }
+
+    [Fact]
     public void 协调进程隐藏运行且路径通过环境变量传入()
     {
         var info = UpdateCoordinatorProcess.CreateStartInfo("脚本 ' 路径", "请求路径", "作业目录");
