@@ -59,41 +59,87 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
             var expected = await ExpectedHashAsync(release, name, cancellationToken);
             var cached = await VerifyCacheAsync(release, directory, name, expected, cancellationToken);
             if (cached is not null) return cached;
-            using var response = await SendAsync(release.Installer.Url, cancellationToken);
-            EnsureSuccess(response);
-            if (response.Content.Headers.ContentLength is long length && length != release.Installer.Size)
-                throw Verification("下载长度与发布信息不一致。");
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            long received = 0;
-            var notifications = Stopwatch.StartNew();
-            await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, true))
-            await using (var input = await response.Content.ReadAsStreamAsync(cancellationToken))
+            string actual;
+            await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920, true))
             {
-                var buffer = new byte[81920];
-                int count;
-                while ((count = await input.ReadAsync(buffer, cancellationToken)) > 0)
-                {
-                    received += count;
-                    if (received > release.Installer.Size) throw Verification("下载内容超出预期长度。");
-                    hash.AppendData(buffer, 0, count);
-                    await output.WriteAsync(buffer.AsMemory(0, count), cancellationToken);
-                    if (notifications.ElapsedMilliseconds >= 100 || received == release.Installer.Size)
-                    {
-                        progress?.Report(new UpdateProgress(received, release.Installer.Size));
-                        notifications.Restart();
-                    }
-                }
-                await output.FlushAsync(cancellationToken);
+                await DownloadWithRetryAsync(release.Installer, output, progress, cancellationToken);
+                output.Position = 0;
+                actual = Convert.ToHexString(await SHA256.HashDataAsync(output, cancellationToken)).ToLowerInvariant();
             }
             cancellationToken.ThrowIfCancellationRequested();
-            var actual = Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
-            if (received != release.Installer.Size || actual != expected) throw Verification("安装包完整性校验失败。");
+            if (actual != expected) throw Verification("安装包完整性校验失败。");
             var destination = Path.Combine(directory, name);
             File.Move(temporary, destination, true);
             return new DownloadedUpdate(release.Version, destination, actual);
         }
         catch (HttpRequestException ex) { throw new UpdateException(UpdateError.Network, "下载安装包失败。", ex); }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
+    }
+
+    private async Task DownloadWithRetryAsync(UpdateAsset asset, FileStream output, IProgress<UpdateProgress>? progress, CancellationToken token)
+    {
+        const int maxAttempts = 3;
+        for (var attempt = 1; ; attempt++)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                await DownloadAttemptAsync(asset, output, progress, token);
+                return;
+            }
+            catch (HttpRequestException ex) when (attempt < maxAttempts &&
+                (ex.StatusCode is null or HttpStatusCode.RequestTimeout || (int)ex.StatusCode >= 500))
+            {
+                await Task.Delay(TimeSpan.FromSeconds(attempt), token);
+            }
+        }
+    }
+
+    private async Task DownloadAttemptAsync(UpdateAsset asset, FileStream output, IProgress<UpdateProgress>? progress, CancellationToken token)
+    {
+        long offset = output.Length;
+        if (offset == asset.Size) return;
+        using var response = await SendAsync(asset.Url, token, offset);
+        if (offset > 0 && response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+        {
+            output.SetLength(0);
+            throw new HttpRequestException("服务端拒绝续传，将重新请求完整安装包。");
+        }
+        EnsureSuccess(response);
+        if (response.StatusCode == HttpStatusCode.PartialContent)
+        {
+            var range = response.Content.Headers.ContentRange;
+            if (range?.Unit != "bytes" || range.From != offset || range.To != asset.Size - 1 || range.Length != asset.Size)
+                throw Verification("续传响应范围与安装包不匹配。");
+        }
+        else if (response.StatusCode == HttpStatusCode.OK)
+        {
+            // 服务端忽略 Range 时，当前响应本身就是整包。
+            output.SetLength(0);
+            offset = 0;
+        }
+        else throw Verification("服务端未返回预期的安装包响应。");
+        if (response.Content.Headers.ContentLength is long length && length != asset.Size - offset)
+            throw Verification("下载长度与发布信息不一致。");
+        output.Position = offset;
+        var notifications = Stopwatch.StartNew();
+        await using var input = await response.Content.ReadAsStreamAsync(token);
+        var buffer = new byte[81920];
+        while (true)
+        {
+            int count;
+            try { count = await input.ReadAsync(buffer, token); }
+            catch (IOException ex) { throw new HttpRequestException("读取安装包时连接中断。", ex); }
+            if (count == 0) break;
+            if (output.Position + count > asset.Size) throw Verification("下载内容超出预期长度。");
+            await output.WriteAsync(buffer.AsMemory(0, count), token);
+            if (notifications.ElapsedMilliseconds >= 100 || output.Position == asset.Size)
+            {
+                progress?.Report(new UpdateProgress(output.Position, asset.Size));
+                notifications.Restart();
+            }
+        }
+        if (output.Position != asset.Size) throw new HttpRequestException("连接在安装包下载完成前关闭。");
     }
 
     public async Task<DownloadedUpdate?> FindCachedAsync(UpdateRelease release, string directory, CancellationToken token)
@@ -141,9 +187,10 @@ public sealed class GitHubUpdateService(HttpClient client) : IUpdateService
         return expected;
     }
 
-    private async Task<HttpResponseMessage> SendAsync(Uri uri, CancellationToken token)
+    private async Task<HttpResponseMessage> SendAsync(Uri uri, CancellationToken token, long offset = 0)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+        if (offset > 0) request.Headers.Range = new System.Net.Http.Headers.RangeHeaderValue(offset, null);
         request.Headers.UserAgent.ParseAdd("NetGuardian/1.1.0");
         request.Headers.Accept.ParseAdd(uri.Host == "api.github.com" ? "application/vnd.github+json" : "application/octet-stream");
         return await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
