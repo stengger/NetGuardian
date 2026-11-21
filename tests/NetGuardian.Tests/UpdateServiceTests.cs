@@ -113,8 +113,75 @@ public sealed class UpdateServiceTests
         Assert.Equal(Package, File.ReadAllBytes(result.InstallerPath));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task 连接中断后续传或接收完整响应(bool supportsRange)
+    {
+        using var cache = new TemporaryDirectory();
+        var offsets = new List<long?>();
+        using var client = Client(installerResponse: request =>
+        {
+            offsets.Add(request.Headers.Range?.Ranges.Single().From);
+            if (offsets.Count == 1)
+            {
+                var partial = new ByteArrayContent(Package[..3]);
+                partial.Headers.ContentLength = Package.Length;
+                return new(HttpStatusCode.OK) { Content = partial };
+            }
+            if (!supportsRange) return new(HttpStatusCode.OK) { Content = new ByteArrayContent(Package) };
+            var rest = new ByteArrayContent(Package[3..]);
+            rest.Headers.ContentRange = new(3, Package.Length - 1, Package.Length);
+            return new(HttpStatusCode.PartialContent) { Content = rest };
+        });
+        var service = new GitHubUpdateService(client);
+        var release = (await service.CheckAsync(new Version(1, 0, 1), default))!;
+        var result = await service.DownloadAsync(release, cache.Path, null, default);
+        Assert.Equal(new long?[] { null, 3 }, offsets);
+        Assert.Equal(Package, File.ReadAllBytes(result.InstallerPath));
+        Assert.Single(Directory.GetFiles(cache.Path));
+    }
+
+    [Fact]
+    public async Task 续传范围错位拒绝安装并清理临时文件()
+    {
+        using var cache = new TemporaryDirectory();
+        using var client = Client(installerResponse: request =>
+        {
+            if (request.Headers.Range is null)
+            {
+                var first = new ByteArrayContent(Package[..3]);
+                first.Headers.ContentLength = Package.Length;
+                return new(HttpStatusCode.OK) { Content = first };
+            }
+            var wrong = new ByteArrayContent(Package[2..]);
+            wrong.Headers.ContentRange = new(2, Package.Length - 1, Package.Length);
+            return new(HttpStatusCode.PartialContent) { Content = wrong };
+        });
+        var service = new GitHubUpdateService(client);
+        var release = (await service.CheckAsync(new Version(1, 0, 1), default))!;
+        var error = await Assert.ThrowsAsync<UpdateException>(() => service.DownloadAsync(release, cache.Path, null, default));
+        Assert.Equal(UpdateError.VerificationFailed, error.Error);
+        Assert.Empty(Directory.GetFiles(cache.Path));
+    }
+
+    [Fact]
+    public async Task 持续传输失败仅尝试三次并清理临时文件()
+    {
+        using var cache = new TemporaryDirectory();
+        int requests = 0;
+        using var client = Client(installerResponse: _ => { requests++; throw new HttpRequestException("连接中断"); });
+        var service = new GitHubUpdateService(client);
+        var release = (await service.CheckAsync(new Version(1, 0, 1), default))!;
+        var error = await Assert.ThrowsAsync<UpdateException>(() => service.DownloadAsync(release, cache.Path, null, default));
+        Assert.Equal(UpdateError.Network, error.Error);
+        Assert.Equal(3, requests);
+        Assert.Empty(Directory.GetFiles(cache.Path));
+    }
+
     private static HttpClient Client(string version = "1.2.0", bool draft = false, bool prerelease = false,
-        string? installerUrl = null, bool checksum = true, string? failure = null, CancellationTokenSource? cancelDownload = null, Action? onInstaller = null)
+        string? installerUrl = null, bool checksum = true, string? failure = null, CancellationTokenSource? cancelDownload = null, Action? onInstaller = null,
+        Func<HttpRequestMessage, HttpResponseMessage>? installerResponse = null)
     {
         var name = $"NetGuardian-{version}-win-x64-Setup.exe";
         var download = $"https://github.com/stengger/NetGuardian/releases/download/v{version}/{name}";
@@ -137,6 +204,7 @@ public sealed class UpdateServiceTests
                 {
                     Content = new StringContent(Hash + "  " + (failure == "校验文件不符" ? "其他文件.exe" : name) + "\n")
                 };
+            if (installerResponse is not null) return installerResponse(request);
             onInstaller?.Invoke();
             cancelDownload?.Cancel();
             var content = new ByteArrayContent(failure == "摘要不符" ? new byte[Package.Length] : Package);
