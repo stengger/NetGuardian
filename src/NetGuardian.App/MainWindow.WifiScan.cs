@@ -34,7 +34,7 @@ public partial class MainWindow
         if (_wifiScan.Phase == WifiScanPhase.Complete) _lastSuccessfulWifiScan = System.DateTimeOffset.Now;
         RefreshWifiScanUi();
         SetToolOutput(WifiScanStatusText.Text);
-        Log(WifiScanStatusText.Text, _wifiScan.Phase == WifiScanPhase.Failed ? UiLogLevel.Error : UiLogLevel.Information);
+        if (_wifiScan.Phase == WifiScanPhase.Failed) DiagnosticLog(WifiScanStatusText.Text, UiLogLevel.Error);
     }
 
     private void WifiScanCancel_Click(object sender, RoutedEventArgs e)

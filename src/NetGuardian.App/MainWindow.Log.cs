@@ -52,11 +52,7 @@ public partial class MainWindow
             if (_resourcesCleaned) return;
             var previousCount = _eventLogStore.Entries.Count;
             // 无新增记录时只清理过期项，不重建视图，保留正在阅读的选择与滚动位置。
-            if (result.Batch.Entries.Count > 0)
-            {
-                using (_logView?.DeferRefresh()) _eventLogStore.Import(result.Batch.Entries, DateTimeOffset.Now);
-            }
-            else _eventLogStore.Import(result.Batch.Entries, DateTimeOffset.Now);
+            EventLogPresentation.ImportHistory(LogGrid, _eventLogStore, result.Batch.Entries, DateTimeOffset.Now);
             _logReadError = string.Join(Environment.NewLine, result.Batch.Errors);
             UpdateLogScope();
             UpdateLogViewInfo();
@@ -128,7 +124,7 @@ public partial class MainWindow
     private void RebuildRecentEvents()
     {
         _recentEvents.Clear();
-        foreach (var entry in _eventLogStore.Entries.OrderByDescending(entry => entry.Time).Take(6))
+        foreach (var entry in _eventLogStore.Entries.Reverse().Where(entry => entry.IsKeyEvent).Take(6))
             _recentEvents.Add(entry);
         RecoveryEventsList.ItemsSource = _eventLogStore.Entries.Reverse().Where(entry => entry.IsRecoveryEvent).Take(2).ToArray();
     }
@@ -137,11 +133,13 @@ public partial class MainWindow
     {
         _logView = CollectionViewSource.GetDefaultView(_eventLogStore.Entries);
         _logView.Filter = item => item is UiLogEntry entry && entry.Matches(LogSearchTextBox.Text,
-            SelectedLogLevel(), SelectedLogSource());
+            SelectedLogLevel(), SelectedLogSource(), KeyEventsOnly);
         LogGrid.ItemsSource = _logView;
         LogReadingBehavior.Attach(LogGrid, LogFollowCheckBox);
         UpdateLogViewInfo();
     }
+
+    private bool KeyEventsOnly => LogLevelComboBox.SelectedItem is ComboBoxItem { Tag: "Key" };
 
     private UiLogLevel? SelectedLogLevel() => LogLevelComboBox.SelectedItem is ComboBoxItem { Tag: string tag }
         && System.Enum.TryParse<UiLogLevel>(tag, out var level) ? level : null;
@@ -170,7 +168,11 @@ public partial class MainWindow
         UpdateLogViewInfo();
     }
 
-    private void LogResetFilter_Click(object sender, RoutedEventArgs e) => EventLogPresentation.ResetFilters(this, _logParent == "PolicyPanel");
+    private void LogResetFilter_Click(object sender, RoutedEventArgs e)
+    {
+        EventLogPresentation.ResetFilters(this, _logParent == "PolicyPanel");
+        if (_logParent != "PolicyPanel") LogLevelComboBox.SelectedItem = LogLevelComboBox.Items.Cast<ComboBoxItem>().Single(item => Equals(item.Tag, "all"));
+    }
 
     private void LogFollow_Changed(object sender, RoutedEventArgs e)
     {
@@ -190,6 +192,7 @@ public partial class MainWindow
         var count = _logView.Cast<object>().Count();
         var recovery = _logParent == "PolicyPanel";
         var total = recovery ? _eventLogStore.Entries.Count(entry => entry.IsRecoveryEvent) : _eventLogStore.Entries.Count;
+        LogResetFilterButton.Content = _localizer.T(recovery ? "UiResetFilters" : "LogShowAll");
         LogCountText.Text = string.Format(_localizer.T("LogVisibleCount"), count, total);
         EventLogPresentation.UpdateEmptyActions(this, total, count);
         if (recovery) LogEmptyAction.Visibility = Visibility.Collapsed;

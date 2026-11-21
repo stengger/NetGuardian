@@ -21,7 +21,7 @@ internal sealed record PersistedLogReadResult(IReadOnlyList<PersistedLogEntry> E
 internal sealed class PersistedEventLogReader
 {
     private static readonly Regex Header = new(@"^(?<time>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [+-]\d{2}:\d{2})  (?<message>.*)$", RegexOptions.Compiled);
-    private static readonly Regex Tag = new(@"^\[(?<level>Information|Warning|Error)/(?<source>Interface|Monitor|Diagnostic|Network)\] (?<message>[\s\S]*)$", RegexOptions.Compiled);
+    private static readonly Regex Tag = new(@"^\[(?<level>Information|Warning|Error)/(?<source>Interface|Monitor|Diagnostic|Network|Recovery)\] (?<message>[\s\S]*)$", RegexOptions.Compiled);
     private readonly string[] _directories;
     private readonly int _capacity;
     private readonly TimeProvider _time;
@@ -76,7 +76,7 @@ internal sealed class PersistedEventLogReader
                                 if (match.Success && DateTimeOffset.TryParseExact(match.Groups["time"].Value,
                                     "yyyy-MM-dd HH:mm:ss zzz", CultureInfo.InvariantCulture, DateTimeStyles.None, out var timestamp))
                                 {
-                                    if (cursor.Current is not null && cursor.Changed) AddCurrent(cursor, normal, from, now);
+                                    if (cursor.Current is not null && cursor.Changed) AddCurrent(cursor, normal, recovery, from, now);
                                     cursor.Current = new($"{path}|{cursor.Generation}|{offset}", timestamp, match.Groups["message"].Value,
                                         UiLogLevel.Information, UiLogSource.Background);
                                     cursor.Changed = true;
@@ -90,7 +90,7 @@ internal sealed class PersistedEventLogReader
                                 }
                             }
                         });
-                        if (!journal && cursor.Current is not null && cursor.Changed) AddCurrent(cursor, normal, from, now);
+                        if (!journal && cursor.Current is not null && cursor.Changed) AddCurrent(cursor, normal, recovery, from, now);
                     }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                     { if (errors.Count < 4) errors.Add($"{Path.GetFileName(path)}：{ex.Message}"); }
@@ -124,17 +124,27 @@ internal sealed class PersistedEventLogReader
         if (entries.Count > _capacity) entries.Remove(entries.Values.MinBy(value => value.Time)!.Id);
     }
 
-    private void AddCurrent(FileCursor cursor, Dictionary<string, PersistedLogEntry> normal, DateTimeOffset from, DateTimeOffset now)
+    private void AddCurrent(FileCursor cursor, Dictionary<string, PersistedLogEntry> normal,
+        Dictionary<string, PersistedLogEntry> recovery, DateTimeOffset from, DateTimeOffset now)
     {
         var entry = cursor.Current!;
         cursor.Changed = false;
         if (entry.Time < from || entry.Time > now) return;
         var tag = Tag.Match(entry.Message);
         if (tag.Success)
-            entry = entry with { Message = tag.Groups["message"].Value, Level = Enum.Parse<UiLogLevel>(tag.Groups["level"].Value), Source = Enum.Parse<UiLogSource>(tag.Groups["source"].Value) };
+        {
+            var source = Enum.Parse<UiLogSource>(tag.Groups["source"].Value);
+            entry = entry with { Message = tag.Groups["message"].Value, Level = Enum.Parse<UiLogLevel>(tag.Groups["level"].Value),
+                Source = source, IsRecoveryEvent = source == UiLogSource.Recovery };
+        }
         else
-            entry = entry with { Level = BackgroundLevel(entry.Message), DisplayMessage = BackgroundMessage(entry.Message) };
-        KeepLatest(normal, entry);
+        {
+            var kind = entry.Message.Split('：', 2)[0];
+            bool step = kind is "RecoverySwitchWifi" or "RecoveryReconnectCurrent";
+            entry = entry with { Level = BackgroundLevel(entry.Message), DisplayMessage = BackgroundMessage(entry.Message),
+                IsRecoveryEvent = step, Source = step ? UiLogSource.Recovery : UiLogSource.Background };
+        }
+        KeepLatest(entry.IsRecoveryEvent || entry.Source == UiLogSource.Network ? recovery : normal, entry);
     }
 
     private PersistedLogEntry? ParseJournal(string path, long offset, string line, DateTimeOffset from, DateTimeOffset now)

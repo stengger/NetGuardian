@@ -387,7 +387,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 using var activity = new ButtonActivityPresentation(ConnectButton, _localizer.T("WifiConnecting"));
                 var connecting = string.Format(_localizer.T("ConnectingTo"), profile.Ssid);
                 SetWifiSelectionMessage(connecting);
-                Log(connecting);
+                NetworkLog(connecting);
                 var result = await new ManualWifiConnector(_wifi, _connectivityTester).ConnectAsync(profile, _settings.Policy, token);
                 if (_resourcesCleaned) return result.Connected;
                 if (result.Report is { } report) ApplyReport(report, ConnectivityReportOrigin.Manual);
@@ -397,7 +397,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 if (!string.IsNullOrWhiteSpace(result.Error)) message += " " + result.Error;
                 completedMessage = message;
                 SetWifiSelectionMessage(message);
-                Log(message, result.Connected && result.Report?.Ok == true ? UiLogLevel.Information : UiLogLevel.Warning);
+                NetworkLog(message, result.Connected && result.Report?.Ok == true ? UiLogLevel.Information : UiLogLevel.Warning);
                 ShowFeedback(_localizer.T("Connect"), message, result.Connected && result.Report?.Ok == true
                     ? FeedbackSeverity.Success : FeedbackSeverity.Warning);
                 return result.Connected;
@@ -936,10 +936,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
                 break;
             }
             case EngineEventKind.RecoveryReconnectCurrent:
-                EngineLog(string.Format(_localizer.T("RecoveryReconnectCurrent"), args[0]));
+                Log(string.Format(_localizer.T("RecoveryReconnectCurrent"), args[0]), source: UiLogSource.Recovery);
                 break;
             case EngineEventKind.RecoverySwitchWifi:
-                EngineLog(string.Format(_localizer.T("RecoverySwitchWifi"), args[0]));
+                Log(string.Format(_localizer.T("RecoverySwitchWifi"), args[0]), source: UiLogSource.Recovery);
                 break;
             case EngineEventKind.RecoveryWifiConnected:
             {
