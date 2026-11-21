@@ -133,6 +133,8 @@
     <sys:Double x:Key="TrafficChartHeight">56</sys:Double>
     <Thickness x:Key="StrokeGroupDivider">0,0,0,1</Thickness>
     <Thickness x:Key="SpacingGroupBody">0,0,0,16</Thickness>
+    <GridLength x:Key="SettingsColumnGap">16</GridLength>
+    <Thickness x:Key="SettingsHelpInset">48,0,0,0</Thickness>
     <sys:Double x:Key="FormMaxWidth">720</sys:Double>
     <GridLength x:Key="FormLabelColumnWidth">180</GridLength>
     <sys:Double x:Key="FontSpeedMetric">32</sys:Double>

@@ -29,7 +29,7 @@ public sealed class DesktopLayoutTests
             DesktopFixture.ShowPage(window, "SettingsPanel");
             var localizer = new Localizer();
             localizer.SetLanguage(language);
-            foreach (var (name, key) in new[] { ("LanguageLabel", "Language"), ("ThemeLabel", "ThemeMode"), ("TrayTitle", "Tray"), ("CloseBehaviorLabel", "CloseBehavior") })
+            foreach (var (name, key) in new[] { ("LanguageLabel", "Language"), ("ThemeLabel", "ThemeMode"), ("SettingsTitle", "SettingsAppearance"), ("TrayTitle", "SettingsStartup"), ("CloseBehaviorLabel", "CloseBehavior") })
                 ((TextBlock)window.FindName(name)).Text = localizer.T(key);
             foreach (var (name, key) in new[] { ("StartMonitoringOnLaunchCheckBox", "StartMonitoringOnLaunch"), ("StartMinimizedToTrayCheckBox", "StartMinimizedToTray"), ("ScheduledStartupCheckBox", "ScheduledStartup") })
                 ((ContentControl)window.FindName(name)).Content = localizer.T(key);

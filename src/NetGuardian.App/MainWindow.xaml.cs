@@ -2108,9 +2108,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         AdapterIpv4Column.Header = "IPv4";
         AdapterGatewayColumn.Header = _localizer.T("Gateway");
         AdapterDnsColumn.Header = _localizer.T("DnsServersAll");
-        SettingsTitle.Text = _localizer.T("Preferences");
+        SettingsTitle.Text = _localizer.T("SettingsAppearance");
         LanguageLabel.Text = _localizer.T("Language");
-        TrayTitle.Text = _localizer.T("Tray");
+        TrayTitle.Text = _localizer.T("SettingsStartup");
         CloseBehaviorLabel.Text = _localizer.T("CloseBehavior");
         StartOnUserLogonCheckBox.Content = _localizer.T("StartOnUserLogon");
         UserLogonStartupStatusText.Text = _localizer.T(_userLogonStartupStatusKey);
