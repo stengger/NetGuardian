@@ -58,3 +58,13 @@ $solution = '.dotnet-home\v2-signed-qa\NetGuardian.sln'
 - 早期沙箱回环运行日志为 `.dotnet-home/v2-signed-tls.log`，退出码 1。Windows TLS 测试私钥的 Schannel 错误及堆栈在 `.dotnet-home/v2-signed-tls-unsandboxed.log`，退出码 1。测试服务改用本机可引用的临时证书私钥后复验通过。早期 WPF 夹具未执行呈现逻辑的断言及堆栈在 `.dotnet-home/v2-both-updates.log`，退出码 1，最终夹具调用与设置页相同的呈现方法。
 
 正式基础设施就绪后，A4 与 A7 仍需在实验室无代理网络验证公开双源可达、首包独立摘要、旧版实际安装、重启和守护任务交接。此次使用本地测试载荷，范围截止于验证客户端与既有安装入口之间的交接。提交、发布和部署由主线程统一处理。
+
+### 离线生成签名清单
+
+使用 PowerShell 7.4 或更新版本。向 `scripts/new-signed-update-manifest.ps1` 提供实际安装包、递增的发行序号、到期时间、中文发行说明、输出路径，以及从维护者证书或密钥提供程序取得的 `ECDsa` 私钥句柄。脚本按安装包实际字节计算大小和摘要，并检查文件名与产品版本。将同一份输出清单分发到两处。
+
+```powershell
+& ./scripts/new-signed-update-manifest.ps1 -Installer $installer -Sequence $sequence -ExpiresUtc $expires -Notes $notes -SigningKey $releaseKey -Output $newManifest
+```
+
+执行 `./tests/Test-SignedUpdateManifest.ps1` 可用临时密钥验证脚本与 Release 构建的客户端验签实现兼容。测试还核对整包摘要以及已有输出文件的防覆盖行为。
