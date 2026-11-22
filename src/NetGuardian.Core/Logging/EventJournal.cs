@@ -14,6 +14,8 @@ public sealed class JournalRecord
     [JsonPropertyName("action")] public string? Action { get; set; }    // started | connected | failed
     [JsonPropertyName("ssid")] public string? Ssid { get; set; }
     [JsonPropertyName("severity")] public string? Severity { get; set; }
+    [JsonPropertyName("schema")] public int? Schema { get; set; }
+    [JsonPropertyName("incident")] public IncidentStep? Incident { get; set; }
 }
 
 public sealed record WeeklySummary(int OutageEpisodes, int RecoveryAttempts, int RecoverySuccesses);
@@ -23,7 +25,7 @@ public sealed record WeeklySummary(int OutageEpisodes, int RecoveryAttempts, int
 /// (events-yyyyMM.jsonl). Healthy checks are sampled (first after a failure, then
 /// at most once per hour) to keep files small while preserving outage boundaries.
 /// </summary>
-public sealed class EventJournal
+public sealed partial class EventJournal
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -31,6 +33,7 @@ public sealed class EventJournal
     };
 
     private readonly string _directory;
+    private readonly IncidentHistoryReader _summaryReader;
     private readonly TimeProvider _time;
     private readonly object _syncRoot = new();
     private bool _lastCheckFailed;
@@ -40,6 +43,7 @@ public sealed class EventJournal
     {
         _directory = directory ?? GetDefaultDirectory();
         _time = timeProvider ?? TimeProvider.System;
+        _summaryReader = new([_directory]);
     }
 
     public string Directory => _directory;
@@ -115,36 +119,20 @@ public sealed class EventJournal
     {
         var now = _time.GetLocalNow();
         var cutoff = now.AddDays(-days);
-        var episodes = 0;
-        var attempts = 0;
-        var successes = 0;
-        var previousCheckOk = true;
+        IReadOnlyList<IncidentSummary> incidents;
+        lock (_summaryReader) incidents = _summaryReader.Read();
+        var episodes = incidents.Count(i => i.StartedAt >= cutoff && i.StartedAt <= now);
+        var steps = incidents.SelectMany(i => i.Steps).Where(s => s.At >= cutoff && s.At <= now);
+        var attempts = steps.Count(s => s.Kind == IncidentStepKind.RoundStarted);
+        var successes = steps.Count(s => s.Kind == IncidentStepKind.PublicVerified && s.AfterAction);
 
+        // v1 只有汇总动作，在原口径中保留。v2 的兼容行不能再次计入。
         foreach (var record in ReadRecords(cutoff, now))
         {
-            if (record.Type == "check" && record.Ok is { } ok)
-            {
-                if (!ok && previousCheckOk)
-                {
-                    episodes++;
-                }
-
-                previousCheckOk = ok;
-            }
-            else if (record.Type == "recovery")
-            {
-                switch (record.Action)
-                {
-                    case "started":
-                        attempts++;
-                        break;
-                    case "connected":
-                        successes++;
-                        break;
-                }
-            }
+            if (record.Schema is not null || record.Type != "recovery") continue;
+            if (record.Action == "started") attempts++;
+            if (record.Action == "connected") successes++;
         }
-
         return new WeeklySummary(episodes, attempts, successes);
     }
 
@@ -205,6 +193,7 @@ public sealed class EventJournal
     {
         try
         {
+            if (_observesIncidents) record.Schema = 2;
             System.IO.Directory.CreateDirectory(_directory);
             var path = Path.Combine(_directory, $"events-{record.Timestamp:yyyyMM}.jsonl");
             File.AppendAllText(path, JsonSerializer.Serialize(record, JsonOptions) + Environment.NewLine, Encoding.UTF8);

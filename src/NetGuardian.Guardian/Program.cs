@@ -87,6 +87,7 @@ using var engine = new MonitoringEngine(wifi, new ConnectivityTesterService(), c
         () => TimeSpan.FromMinutes(Volatile.Read(ref settings).Policy.HighRiskCooldownMinutes),
         deviceFailures.RecordRecoveryAttempt),
     networkChanges: new NetworkChangeSource());
+journal.ObserveIncidents(engine, "后台守护");
 engine.CheckCompleted += (_, e) =>
 {
     state = e.Report.State.ToString();

@@ -12,7 +12,7 @@ namespace NetGuardian.Core.Monitoring;
 /// graduated recovery execution. The UI subscribes to events and forwards commands.
 /// Events are raised on background threads — subscribers must marshal to their own context.
 /// </summary>
-public sealed class MonitoringEngine : IDisposable
+public sealed partial class MonitoringEngine : IDisposable
 {
     private readonly IWifiClient _wifi;
     private readonly IConnectivityTester _tester;
@@ -266,6 +266,7 @@ public sealed class MonitoringEngine : IDisposable
                 if (report.Ok) _failedRecoveryRounds = 0;
                 reportRecorded = true;
             }
+            ObserveReport(report);
             CheckCompleted?.Invoke(this, new CheckCompletedEventArgs(report, _failureStreak));
             token.ThrowIfCancellationRequested();
             await TryRecoverIfNeededAsync(policy, report, adapterName, token);
@@ -367,6 +368,7 @@ public sealed class MonitoringEngine : IDisposable
                 if (!result.Ok) return false;
                 var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(cancellationToken).WaitAsync(cancellationToken);
                 var retest = await ProbeAsync(policy, diagnostics, cancellationToken);
+                ObserveReport(retest, afterAction: true);
                 if (!retest.Ok) return false;
                 lock (_lifecycle)
                 {
@@ -469,6 +471,7 @@ public sealed class MonitoringEngine : IDisposable
         // 验证异常直接终止本轮，不能把未知结果当成设备故障。
         var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(cancellationToken).WaitAsync(cancellationToken);
         report = await ProbeAsync(policy, diagnostics, cancellationToken);
+        ObserveReport(report);
         if (!RecoveryPlanner.IsDeviceLayerFailure(report.State)) return;
         adapterName = diagnostics.AdapterName;
         _lastHighRiskAt = _time.GetLocalNow();
@@ -525,6 +528,8 @@ public sealed class MonitoringEngine : IDisposable
             _failureStreak = 0;
         }
 
+        Observe(IncidentStepKind.ActionResult, action, commandResult.Ok ? "系统命令执行成功" : "系统命令执行失败");
+        ObserveReport(reportAfter, afterAction: commandResult.Ok);
         Raise(EngineEventKind.HighRiskActionCompleted,
             action, commandResult.Ok, reportAfter.Ok, reportBefore.State.ToString(), reportAfter.State.ToString());
         return reportAfter.Ok || !RecoveryPlanner.IsDeviceLayerFailure(reportAfter.State);
@@ -558,10 +563,16 @@ public sealed class MonitoringEngine : IDisposable
         var validationToken = validation.Token;
         try
         {
+            var associationRecorded = false;
             while (true)
             {
                 var connection = await WaitForSsidAsync(ssid, timeout, validationToken);
                 if (connection is null) return false;
+                if (!associationRecorded)
+                {
+                    Observe(IncidentStepKind.WifiAssociated, ssid, connection.AdapterName);
+                    associationRecorded = true;
+                }
                 var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(validationToken).WaitAsync(validationToken);
                 // 公网探测保留独立预算，不能被已结束的地址等待预算截断。
                 var report = await ProbeAsync(policy, diagnostics, token, connection);
@@ -569,9 +580,13 @@ public sealed class MonitoringEngine : IDisposable
                 if (report.Ok)
                 {
                     var confirmed = await _wifi.GetConnectionInfoAsync(token).WaitAsync(token);
-                    return confirmed.ReadSucceeded && confirmed.Connected && RecoveryPlanner.SsidEquals(confirmed.Ssid, ssid)
+                    var sameRoute = confirmed.ReadSucceeded && confirmed.Connected && RecoveryPlanner.SsidEquals(confirmed.Ssid, ssid)
                         && string.Equals(confirmed.AdapterName, connection.AdapterName, StringComparison.OrdinalIgnoreCase);
+                    if (sameRoute) ObserveReport(report, afterAction: true);
+                    else Observe(IncidentStepKind.Inconclusive, ssid, "复测后出口已改变或未知", report);
+                    return sameRoute;
                 }
+                ObserveReport(report);
                 // 连接建立期间接口状态及 SSID 可能短暂回落，明确的关闭或设备故障不等待。
                 var canWaitForConnection = (report.State is NetworkState.Disconnected or NetworkState.WifiDisabled or NetworkState.WifiDisconnected)
                     && diagnostics.AdapterPresent && (diagnostics.ProblemCode is null or 0)
