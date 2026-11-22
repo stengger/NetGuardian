@@ -55,9 +55,8 @@ public sealed class UiAuditCaptureTests
                 Assert.Equal(metrics[0].ActualHeight, metric.ActualHeight);
             }
             DesktopFixture.Save(window, $"首页-{theme}.png");
-            Assert.True(nav.SelectPanel("WifiPanel"));
-            PanelNavigationPresenter.Show(window, "ToolsPanel", localizer);
-            Assert.Equal("ToolsPanel", ((ComboBox)window.FindName("NetworkSectionPicker")).SelectedValue);
+            Assert.True(nav.SelectPanel("ToolsPanel"));
+            Assert.Equal(Visibility.Collapsed, ((ComboBox)window.FindName("NetworkSectionPicker")).Visibility);
             Text("QualityStateText", localizer.T("Healthy")); Text("QualityPassedText", "6 / 6 项检查通过 · Lab Wi-Fi");
             foreach (var (name, value) in new[] { ("Gateway", "2 ms"), ("Dns", "14 ms"), ("Https", "86 ms") })
             {

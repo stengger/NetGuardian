@@ -64,7 +64,7 @@ internal static class PanelNavigationPresenter
         bar.Visibility = selectedAction is null ? Visibility.Collapsed : Visibility.Visible;
         ((UIElement)window.FindName("HomeMonitorActions")).Visibility = target.Name == "StatusPanel" ? Visibility.Visible : Visibility.Collapsed;
         var picker = (ComboBox)window.FindName("NetworkSectionPicker");
-        var network = target.Name is "WifiPanel" or "ToolsPanel" or "ConfigurationWorkspace" or "PolicyPanel";
+        var network = target.Name is "WifiPanel" or "ConfigurationWorkspace";
         picker.Visibility = network ? Visibility.Visible : Visibility.Collapsed;
         if (network) picker.SelectedValue = target.Name;
         ((UIElement)window.FindName("HeaderStatusPill")).Visibility = network ? Visibility.Collapsed : Visibility.Visible;

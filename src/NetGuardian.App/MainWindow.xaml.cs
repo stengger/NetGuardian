@@ -763,7 +763,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void OpenDiagnostics_Click(object sender, RoutedEventArgs e)
     {
-        RootNavigation.SelectPanel("WifiPanel");
+        RootNavigation.SelectPanel("ToolsPanel");
         ShowPanelByTag("QualityPanel");
         _metricReturnTarget = sender as Button;
         MetricReturnButton.Visibility = Visibility.Visible;
@@ -1970,9 +1970,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         IncidentNavButton.Content = _localizer.T("Incidents");
         WifiNavButton.Content = _localizer.T("NetworkWorkspace");
         NetworkWifiSection.Content = _localizer.T("Wifi");
-        NetworkPolicySection.Content = _localizer.T("RecoveryWorkspace");
+        PolicyNavButton.Content = _localizer.T("RecoveryWorkspace");
         NetworkAdapterSection.Content = _localizer.T("ConfigurationWorkspace");
-        NetworkToolsSection.Content = _localizer.T("DiagnosticsWorkspace");
+        ToolsNavButton.Content = _localizer.T("DiagnosticsWorkspace");
         IncidentRawLogButton.Content = _localizer.T("RawEventLog");
         MetricReturnButton.Content = _localizer.T("BackToHome");
         RefreshIncidentLanguage();

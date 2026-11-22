@@ -32,25 +32,25 @@ public sealed class WorkspaceDesignTests
     }
 
     [Fact]
-    public void 侧栏仅保留三个任务入口且设置独立()
+    public void 常用任务可从侧栏直接打开且设置独立()
     {
         DesktopFixture.Run(window =>
         {
             var nav = (PanelNavigationView)window.FindName("RootNavigation");
-            Assert.Equal(new[] { "StatusPanel", "IncidentPanel", "WifiPanel" },
+            Assert.Equal(new[] { "StatusPanel", "IncidentPanel", "WifiPanel", "PolicyPanel", "ToolsPanel" },
                 nav.MenuItems.OfType<PanelNavigationItem>().Select(item => item.Tag));
             Assert.Equal("SettingsPanel", Assert.Single(nav.FooterMenuItems.OfType<PanelNavigationItem>()).Tag);
         });
     }
 
     [Fact]
-    public void 网络页的选择器能到达四项功能且故障页有原始日志入口()
+    public void 网络页仅切换无线与网卡配置且故障页有原始日志入口()
     {
         DesktopFixture.Run(window =>
         {
             var picker = (ComboBox)window.FindName("NetworkSectionPicker");
             var sections = picker.Items.Cast<ComboBoxItem>().Select(item => (string)item.Tag).ToArray();
-            Assert.Equal(new[] { "WifiPanel", "PolicyPanel", "ConfigurationWorkspace", "ToolsPanel" }, sections);
+            Assert.Equal(new[] { "WifiPanel", "ConfigurationWorkspace" }, sections);
             foreach (var section in sections)
             {
                 DesktopFixture.ShowPage(window, section);
@@ -58,8 +58,11 @@ public sealed class WorkspaceDesignTests
                 Assert.Equal(section, picker.SelectedValue);
                 Assert.True(((FrameworkElement)window.FindName(section)).IsVisible);
             }
-            DesktopFixture.ShowPage(window, "IncidentPanel");
-            Assert.False(picker.IsVisible);
+            foreach (var page in new[] { "PolicyPanel", "ToolsPanel", "IncidentPanel" })
+            {
+                DesktopFixture.ShowPage(window, page);
+                Assert.False(picker.IsVisible);
+            }
             Assert.True(((Button)window.FindName("IncidentRawLogButton")).IsVisible);
         });
     }

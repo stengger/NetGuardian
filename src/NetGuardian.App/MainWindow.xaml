@@ -47,8 +47,10 @@
                 <presentation:PanelNavigationView x:Name="RootNavigation" AutomationProperties.Name="NetGuardian" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" BorderBrush="Transparent" BorderThickness="0" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
                     <presentation:PanelNavigationView.MenuItems>
                         <presentation:PanelNavigationItem x:Name="StatusNavButton" Click="ParentWorkspace_Click" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" />
-                        <presentation:PanelNavigationItem x:Name="IncidentNavButton" Content="故障记录" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="IncidentPanel" />
-                        <presentation:PanelNavigationItem x:Name="WifiNavButton" Content="网络与守护" Icon="{ui:SymbolIcon Shield24}" Tag="WifiPanel" />
+                        <presentation:PanelNavigationItem x:Name="IncidentNavButton" Content="故障记录" Icon="{ui:SymbolIcon History24}" Tag="IncidentPanel" />
+                        <presentation:PanelNavigationItem x:Name="WifiNavButton" Content="网络" Icon="{ui:SymbolIcon Wifi124}" Tag="WifiPanel" />
+                        <presentation:PanelNavigationItem x:Name="PolicyNavButton" Click="ParentWorkspace_Click" Content="自动恢复" Icon="{ui:SymbolIcon Shield24}" Tag="PolicyPanel" />
+                        <presentation:PanelNavigationItem x:Name="ToolsNavButton" Content="网络诊断" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="ToolsPanel" />
                     </presentation:PanelNavigationView.MenuItems>
                     <presentation:PanelNavigationView.FooterMenuItems>
                         <GroupBox x:Name="SidebarTrafficHost" BorderThickness="0" Padding="0" AutomationProperties.Name="{Binding Text, ElementName=SidebarSpeedTitle}">
@@ -138,9 +140,7 @@
                               VerticalAlignment="Center" Margin="{DynamicResource SpacingLeadingGap}" SelectedValuePath="Tag" SelectionChanged="NetworkSection_Changed"
                               AutomationProperties.Name="{Binding Content, ElementName=WifiNavButton}">
                         <ComboBoxItem x:Name="NetworkWifiSection" Tag="WifiPanel" Content="Wi-Fi" />
-                        <ComboBoxItem x:Name="NetworkPolicySection" Tag="PolicyPanel" Content="自动恢复" />
                         <ComboBoxItem x:Name="NetworkAdapterSection" Tag="ConfigurationWorkspace" Content="网卡与 DNS" />
-                        <ComboBoxItem x:Name="NetworkToolsSection" Tag="ToolsPanel" Content="诊断工具" />
                     </ComboBox>
                         <Border x:Name="HeaderStatusPill" VerticalAlignment="Center" Margin="{DynamicResource SpacingLeadingGroupGap}" Padding="{DynamicResource SpacingCompactInset}"
                                 Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="{DynamicResource CornerCard}">

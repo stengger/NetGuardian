@@ -191,8 +191,8 @@ public sealed class PanelNavigationTests
             Assert.IsAssignableFrom<ISelectionProvider>(selection.SelectionContainer.GetPatternProvider(10001));
             Assert.Throws<InvalidOperationException>(selection.RemoveFromSelection);
             var actualItems = peer.GetChildren()!.Where(child => child.GetPattern(PatternInterface.SelectionItem) is ISelectionItemProvider).ToArray();
-            Assert.Equal(4, actualItems.Length);
-            Assert.Equal(4, actualItems.Select(child => child.GetName()).Distinct().Count());
+            Assert.Equal(6, actualItems.Length);
+            Assert.Equal(6, actualItems.Select(child => child.GetName()).Distinct().Count());
         });
     }
 
@@ -208,7 +208,7 @@ public sealed class PanelNavigationTests
             var localizer = new Localizer();
             localizer.SetLanguage(language);
             var items = navigation.MenuItems.Cast<object>().Concat(navigation.FooterMenuItems.Cast<object>()).OfType<PanelNavigationItem>().ToArray();
-            Assert.Equal(4, items.Length);
+            Assert.Equal(6, items.Length);
             var changes = 0;
             navigation.SelectionChanged += (_, _) => changes++;
             navigation.SelectionChanged += (_, _) => PanelNavigationPresenter.Show(window, (navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString(), localizer);
@@ -223,7 +223,7 @@ public sealed class PanelNavigationTests
                 ("PolicyPanel", "PolicyPageActions"), ("LogPanel", "LogPageActions"),
                 ("SettingsPanel", (string?)null)
             };
-            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("IncidentNavButton", "Incidents"), ("WifiNavButton", "NetworkWorkspace"), ("SettingsNavButton", "Settings") })
+            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("IncidentNavButton", "Incidents"), ("WifiNavButton", "NetworkWorkspace"), ("PolicyNavButton", "RecoveryWorkspace"), ("ToolsNavButton", "DiagnosticsWorkspace"), ("SettingsNavButton", "Settings") })
             {
                 var item = (PanelNavigationItem)window.FindName(name);
                 item.Content = localizer.T(key);
@@ -244,7 +244,7 @@ public sealed class PanelNavigationTests
                 Assert.Equal(localizer.T(key), ((System.Windows.Controls.TextBlock)window.FindName("PageTitleText")).Text);
                 Assert.True(navigation.SelectPanel((string)item.Tag));
             }
-            Assert.Equal(4, changes);
+            Assert.Equal(6, changes);
             Assert.False(navigation.SelectPanel("Unknown"));
             var disabled = items[0];
             disabled.IsEnabled = false;
@@ -252,7 +252,7 @@ public sealed class PanelNavigationTests
             var disabledPeer = UIElementAutomationPeer.CreatePeerForElement(disabled)!;
             var disabledSelection = (ISelectionItemProvider)disabledPeer.GetPattern(PatternInterface.SelectionItem);
             Assert.Throws<System.Windows.Automation.ElementNotEnabledException>(disabledSelection.Select);
-            Assert.Equal(4, changes);
+            Assert.Equal(6, changes);
             DesktopFixture.Layout(window, 1040, 660);
             navigation.IsPaneOpen = expanded;
             window.UpdateLayout();
