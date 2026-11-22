@@ -44,7 +44,7 @@ public sealed class WindowClosingTests
                     {
                         var prompt = new Window { Owner = window, ShowInTaskbar = false, Width = 100, Height = 100 };
                         prompt.Loaded += (_, _) => prompt.Dispatcher.BeginInvoke(new Action(prompt.Close));
-                        prompt.ShowDialog();
+                        TestDesktopWindow.ShowDialog(prompt);
                     }
                     frame.Continue = false;
                 });
@@ -55,7 +55,7 @@ public sealed class WindowClosingTests
             window.Closed += (_, _) => closed = true;
             try
             {
-                window.Show();
+                TestDesktopWindow.Show(window);
                 // 只发起一次关闭，随后由程序完成所选动作。
                 window.Close();
                 Assert.True(requested);

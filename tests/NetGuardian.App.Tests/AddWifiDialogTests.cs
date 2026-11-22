@@ -33,7 +33,7 @@ public sealed class AddWifiDialogTests
             foreach (var dictionary in owner.Resources.MergedDictionaries) dialog.Resources.MergedDictionaries.Add(dictionary);
             try
             {
-                dialog.Show();
+                TestDesktopWindow.Show(dialog);
                 dialog.UpdateLayout();
                 var save = DesktopFixture.Descendants(dialog).OfType<Button>().Single(button => button.IsDefault);
                 Assert.False(save.IsEnabled);
@@ -72,7 +72,7 @@ public sealed class AddWifiDialogTests
             dialog.Height = 430;
             try
             {
-                dialog.Show();
+                TestDesktopWindow.Show(dialog);
                 dialog.UpdateLayout();
                 var body = Assert.Single(DesktopFixture.Descendants(dialog).OfType<ScrollViewer>(),
                     viewer => viewer.Content is Panel panel && DesktopFixture.Descendants(panel).OfType<PasswordBox>().Any());
@@ -116,7 +116,7 @@ public sealed class AddWifiDialogTests
             foreach (var dictionary in owner.Resources.MergedDictionaries) dialog.Resources.MergedDictionaries.Add(dictionary);
             try
             {
-                dialog.Show();
+                TestDesktopWindow.Show(dialog);
                 dialog.UpdateLayout();
                 var password = Assert.Single(DesktopFixture.Descendants(dialog).OfType<PasswordBox>());
                 Assert.True(password.RevealButtonEnabled);
@@ -188,7 +188,7 @@ public sealed class AddWifiDialogTests
                 catch (Exception exception) { failure = exception; }
                 finally { if (dialog.IsVisible) dialog.Close(); }
             }, DispatcherPriority.ContextIdle);
-            var result = dialog.ShowDialog();
+            var result = TestDesktopWindow.ShowDialog(dialog);
             if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
             Assert.Equal(save, result);
             Assert.Equal("测试网络", dialog.Ssid);
@@ -254,7 +254,7 @@ public sealed class AddWifiDialogTests
                 Assert.Equal(WindowCornerPreference.Round, fluent.WindowCornerPreference);
                 Assert.True(fluent.ExtendsContentIntoTitleBar);
                 Assert.False(dialog.AllowsTransparency);
-                dialog.Show();
+                TestDesktopWindow.Show(dialog);
                 dialog.UpdateLayout();
                 Assert.Equal(((SolidColorBrush)owner.FindResource("SurfaceCardBrush")).Color, ((SolidColorBrush)dialog.Background).Color);
                 DesktopFixture.Save(dialog, $"add-wifi-{theme}-{language}-top.png");

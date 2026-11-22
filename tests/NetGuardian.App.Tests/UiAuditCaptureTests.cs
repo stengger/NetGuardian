@@ -132,7 +132,7 @@ public sealed class UiAuditCaptureTests
                 dialog.ShowActivated = false;
                 try
                 {
-                    dialog.Show(); dialog.UpdateLayout();
+                    TestDesktopWindow.Show(dialog); dialog.UpdateLayout();
                     foreach (var scale in new[] { 1d, 1.25d, 1.5d }) Save(dialog, directory, $"Dialog-{kind}-{theme}-{scale * 100:0}.png", scale);
                 }
                 finally { dialog.Close(); }

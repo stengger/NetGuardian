@@ -482,7 +482,7 @@ internal static class DesktopFixture
                 window.Left = -20000;
                 window.ShowActivated = false;
                 window.ShowInTaskbar = false;
-                window.Show();
+                TestDesktopWindow.Show(window);
                 action(window);
             }
             catch (Exception exception) { failure = exception; }

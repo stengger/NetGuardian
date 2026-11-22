@@ -74,12 +74,12 @@ public sealed class WindowWorkAreaTests
             using var policy = new WindowWorkArea(window, () => area);
             try
             {
-                window.Show();
+                TestDesktopWindow.Show(window);
                 Drain(window);
                 AssertContained(window, area);
                 window.Hide();
                 area = new Rect(-19000, -19000, 900, 480);
-                window.Show();
+                TestDesktopWindow.Show(window);
                 Drain(window);
                 AssertContained(window, area);
                 area = new Rect(-18000, -18000, 850, 450);

@@ -40,7 +40,7 @@ public sealed class DialogPresentationTests
                 dialog.Left = -20000;
                 try
                 {
-                    dialog.Show();
+                    TestDesktopWindow.Show(dialog);
                     dialog.UpdateLayout();
                     Assert.Equal(((SolidColorBrush)owner.FindResource("SurfaceCardBrush")).Color, ((SolidColorBrush)dialog.Background).Color);
                     var primary = DesktopFixture.Descendants(dialog).OfType<Wpf.Ui.Controls.Button>().Single(button => button.IsDefault);
@@ -69,7 +69,7 @@ public sealed class DialogPresentationTests
             foreach (var dictionary in owner.Resources.MergedDictionaries) dialog.Resources.MergedDictionaries.Add(dictionary);
             try
             {
-                dialog.Show();
+                TestDesktopWindow.Show(dialog);
                 dialog.UpdateLayout();
                 var titleBar = Assert.Single(DesktopFixture.Descendants(dialog).OfType<TitleBar>());
                 Assert.IsAssignableFrom<FluentDialogWindow>(dialog);
@@ -124,7 +124,7 @@ public sealed class DialogPresentationTests
                 catch (Exception exception) { failure = exception; }
                 finally { if (dialog.IsVisible) dialog.Close(); }
             }, DispatcherPriority.ContextIdle);
-            dialog.ShowDialog();
+            TestDesktopWindow.ShowDialog(dialog);
             if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
             Assert.Equal(expected, dialog.Result);
         });
@@ -144,7 +144,7 @@ public sealed class DialogPresentationTests
             dialog.Left = -20000;
             try
             {
-                dialog.Show();
+                TestDesktopWindow.Show(dialog);
                 dialog.UpdateLayout();
                 var buttons = DesktopFixture.Descendants(dialog).OfType<Wpf.Ui.Controls.Button>()
                     .Where(button => button.Style == dialog.FindResource("DialogButtonStyle")).ToArray();
