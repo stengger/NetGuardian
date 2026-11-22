@@ -3,6 +3,47 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              FontFamily="{DynamicResource AppFontFamily}" FontSize="{DynamicResource FontBody}"
              Foreground="{DynamicResource TextFillColorPrimaryBrush}">
+    <UserControl.Resources>
+        <!-- 仅用于故障记录，复用主题令牌，避免系统默认的直角实色选中条。 -->
+        <Style x:Key="IncidentHistoryRowStyle" TargetType="ListBoxItem">
+            <Setter Property="Foreground" Value="{DynamicResource TextFillColorPrimaryBrush}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="{DynamicResource StrokeControlThickness}" />
+            <Setter Property="Padding" Value="{DynamicResource SpacingControlPadding}" />
+            <Setter Property="Margin" Value="0,3" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="IncidentRowSurface" CornerRadius="{DynamicResource CornerCard}"
+                                Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}" Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="{DynamicResource RowSelectedBrush}" />
+                                <Setter Property="BorderBrush" Value="{DynamicResource AccentTextFillColorPrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter Property="BorderBrush" Value="{DynamicResource FocusRingBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Foreground" Value="{DynamicResource TextFillColorDisabledBrush}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel>
             <TextBlock x:Name="EmptyText" Text="暂无故障记录" TextWrapping="Wrap" />
@@ -12,9 +53,11 @@
                         <TextBlock x:Name="HistoryHeading" Text="历史故障" Style="{DynamicResource SectionTitleStyle}" />
                         <ListBox x:Name="HistoryList" AutomationProperties.Name="故障时间与恢复结果"
                                 HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                                MaxHeight="232" SelectionChanged="HistorySelectionChanged">
+                                MaxHeight="232" SelectionChanged="HistorySelectionChanged"
+                                Background="Transparent" BorderThickness="0" Padding="0"
+                                ItemContainerStyle="{StaticResource IncidentHistoryRowStyle}">
                             <ListBox.ItemTemplate>
-                                <DataTemplate><TextBlock Text="{Binding Title}" TextWrapping="Wrap" Margin="4,3" /></DataTemplate>
+                                <DataTemplate><TextBlock Text="{Binding Title}" TextWrapping="Wrap" /></DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                     </StackPanel>

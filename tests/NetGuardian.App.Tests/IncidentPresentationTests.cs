@@ -1,4 +1,7 @@
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using NetGuardian.App.Presentation;
 using NetGuardian.App.Views;
 using NetGuardian.Core.Models;
@@ -72,6 +75,59 @@ public sealed class IncidentPresentationTests
             Assert.Contains(english ? "original network" : "断网前的网络", ((TextBlock)view.FindName("CountsText")).Text);
             Assert.False(((Expander)view.FindName("RawDetails")).IsExpanded);
         });
+    }
+
+    [Theory]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Dark, false)]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Light, false)]
+    [InlineData(Wpf.Ui.Appearance.ApplicationTheme.Dark, true)]
+    public void 故障选中项使用圆角淡色描边且支持键盘切换(Wpf.Ui.Appearance.ApplicationTheme theme, bool highContrast)
+    {
+        DesktopFixture.Run(window =>
+        {
+            if (highContrast) window.Resources.MergedDictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri("pack://application:,,,/NetGuardian;component/Themes/Palette.HighContrast.xaml")
+            });
+            var view = new IncidentTimelineView();
+            ((ContentControl)window.FindName("IncidentViewHost")).Content = view;
+            ((Button)window.FindName("IncidentBackButton")).Content = "返回首页";
+            DesktopFixture.ShowPage(window, "IncidentPanel");
+            var original = Incident("第一条", "", IncidentOutcome.CauseUnknown);
+            var legacy = original with { IsLegacy = true, OriginalNetwork = null,
+                Steps = [new(original.Id, original.StartedAt, IncidentStepKind.Failure, "旧版日志", "v1"),
+                    new("恢复", original.EndedAt!.Value, IncidentStepKind.LegacyRestored, "旧版日志", "v1", "恢复时的网络")] };
+            view.ShowIncidents([legacy, Incident("第二条", "备用网络", IncidentOutcome.Open)]);
+            DesktopFixture.Layout(window, 1040, 660);
+            var list = (ListBox)view.FindName("HistoryList");
+            var item = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
+            item.ApplyTemplate();
+            var surface = Assert.IsType<Border>(item.Template.FindName("IncidentRowSurface", item));
+            Assert.Equal((CornerRadius)window.FindResource("CornerCard"), surface.CornerRadius);
+            Assert.True(surface.CornerRadius.TopLeft > 0);
+            Assert.Equal(new Thickness(1), surface.BorderThickness);
+            Assert.Same(window.FindResource("RowSelectedBrush"), surface.Background);
+            Assert.Same(window.FindResource("AccentTextFillColorPrimaryBrush"), surface.BorderBrush);
+            Assert.Same(window.FindResource("TextFillColorPrimaryBrush"), item.Foreground);
+            if (!highContrast) Assert.InRange(Assert.IsType<SolidColorBrush>(surface.Background).Color.A, (byte)1, (byte)100);
+            Assert.Contains(item.Template.Triggers.OfType<Trigger>(), t => t.Property == UIElement.IsMouseOverProperty);
+            Assert.Contains(item.Template.Triggers.OfType<Trigger>(), t => t.Property == UIElement.IsKeyboardFocusWithinProperty);
+            item.Focus();
+            item.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(item)!, Environment.TickCount, Key.Down)
+                { RoutedEvent = Keyboard.KeyDownEvent });
+            DesktopFixture.Layout(window, 1040, 660);
+            Assert.Equal("第二条", view.SelectedIncidentId);
+            Assert.Same(window.FindResource("RowSelectedBrush"), ((Border)((ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1)).Template
+                .FindName("IncidentRowSurface", (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1))).Background);
+            list.SelectedIndex = 0;
+            ((Button)window.FindName("IncidentBackButton")).Focus();
+            DesktopFixture.Layout(window, 1040, 660);
+            var unselected = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(1);
+            var unselectedSurface = (Border)unselected.Template.FindName("IncidentRowSurface", unselected);
+            Assert.Equal(Colors.Transparent, Assert.IsType<SolidColorBrush>(unselectedSurface.Background).Color);
+            Assert.Equal(Colors.Transparent, Assert.IsType<SolidColorBrush>(unselectedSurface.BorderBrush).Color);
+            DesktopFixture.Save(window, $"故障记录圆角-{(highContrast ? "HighContrast" : theme.ToString())}.png");
+        }, theme);
     }
 
     [Fact]
