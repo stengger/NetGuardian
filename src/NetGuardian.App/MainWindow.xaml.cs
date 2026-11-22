@@ -145,6 +145,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             WifiValidationTimeout = WifiValidationTimeout,
             WifiRestoreTimeout = WifiRestoreTimeout
         };
+        _journal.ObserveIncidents(_engine, "前台");
         _engine.EngineEvent += Engine_Event;
         _engine.CheckCompleted += Engine_CheckCompleted;
         _engine.ProfileRecoveryResult += Engine_ProfileRecoveryResult;
@@ -750,12 +751,30 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         PanelNavigationPresenter.Show(this, sender == ToolsTabControl ? "ToolsPanel" : "ConfigurationWorkspace", _localizer);
     }
 
+    private Button? _metricReturnTarget;
+
+    private void MetricReturn_Click(object sender, RoutedEventArgs e)
+    {
+        var target = _metricReturnTarget;
+        RootNavigation.SelectPanel("StatusPanel");
+        target?.BringIntoView();
+        target?.Focus();
+    }
+
     private void OpenDiagnostics_Click(object sender, RoutedEventArgs e)
     {
-        RootNavigation.SelectPanel("ToolsPanel");
+        RootNavigation.SelectPanel("WifiPanel");
         ShowPanelByTag("QualityPanel");
+        _metricReturnTarget = sender as Button;
+        MetricReturnButton.Visibility = Visibility.Visible;
+        MetricReturnButton.Focus();
         var group = (sender as Button)?.Tag as string;
         var sample = group is null ? null : _reportSelection.Measurement(group);
+        if (group is not null && sample is null)
+        {
+            if (_qualitySession.ClearPreview()) RefreshQualityUi();
+            return;
+        }
         var report = sample?.Report ?? _reportSelection.Report;
         if (report is null || !_qualitySession.Preview(report, sample?.Origin ?? _reportSelection.Origin)) return;
         RefreshQualityUi();
@@ -774,9 +793,21 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityProbeGrid.ScrollIntoView(_qualityRows[index]);
     }
 
+    private void NetworkSection_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (e.OriginalSource == sender && IsLoaded && NetworkSectionPicker.IsVisible &&
+            NetworkSectionPicker.SelectedValue is string tag && FindName(tag) is UIElement { Visibility: Visibility.Collapsed })
+            ShowPanelByTag(tag);
+    }
+
     private void ShowPanelByTag(string? tag)
     {
         PanelNavigationPresenter.Show(this, tag, _localizer);
+        if (tag is not ("QualityPanel" or "ToolsPanel"))
+        {
+            _metricReturnTarget = null;
+            MetricReturnButton.Visibility = Visibility.Collapsed;
+        }
         if (tag == "LogPanel") RenderLogContext();
         RenderCurrentWifi();
         if (tag == "SettingsPanel" && _updateSession is not null)
@@ -1936,10 +1967,15 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Resources["TableDragLabel"] = _localizer.T("DragHint");
         TitleBar.Title = _localizer.T("AppTitle");
         StatusNavButton.Content = _localizer.T("Status");
-        WifiNavButton.Content = _localizer.T("Wifi");
-        PolicyNavButton.Content = _localizer.T("RecoveryWorkspace");
-        ToolsNavButton.Content = _localizer.T("DiagnosticsWorkspace");
-        AdapterNavButton.Content = _localizer.T("ConfigurationWorkspace");
+        IncidentNavButton.Content = _localizer.T("Incidents");
+        WifiNavButton.Content = _localizer.T("NetworkWorkspace");
+        NetworkWifiSection.Content = _localizer.T("Wifi");
+        NetworkPolicySection.Content = _localizer.T("RecoveryWorkspace");
+        NetworkAdapterSection.Content = _localizer.T("ConfigurationWorkspace");
+        NetworkToolsSection.Content = _localizer.T("DiagnosticsWorkspace");
+        IncidentRawLogButton.Content = _localizer.T("RawEventLog");
+        MetricReturnButton.Content = _localizer.T("BackToHome");
+        RefreshIncidentLanguage();
         ExportLogsButton.Content = _localizer.T("ExportLogs");
         RefreshLogLanguage();
         SettingsNavButton.Content = _localizer.T("Settings");
@@ -1957,7 +1993,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         FailureStreakLabel.Text = _localizer.T("FailureStreak");
         ProbeTitleText.Text = _localizer.T("ProbeDetails");
         HomeDiagnosticsButton.Content = _localizer.T("OpenDiagnostics");
-        HomeLogsButton.Content = _localizer.T("ViewAllEvents");
+        HomeLogsButton.Content = _localizer.T("Incidents");
         RecoveryLogsButton.Content = _localizer.T("ViewRecoveryHistory");
         RecentRecoveryTitle.Text = _localizer.T("RecentRecovery");
         RecentRecoveryEmpty.Text = _localizer.T("NoRecoveryHistory");
@@ -2160,7 +2196,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateEmptyStates();
         UpdateMonitorStatus();
         UpdateTrayText();
-        ShowPanelByTag(_logParent is null ? (RootNavigation.SelectedItem as Wpf.Ui.Controls.NavigationViewItem)?.Tag?.ToString() : "LogPanel");
+        var selected = (RootNavigation.SelectedItem as Wpf.Ui.Controls.NavigationViewItem)?.Tag?.ToString();
+        ShowPanelByTag(_logParent is not null ? "LogPanel" : selected == "WifiPanel" ? NetworkSectionPicker.SelectedValue as string ?? selected : selected);
     }
 
     private void UpdateEmptyStates()

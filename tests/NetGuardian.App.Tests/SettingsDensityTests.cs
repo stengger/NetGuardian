@@ -34,9 +34,7 @@ public sealed class SettingsDensityTests
                 ("UpdateStatusText", "UpdateNoUpdate"), ("HeaderStateText", "BackgroundMonitoring"),
                 ("SidebarSpeedTitle", "InterfaceTraffic"), ("SidebarSpeedScopeText", "InterfaceTrafficSummary") })
                 ((TextBlock)Find(name)).Text = text.T(key);
-            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"),
-                ("ToolsNavButton", "DiagnosticsWorkspace"), ("AdapterNavButton", "ConfigurationWorkspace"),
-                ("PolicyNavButton", "RecoveryWorkspace"), ("SettingsNavButton", "Settings") })
+            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("IncidentNavButton", "Incidents"), ("WifiNavButton", "NetworkWorkspace"), ("SettingsNavButton", "Settings") })
                 ((PanelNavigationItem)Find(name)).Content = text.T(key);
             ((TextBlock)Find("SidebarUploadLegend")).Text = "↑ " + text.T("UploadSpeed");
             ((TextBlock)Find("SidebarDownloadLegend")).Text = "↓ " + text.T("DownloadSpeed");

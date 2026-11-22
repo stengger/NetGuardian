@@ -32,14 +32,51 @@ public sealed class WorkspaceDesignTests
     }
 
     [Fact]
-    public void 侧栏仅保留五个任务入口且设置独立()
+    public void 侧栏仅保留三个任务入口且设置独立()
     {
         DesktopFixture.Run(window =>
         {
             var nav = (PanelNavigationView)window.FindName("RootNavigation");
-            Assert.Equal(new[] { "StatusPanel", "WifiPanel", "ToolsPanel", "ConfigurationWorkspace", "PolicyPanel" },
+            Assert.Equal(new[] { "StatusPanel", "IncidentPanel", "WifiPanel" },
                 nav.MenuItems.OfType<PanelNavigationItem>().Select(item => item.Tag));
             Assert.Equal("SettingsPanel", Assert.Single(nav.FooterMenuItems.OfType<PanelNavigationItem>()).Tag);
+        });
+    }
+
+    [Fact]
+    public void 网络页的选择器能到达四项功能且故障页有原始日志入口()
+    {
+        DesktopFixture.Run(window =>
+        {
+            var picker = (ComboBox)window.FindName("NetworkSectionPicker");
+            var sections = picker.Items.Cast<ComboBoxItem>().Select(item => (string)item.Tag).ToArray();
+            Assert.Equal(new[] { "WifiPanel", "PolicyPanel", "ConfigurationWorkspace", "ToolsPanel" }, sections);
+            foreach (var section in sections)
+            {
+                DesktopFixture.ShowPage(window, section);
+                Assert.True(picker.Focusable && picker.IsVisible);
+                Assert.Equal(section, picker.SelectedValue);
+                Assert.True(((FrameworkElement)window.FindName(section)).IsVisible);
+            }
+            DesktopFixture.ShowPage(window, "IncidentPanel");
+            Assert.False(picker.IsVisible);
+            Assert.True(((Button)window.FindName("IncidentRawLogButton")).IsVisible);
+        });
+    }
+
+    [Fact]
+    public void 窄窗和放大字号使概览指标自然换行()
+    {
+        DesktopFixture.Run(_ =>
+        {
+            var grid = new DashboardMetricGrid();
+            for (int i = 0; i < 3; i++) grid.Children.Add(new Button());
+            grid.SetValue(Control.FontSizeProperty, 20d);
+            foreach (var (width, columns) in new[] { (800, 3), (500, 2), (300, 1) })
+            {
+                grid.Measure(new Size(width, double.PositiveInfinity));
+                Assert.Equal(columns, grid.Columns);
+            }
         });
     }
 

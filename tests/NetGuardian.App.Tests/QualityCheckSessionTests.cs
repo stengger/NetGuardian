@@ -21,6 +21,19 @@ public sealed class QualityCheckSessionTests
     }
 
     [Fact]
+    public void 新网络尚未采样时清空旧钻取结果且保留运行中的检查()
+    {
+        var session = new QualityCheckSession();
+        session.Preview(new ConnectivityReport(), ConnectivityReportOrigin.Manual);
+        Assert.True(session.ClearPreview());
+        Assert.Null(session.Report);
+        Assert.Equal(QualityCheckPhase.Idle, session.Phase);
+        session.Begin();
+        Assert.False(session.ClearPreview());
+        Assert.True(session.IsBusy);
+    }
+
+    [Fact]
     public void 新检查清除旧结果且取消后的迟到成功不能覆盖取消()
     {
         var state = new QualityCheckSession();

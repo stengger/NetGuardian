@@ -25,6 +25,16 @@ internal sealed class QualityCheckSession
         return true;
     }
 
+    public bool ClearPreview()
+    {
+        if (IsBusy) return false;
+        Report = null;
+        PreviewOrigin = null;
+        Phase = QualityCheckPhase.Idle;
+        Error = null;
+        return true;
+    }
+
     public Guid Begin()
     {
         if (IsBusy) throw new InvalidOperationException("连接检查尚未结束。");

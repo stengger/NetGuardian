@@ -10,7 +10,7 @@ internal static class PanelNavigationPresenter
 {
     private static readonly (string Name, string Title, string? Subtitle)[] Pages =
     [
-        ("StatusPanel", "Status", "HomeWorkspaceHint"), ("WifiPanel", "Wifi", null),
+        ("StatusPanel", "Status", "HomeWorkspaceHint"), ("IncidentPanel", "Incidents", null), ("WifiPanel", "NetworkWorkspace", null),
         ("ToolsPanel", "DiagnosticsWorkspace", "DiagnosticsWorkspaceHint"),
         ("ConfigurationWorkspace", "ConfigurationWorkspace", "ConfigurationWorkspaceHint"),
         ("PolicyPanel", "RecoveryWorkspace", "RecoveryWorkspaceHint"),
@@ -63,10 +63,15 @@ internal static class PanelNavigationPresenter
         Grid.SetColumnSpan(bar, inline ? 1 : 2);
         bar.Visibility = selectedAction is null ? Visibility.Collapsed : Visibility.Visible;
         ((UIElement)window.FindName("HomeMonitorActions")).Visibility = target.Name == "StatusPanel" ? Visibility.Visible : Visibility.Collapsed;
-        ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.Title);
+        var picker = (ComboBox)window.FindName("NetworkSectionPicker");
+        var network = target.Name is "WifiPanel" or "ToolsPanel" or "ConfigurationWorkspace" or "PolicyPanel";
+        picker.Visibility = network ? Visibility.Visible : Visibility.Collapsed;
+        if (network) picker.SelectedValue = target.Name;
+        ((UIElement)window.FindName("HeaderStatusPill")).Visibility = network ? Visibility.Collapsed : Visibility.Visible;
+        ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(network ? "NetworkWorkspace" : target.Title);
         var subtitle = (TextBlock)window.FindName("PageSubtitleText");
         subtitle.Text = target.Subtitle is null ? "" : localizer.T(target.Subtitle);
-        subtitle.Visibility = target.Subtitle is null ? Visibility.Collapsed : Visibility.Visible;
+        subtitle.Visibility = network || target.Subtitle is null ? Visibility.Collapsed : Visibility.Visible;
         ResponsiveLayout.ApplyWifi(window);
     }
 }

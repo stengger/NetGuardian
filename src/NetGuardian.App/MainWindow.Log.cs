@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -9,6 +10,8 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Threading;
 using NetGuardian.App.Presentation;
+using NetGuardian.App.Views;
+using NetGuardian.Core.Models;
 using NetGuardian.Core.Logging;
 using NetGuardian.Core.Runtime;
 
@@ -23,6 +26,39 @@ public partial class MainWindow
     private bool _isLoadingPersistedLogs;
     private string _logReadError = "";
 
+    private IncidentHistoryReader? _incidentReader;
+    private IncidentTimelineView? _incidentView;
+    private IReadOnlyList<IncidentSummary> IncidentHistory { get; set; } = [];
+    private bool IncidentEnglish => _localizer.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase);
+
+    private void RefreshIncidentLanguage()
+    {
+        if (_incidentView is null)
+        {
+            _incidentView = new();
+            IncidentViewHost.Content = _incidentView;
+            _incidentView.OpenAllLogsRequested += OpenIncidentAllLogs_Click;
+        }
+        _incidentView.SetLanguage(IncidentEnglish);
+        UpdateIncidentViews();
+        RebuildRecentEvents();
+    }
+
+    private void UpdateIncidentViews()
+    {
+        HomeIncidentButton.Content = IncidentPresentation.HomeText(IncidentHistory.FirstOrDefault(), IncidentEnglish);
+        _incidentView?.ShowIncidents(IncidentHistory);
+    }
+
+    private void OpenIncidents_Click(object sender, RoutedEventArgs e)
+    {
+        var id = IncidentPresentation.LinkedIncident((sender as FrameworkElement)?.DataContext as UiLogEntry);
+        _logParent = null;
+        RootNavigation.SelectPanel("IncidentPanel");
+        ShowPanelByTag("IncidentPanel");
+        _incidentView?.ShowIncidents(IncidentHistory, id ?? IncidentHistory.FirstOrDefault()?.Id);
+    }
+
     private void InitializePersistedLogs()
     {
         var directories = new[]
@@ -30,6 +66,7 @@ public partial class MainWindow
             (_fileLog as FileLogSink)?.Directory, _journal.Directory,
             Path.Combine(GuardianPaths.MachineDirectory, "logs"), Path.Combine(GuardianPaths.UserDirectory, "logs")
         }.Where(path => !string.IsNullOrWhiteSpace(path)).Select(path => path!);
+        _incidentReader = new(directories);
         _persistedLogReader = new(directories, MaxLogLines, localizer: _localizer);
         _logRefreshTimer.Interval = TimeSpan.FromSeconds(2);
         _logRefreshTimer.Tick += async (_, _) => await RefreshPersistedLogsAsync();
@@ -39,7 +76,7 @@ public partial class MainWindow
 
     private async Task RefreshPersistedLogsAsync()
     {
-        if (_persistedLogReader is null || _isLoadingPersistedLogs || _resourcesCleaned) return;
+        if (_incidentReader is null || _persistedLogReader is null || _isLoadingPersistedLogs || _resourcesCleaned) return;
         _isLoadingPersistedLogs = true;
         try
         {
@@ -47,13 +84,19 @@ public partial class MainWindow
             var result = await Task.Run(() =>
             {
                 var batch = _persistedLogReader.Read();
-                return (Batch: batch, Summary: batch.Entries.Count > 0 ? _journal.GetSummary() : null);
+                return (Batch: batch, Incidents: _incidentReader.Read(), Summary: batch.Entries.Count > 0 ? _journal.GetSummary() : null);
             });
             if (_resourcesCleaned) return;
             var previousCount = _eventLogStore.Entries.Count;
             // 无新增记录时只清理过期项，不重建视图，保留正在阅读的选择与滚动位置。
             EventLogPresentation.ImportHistory(LogGrid, _eventLogStore, result.Batch.Entries, DateTimeOffset.Now);
-            _logReadError = string.Join(Environment.NewLine, result.Batch.Errors);
+            if (!ReferenceEquals(IncidentHistory, result.Incidents))
+            {
+                IncidentHistory = result.Incidents;
+                UpdateIncidentViews();
+                RebuildRecentEvents();
+            }
+            _logReadError = string.Join(Environment.NewLine, result.Batch.Errors.Concat(_incidentReader.Errors));
             UpdateLogScope();
             UpdateLogViewInfo();
             if (result.Batch.Entries.Count > 0 || previousCount != _eventLogStore.Entries.Count) RebuildRecentEvents();
@@ -81,12 +124,20 @@ public partial class MainWindow
 
     private string? _logParent;
 
+    private void OpenIncidentAllLogs_Click(object sender, RoutedEventArgs e) => OpenEventLog_Click(IncidentRawLogButton, e);
+
     private void OpenEventLog_Click(object sender, RoutedEventArgs e)
     {
-        _logParent = PolicyPanel.IsVisible ? "PolicyPanel" : "StatusPanel";
+        if (IncidentPresentation.LinkedIncident((sender as FrameworkElement)?.DataContext as UiLogEntry) != null)
+        {
+            OpenIncidents_Click(sender, e);
+            return;
+        }
+        _logParent = sender == IncidentRawLogButton ? "IncidentPanel" : PolicyPanel.IsVisible ? "PolicyPanel" : "StatusPanel";
         var recovery = _logParent == "PolicyPanel";
         var entry = (sender as FrameworkElement)?.DataContext as UiLogEntry;
         EventLogPresentation.ResetFilters(this, recovery);
+        if (_logParent == "IncidentPanel") LogLevelComboBox.SelectedItem = LogLevelComboBox.Items.Cast<ComboBoxItem>().Single(item => Equals(item.Tag, "all"));
         LogGrid.SelectedItem = null;
         LogDetailsExpander.IsExpanded = false;
         ShowPanelByTag("LogPanel");
@@ -104,7 +155,8 @@ public partial class MainWindow
     {
         var recovery = _logParent == "PolicyPanel";
         PageTitleText.Text = _localizer.T(recovery ? "RecoveryHistory" : "Log");
-        LogBackButton.Content = _localizer.T(recovery ? "BackToRecovery" : "BackToHome");
+        LogBackButton.Content = _logParent == "IncidentPanel" ? (IncidentEnglish ? "Back to incidents" : "返回故障记录")
+            : _localizer.T(recovery ? "BackToRecovery" : "BackToHome");
         UpdateLogViewInfo();
     }
 
@@ -113,7 +165,7 @@ public partial class MainWindow
         var parent = _logParent ?? "StatusPanel";
         _logParent = null;
         ShowPanelByTag(parent);
-        (parent == "PolicyPanel" ? RecoveryLogsButton : HomeLogsButton).Focus();
+        (parent == "IncidentPanel" ? IncidentRawLogButton : parent == "PolicyPanel" ? RecoveryLogsButton : HomeLogsButton).Focus();
     }
 
     private void ParentWorkspace_Click(object sender, RoutedEventArgs e)
@@ -123,10 +175,14 @@ public partial class MainWindow
 
     private void RebuildRecentEvents()
     {
+        var cutoff = DateTimeOffset.Now.AddDays(-7);
+        var incidents = IncidentHistory.Where(i => i.EndedAt is null || i.EndedAt >= cutoff)
+            .Take(6).Select(i => IncidentPresentation.HistoryEntry(i, _localizer)).ToList();
+        var otherEvents = _eventLogStore.Entries.Where(entry => entry.IsKeyEvent && !entry.IsRecoveryEvent
+            && entry.Source is not (UiLogSource.Monitor or UiLogSource.Background));
         _recentEvents.Clear();
-        foreach (var entry in _eventLogStore.Entries.Reverse().Where(entry => entry.IsKeyEvent).Take(6))
-            _recentEvents.Add(entry);
-        RecoveryEventsList.ItemsSource = _eventLogStore.Entries.Reverse().Where(entry => entry.IsRecoveryEvent).Take(2).ToArray();
+        foreach (var entry in incidents.Concat(otherEvents).OrderByDescending(e => e.Time).Take(6)) _recentEvents.Add(entry);
+        RecoveryEventsList.ItemsSource = incidents.Take(2).ToArray();
     }
 
     private void InitializeLogView()

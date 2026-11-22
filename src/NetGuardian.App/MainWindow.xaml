@@ -47,10 +47,8 @@
                 <presentation:PanelNavigationView x:Name="RootNavigation" AutomationProperties.Name="NetGuardian" PaneDisplayMode="Left" IsPaneOpen="True" CompactPaneLength="56" OpenPaneLength="216" BorderBrush="Transparent" BorderThickness="0" SelectionChanged="RootNavigation_SelectionChanged" IsBackButtonVisible="Collapsed">
                     <presentation:PanelNavigationView.MenuItems>
                         <presentation:PanelNavigationItem x:Name="StatusNavButton" Click="ParentWorkspace_Click" Content="Status" Icon="{ui:SymbolIcon Home24}" Tag="StatusPanel" />
-                        <presentation:PanelNavigationItem x:Name="WifiNavButton" Content="Wi-Fi" Icon="{ui:SymbolIcon Wifi124}" Tag="WifiPanel" />
-                        <presentation:PanelNavigationItem x:Name="ToolsNavButton" Content="网络诊断" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="ToolsPanel" />
-                        <presentation:PanelNavigationItem x:Name="AdapterNavButton" Content="网络配置" Icon="{ui:SymbolIcon DesktopSignal24}" Tag="ConfigurationWorkspace" />
-                        <presentation:PanelNavigationItem x:Name="PolicyNavButton" Click="ParentWorkspace_Click" Content="自动恢复" Icon="{ui:SymbolIcon Shield24}" Tag="PolicyPanel" />
+                        <presentation:PanelNavigationItem x:Name="IncidentNavButton" Content="故障记录" Icon="{ui:SymbolIcon DesktopPulse24}" Tag="IncidentPanel" />
+                        <presentation:PanelNavigationItem x:Name="WifiNavButton" Content="网络与守护" Icon="{ui:SymbolIcon Shield24}" Tag="WifiPanel" />
                     </presentation:PanelNavigationView.MenuItems>
                     <presentation:PanelNavigationView.FooterMenuItems>
                         <GroupBox x:Name="SidebarTrafficHost" BorderThickness="0" Padding="0" AutomationProperties.Name="{Binding Text, ElementName=SidebarSpeedTitle}">
@@ -136,6 +134,14 @@
                 <StackPanel VerticalAlignment="Center" Margin="{DynamicResource SpacingFieldGap}">
                     <WrapPanel>
                         <TextBlock x:Name="PageTitleText" FontSize="{DynamicResource FontTitle}" FontWeight="SemiBold" Foreground="{DynamicResource TextFillColorPrimaryBrush}" />
+                    <ComboBox x:Name="NetworkSectionPicker" Visibility="Collapsed" HorizontalAlignment="Left" MinWidth="152" MaxWidth="220"
+                              VerticalAlignment="Center" Margin="{DynamicResource SpacingLeadingGap}" SelectedValuePath="Tag" SelectionChanged="NetworkSection_Changed"
+                              AutomationProperties.Name="{Binding Content, ElementName=WifiNavButton}">
+                        <ComboBoxItem x:Name="NetworkWifiSection" Tag="WifiPanel" Content="Wi-Fi" />
+                        <ComboBoxItem x:Name="NetworkPolicySection" Tag="PolicyPanel" Content="自动恢复" />
+                        <ComboBoxItem x:Name="NetworkAdapterSection" Tag="ConfigurationWorkspace" Content="网卡与 DNS" />
+                        <ComboBoxItem x:Name="NetworkToolsSection" Tag="ToolsPanel" Content="诊断工具" />
+                    </ComboBox>
                         <Border x:Name="HeaderStatusPill" VerticalAlignment="Center" Margin="{DynamicResource SpacingLeadingGroupGap}" Padding="{DynamicResource SpacingCompactInset}"
                                 Background="{DynamicResource ControlFillColorDefaultBrush}" CornerRadius="{DynamicResource CornerCard}">
                             <StackPanel Orientation="Horizontal">
@@ -144,6 +150,7 @@
                             </StackPanel>
                         </Border>
                     </WrapPanel>
+
                     <TextBlock x:Name="PageSubtitleText" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingValidationGap}" />
                 </StackPanel>
                 <StackPanel x:Name="HomeMonitorActions" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="{DynamicResource SpacingFieldGap}">
@@ -250,6 +257,11 @@
             </StackPanel>
 
                 <Grid Grid.Row="2" Grid.ColumnSpan="2">
+                    <Grid x:Name="IncidentPanel" Visibility="Collapsed">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions>
+                        <Button x:Name="IncidentRawLogButton" Content="全部日志" Click="OpenEventLog_Click" HorizontalAlignment="Right" Margin="{DynamicResource SpacingFieldGap}" />
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><ContentControl x:Name="IncidentViewHost" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" /></ScrollViewer>
+                    </Grid>
                     <ScrollViewer x:Name="StatusPanel" presentation:ScrollWheelChaining.IsEnabled="True" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="{DynamicResource SpacingInlineGap}">
  <StackPanel>
   <Border Style="{DynamicResource StatusHeroCardStyle}" Margin="{DynamicResource SpacingGroupGap}">
@@ -279,8 +291,7 @@
     </StackPanel>
    </Grid>
   </Border>
-  <Grid Margin="{DynamicResource SpacingGroupGap}">
-      <Grid.ColumnDefinitions><ColumnDefinition /><ColumnDefinition /><ColumnDefinition /></Grid.ColumnDefinitions>
+  <presentation:DashboardMetricGrid Margin="{DynamicResource SpacingGroupGap}">
       <Button x:Name="HomeGatewayLink" Grid.Column="0" Tag="Gateway" Click="OpenDiagnostics_Click" Style="{StaticResource MetricLinkStyle}"
               AutomationProperties.Name="{Binding Text, ElementName=HomeGatewayLabel}" ToolTip="{Binding Content, ElementName=HomeDiagnosticsButton}" Margin="{DynamicResource SpacingInlineGap}">
           <StackPanel>
@@ -308,9 +319,10 @@
               <TextBlock x:Name="HomeHttpsSamples" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
           </StackPanel>
       </Button>
-  </Grid>
+  </presentation:DashboardMetricGrid>
+   <Button x:Name="HomeIncidentButton" HorizontalContentAlignment="Left" Style="{StaticResource MetricLinkStyle}" Click="OpenIncidents_Click" Margin="{DynamicResource SpacingGroupGap}" />
   <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingGroupGap}">
-   <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+  <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <StackPanel Margin="{DynamicResource SpacingInlineGroupGap}"><TextBlock x:Name="WeeklyPeriodText" Style="{DynamicResource SectionTitleStyle}"/><TextBlock x:Name="WeeklySummaryText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" /></StackPanel>
     <StackPanel Grid.Column="1"><TextBlock x:Name="WeeklyOutagesLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/><TextBlock x:Name="WeeklyOutagesText" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingBlockStart}"/></StackPanel>
     <StackPanel Grid.Column="2"><TextBlock x:Name="WeeklyRateLabel" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/><TextBlock x:Name="WeeklyRateText" Text="—" FontSize="{DynamicResource FontMetric}" FontWeight="SemiBold" Margin="{DynamicResource SpacingBlockStart}" ToolTip="{Binding Text, ElementName=WeeklySummaryText}"/></StackPanel>
@@ -333,7 +345,7 @@
    <Border Grid.Column="1" Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingLeadingGap}"><StackPanel>
     <WrapPanel Margin="{DynamicResource SpacingFieldGap}">
         <TextBlock x:Name="RecentEventsTitle" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="{DynamicResource SpacingInlineGroupGap}" />
-        <Button x:Name="HomeLogsButton" Style="{StaticResource WorkspaceLinkStyle}" Click="OpenEventLog_Click" />
+        <Button x:Name="HomeLogsButton" Style="{StaticResource WorkspaceLinkStyle}" Click="OpenIncidents_Click" />
     </WrapPanel>
     <Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=RecentEventsEmptyText}"><StackPanel><TextBlock Text="≡" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" /><TextBlock x:Name="RecentEventsEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed" TextAlignment="Center" Margin="{DynamicResource SpacingEmptyCaption}" /><Button x:Name="RecentEventsEmptyAction" Content="{Binding Content, ElementName=CheckNowButton}" IsEnabled="{Binding IsEnabled, ElementName=CheckNowButton}" ToolTip="{Binding ToolTip, ElementName=CheckNowButton}" Click="CheckNow_Click" HorizontalAlignment="Center" /></StackPanel></Border>
     <ListBox x:Name="RecentEventsList" AutomationProperties.Name="{Binding Text, ElementName=RecentEventsTitle}" BorderThickness="0" Background="Transparent" ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -560,7 +572,7 @@
                                 <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
                                     <StackPanel>
                                         <DockPanel>
-                                            <Button x:Name="RecoveryLogsButton" DockPanel.Dock="Right" Style="{StaticResource WorkspaceLinkStyle}" Click="OpenEventLog_Click" />
+                                            <Button x:Name="RecoveryLogsButton" DockPanel.Dock="Right" Style="{StaticResource WorkspaceLinkStyle}" Click="OpenIncidents_Click" />
                                             <TextBlock x:Name="RecentRecoveryTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
                                         </DockPanel>
                                         <TextBlock x:Name="RecentRecoveryEmpty" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="{DynamicResource SpacingBlockStart}" />
@@ -606,6 +618,7 @@
                                     <Grid>
                                         <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
                                         <StackPanel>
+                                            <Button x:Name="MetricReturnButton" Visibility="Collapsed" Style="{StaticResource WorkspaceLinkStyle}" HorizontalAlignment="Left" Click="MetricReturn_Click" />
                                             <TextBlock x:Name="QualityToolsTitle" Visibility="Collapsed" />
                                             <ProgressBar x:Name="QualityActivityBar" IsIndeterminate="True" Height="3" Margin="{DynamicResource SpacingBlockGap}" Visibility="Collapsed" AutomationProperties.Name="{Binding Text, ElementName=QualityStateText}" />
                                         </StackPanel>

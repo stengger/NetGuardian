@@ -78,7 +78,7 @@ public sealed class SmallWorkAreaTests
             ((TextBlock)window.FindName("SidebarSpeedTitle")).Text = "本机接口流量合计";
             ((TextBlock)window.FindName("SidebarSpeedScopeText")).Text = "活动接口合计，非互联网测速";
             DesktopFixture.Layout(window, 960, 500);
-            var item = (FrameworkElement)window.FindName("PolicyNavButton");
+            var item = (FrameworkElement)window.FindName("WifiNavButton");
             item.BringIntoView(); window.UpdateLayout();
             var card = (FrameworkElement)window.FindName("SidebarSpeedCard");
             var itemBounds = item.TransformToAncestor(window).TransformBounds(new Rect(item.RenderSize));
@@ -202,10 +202,10 @@ public sealed class SmallWorkAreaTests
     {
         DesktopFixture.Run(window =>
         {
-            window.MinWidth = 960; window.MinHeight = 500;
+            window.MinWidth = 960; window.MinHeight = 320;
             ((TextBlock)window.FindName("SidebarSpeedTitle")).Text = "本机接口流量合计";
             ((TextBlock)window.FindName("SidebarSpeedScopeText")).Text = "活动接口合计，非互联网测速";
-            DesktopFixture.Layout(window, 960, 500);
+            DesktopFixture.Layout(window, 960, 320);
             var navigation = (FrameworkElement)window.FindName("RootNavigation");
             var scroll = DesktopFixture.Descendants(navigation).OfType<Wpf.Ui.Controls.DynamicScrollViewer>()
                 .First(viewer => viewer.ScrollableHeight > 40);
