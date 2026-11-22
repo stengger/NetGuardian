@@ -175,7 +175,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RootSnackbar.Configure(_localizer);
 
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
-        _countdownTimer.Tick += (_, _) => { UpdateMonitorStatus(); RefreshCurrentWifiIfDue(); };
+        _countdownTimer.Tick += (_, _) => { UpdateMonitorStatus(); RefreshCurrentWifiIfDue(); RefreshMetricAge(); };
         _countdownTimer.Start();
         _sidebarSpeedTimer.Interval = TimeSpan.FromSeconds(1);
         _sidebarSpeedTimer.Tick += (_, _) => UpdateSidebarSpeed();
@@ -189,6 +189,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         InitializeDnsControls();
         ResetQualityUi();
         InitializeSpeedTest();
+        NetworkChange.NetworkAddressChanged += DashboardNetworkChanged;
         ResetSpeedUi();
         ResetIpInfoUi();
         ResetReportUi();
@@ -753,9 +754,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         RootNavigation.SelectPanel("ToolsPanel");
         ShowPanelByTag("QualityPanel");
-        if (_reportSelection.Report is not { } report || !_qualitySession.Preview(report, _reportSelection.Origin)) return;
-        RefreshQualityUi();
         var group = (sender as Button)?.Tag as string;
+        var sample = group is null ? null : _reportSelection.Measurement(group);
+        var report = sample?.Report ?? _reportSelection.Report;
+        if (report is null || !_qualitySession.Preview(report, sample?.Origin ?? _reportSelection.Origin)) return;
+        RefreshQualityUi();
+        if (sample is not null && sample.Report.CheckedAt != _reportSelection.Report?.CheckedAt)
+            QualityScopeText.Text += " · " + _localizer.T("MetricSkipped");
         var probe = report.Probes.Where(item => group switch
         {
             "Gateway" => item.Name is "Gateway ping" or "Default gateway",
@@ -1726,7 +1731,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SummaryText.Text = LocalizeSummary(report.Summary);
         ReportContextText.Text = ConnectivityReportPresentation.Context(report, origin, _localizer);
         ReportContextText.Visibility = Visibility.Visible;
-        CurrentSsidText.Text = string.IsNullOrWhiteSpace(report.CurrentSsid) ? "-" : report.CurrentSsid;
+        CurrentSsidText.Text = _reportSelection.KnownSsid ?? "—";
         ProbeGrid.ItemsSource = report.Probes.Select(probe => new ProbeRow(
             LocalizeProbeName(probe.Name),
             probe.Ok ? _localizer.T("Pass") : _localizer.T("Fail"),
@@ -3037,6 +3042,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _logRefreshTimer.Stop();
         _countdownTimer.Stop();
         _sidebarSpeedTimer.Stop();
+        NetworkChange.NetworkAddressChanged -= DashboardNetworkChanged;
         CleanupSpeedTest();
         _wifiScan.Cancel();
         _websiteSession.Cancel();

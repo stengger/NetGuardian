@@ -48,6 +48,25 @@ public sealed class ConnectivityTests
         Assert.Empty(report.Probes);
     }
 
+    [Fact]
+    public async Task 完整和轻量检查共享明确的接口配置身份()
+    {
+        var snapshot = new NetworkSnapshot("Wi-Fi", true, true, "192.0.2.2", "192.0.2.1", 3, "接口A", "192.0.2.53");
+        var tester = new ConnectivityTester(new MonitorPolicy(), new FixedEnvironment(snapshot), new FakeProbes());
+        var full = await tester.RunFullCheckAsync("主网");
+        var light = await tester.RunLightweightCheckAsync();
+        Assert.NotNull(full.NetworkContext);
+        Assert.Equal(full.NetworkContext, light.NetworkContext);
+        Assert.NotEqual(full.NetworkContext, (snapshot with { DnsConfiguration = "192.0.2.54" }).Context);
+        Assert.NotEqual(full.NetworkContext, (snapshot with { Gateway = "192.0.2.3" }).Context);
+        Assert.Null((snapshot with { InterfaceId = null }).Context);
+    }
+
+    private sealed class FixedEnvironment(NetworkSnapshot snapshot) : IConnectivityEnvironment
+    {
+        public NetworkSnapshot Capture() => snapshot;
+    }
+
     private sealed class MissingAddressEnvironment : IConnectivityEnvironment
     {
         public NetworkSnapshot Capture() => new("测试无线网卡", true, true, null, null);

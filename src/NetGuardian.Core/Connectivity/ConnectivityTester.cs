@@ -30,6 +30,7 @@ public sealed class ConnectivityTester
     public async Task<ConnectivityReport> RunLightweightCheckAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        var started = DateTimeOffset.Now;
         var snapshot = _environment.Capture();
         var probes = new List<ConnectivityProbe>();
         var state = NetworkState.Disconnected;
@@ -42,6 +43,7 @@ public sealed class ConnectivityTester
         cancellationToken.ThrowIfCancellationRequested();
         return new ConnectivityReport
         {
+            SampleStartedAt = started, NetworkContext = snapshot.Context,
             IsLightweight = true, State = state, Ipv4 = snapshot.Ipv4, Gateway = snapshot.Gateway, Probes = probes,
             Summary = state == NetworkState.Healthy ? "Lightweight internet check succeeded." : "Lightweight internet check failed."
         };
@@ -54,6 +56,7 @@ public sealed class ConnectivityTester
     {
         cancellationToken.ThrowIfCancellationRequested();
         var probes = new List<ConnectivityProbe>();
+        var started = DateTimeOffset.Now;
         if (wifiDiagnostics?.ProblemCode is > 0)
         {
             probes.Add(new ConnectivityProbe("无线设备状态", false, null, wifiDiagnostics.Detail));
@@ -119,7 +122,7 @@ public sealed class ConnectivityTester
 
         if (dnsSuccesses == 0)
         {
-            return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.");
+            return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.", wifi.Context, started);
         }
 
         var httpsTargets = MonitorPolicy.NormalizeProbeList(_policy.HttpsProbeHosts, MonitorPolicy.DefaultHttpsProbeHosts);
@@ -128,8 +131,8 @@ public sealed class ConnectivityTester
         var httpsSuccesses = httpsProbes.Count(probe => probe.Ok);
 
         return httpsSuccesses >= Math.Min(2, httpsTargets.Count)
-            ? Report(NetworkState.Healthy, currentSsid, ipv4, gateway, probes, "Network is healthy.")
-            : Report(NetworkState.InternetIssue, currentSsid, ipv4, gateway, probes, "Public HTTPS probes did not reach quorum.");
+            ? Report(NetworkState.Healthy, currentSsid, ipv4, gateway, probes, "Network is healthy.", wifi.Context, started)
+            : Report(NetworkState.InternetIssue, currentSsid, ipv4, gateway, probes, "Public HTTPS probes did not reach quorum.", wifi.Context, started);
     }
 
     private Task<ConnectivityProbe> PingAsync(string host, string name, CancellationToken cancellationToken) =>
@@ -180,11 +183,12 @@ public sealed class ConnectivityTester
         string? ipv4,
         string? gateway,
         List<ConnectivityProbe> probes,
-        string summary)
+        string summary, string? context = null, DateTimeOffset? started = null)
     {
         return new ConnectivityReport
         {
             State = state,
+            SampleStartedAt = started, NetworkContext = context,
             CurrentSsid = currentSsid,
             Ipv4 = ipv4,
             Gateway = gateway,
@@ -210,7 +214,8 @@ internal sealed class SystemConnectivityEnvironment : IConnectivityEnvironment
             : adapters.FirstOrDefault(item => string.Equals(item.Name, adapterName, StringComparison.OrdinalIgnoreCase));
         var hasIpv4 = wifi?.Supports(NetworkInterfaceComponent.IPv4) == true;
         return new NetworkSnapshot(wifi?.Name, adapters.Length > 0, wifi?.OperationalStatus == OperationalStatus.Up,
-            GetPrimaryIpv4(wifi), GetDefaultGateway(wifi), hasIpv4 ? wifi!.GetIPProperties().GetIPv4Properties()?.Index : null);
+            GetPrimaryIpv4(wifi), GetDefaultGateway(wifi), hasIpv4 ? wifi!.GetIPProperties().GetIPv4Properties()?.Index : null,
+            wifi?.Id, wifi is null ? null : string.Join(",", wifi.GetIPProperties().DnsAddresses));
     }
 
     private static string? GetPrimaryIpv4(NetworkInterface? networkInterface)

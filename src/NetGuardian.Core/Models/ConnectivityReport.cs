@@ -2,6 +2,8 @@ namespace NetGuardian.Core.Models;
 
 public sealed class ConnectivityReport
 {
+    public string? NetworkContext { get; init; }
+    public DateTimeOffset? SampleStartedAt { get; init; }
     public bool IsLightweight { get; init; }
     public NetworkState State { get; init; }
     public DateTimeOffset CheckedAt { get; init; } = DateTimeOffset.Now;

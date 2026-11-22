@@ -15,6 +15,36 @@ internal static class DashboardPresentation
         latency is not { } value || !double.IsFinite(value) || value < 0 ? "TextFillColorSecondaryBrush"
         : value <= good ? "StatusHealthyBrush" : value <= warning ? "StatusWarningBrush" : "StatusDangerBrush";
 
+    internal static void RenderMeasurement(TextBlock value, TextBlock samples, DashboardMeasurement? sample,
+        string kind, Localizer localizer, DateTimeOffset now, int intervalSeconds, bool skipped)
+    {
+        RenderTiming(value, samples, sample?.Timing, kind, localizer);
+        if (sample is null)
+        {
+            value.ToolTip = samples.ToolTip = samples.Text = localizer.T("MetricWaiting");
+            return;
+        }
+        var details = samples.Text;
+        var at = sample.Report.CheckedAt.ToLocalTime();
+        var caption = at.ToString("HH:mm:ss");
+        if (sample.Timing.Succeeded == 0)
+        {
+            value.Text = localizer.T("MetricFailed");
+            if (sample.LastValidMs is { } last)
+                caption += " · " + string.Format(localizer.T("MetricPrevious"), last, sample.LastValidAt?.ToLocalTime());
+        }
+        else if (sample.Timing.Succeeded < sample.Timing.Attempted)
+            caption += $" · {sample.Timing.Succeeded}/{sample.Timing.Attempted}";
+        if (sample.Expired(now, intervalSeconds))
+        {
+            caption += " · " + localizer.T("MetricExpired");
+            AppThemePolicy.BindBrush(value, TextBlock.ForegroundProperty, "TextFillColorSecondaryBrush");
+        }
+        else if (skipped) caption += " · " + localizer.T("MetricSkipped");
+        samples.Text = caption;
+        value.ToolTip = samples.ToolTip = $"{at:g} · {details} · {caption}";
+    }
+
     internal static void RenderTiming(TextBlock value, TextBlock samples, ProbeTimingSummary? timing,
         string kind, Localizer localizer)
     {
