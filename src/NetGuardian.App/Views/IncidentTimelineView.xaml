@@ -4,27 +4,37 @@
              FontFamily="{DynamicResource AppFontFamily}" FontSize="{DynamicResource FontBody}"
              Foreground="{DynamicResource TextFillColorPrimaryBrush}">
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-    <StackPanel>
-        <TextBlock x:Name="EmptyText" Text="暂无故障记录" TextWrapping="Wrap" />
-        <StackPanel x:Name="HistoryDetails" Visibility="Collapsed">
-            <ListBox x:Name="HistoryList" AutomationProperties.Name="故障时间与恢复结果"
-                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                     MaxHeight="232" SelectionChanged="HistorySelectionChanged">
-                <ListBox.ItemTemplate>
-                    <DataTemplate><TextBlock Text="{Binding Title}" TextWrapping="Wrap" Margin="4,3" /></DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-            <TextBlock x:Name="CountsText" Margin="0,12,0,4" TextWrapping="Wrap" FontWeight="SemiBold" />
-            <ItemsControl x:Name="StepsList" AutomationProperties.Name="故障步骤">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate><TextBlock Text="{Binding}" Margin="0,3" TextWrapping="Wrap" /></DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-            <Expander x:Name="RawDetails" Header="原始记录与探针证据" Margin="0,8,0,0" Expanded="RawExpanded">
-                <TextBox x:Name="RawText" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="260"
-                         AutomationProperties.Name="原始故障记录" VerticalScrollBarVisibility="Auto" />
-            </Expander>
+        <StackPanel>
+            <TextBlock x:Name="EmptyText" Text="暂无故障记录" TextWrapping="Wrap" />
+            <StackPanel x:Name="HistoryDetails" Visibility="Collapsed">
+                <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingGroupGap}">
+                    <StackPanel>
+                        <TextBlock x:Name="HistoryHeading" Text="历史故障" Style="{DynamicResource SectionTitleStyle}" />
+                        <ListBox x:Name="HistoryList" AutomationProperties.Name="故障时间与恢复结果"
+                                HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                MaxHeight="232" SelectionChanged="HistorySelectionChanged">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding Title}" TextWrapping="Wrap" Margin="4,3" /></DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </StackPanel>
+                </Border>
+                <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingGroupGap}">
+                    <StackPanel>
+                        <TextBlock x:Name="TimelineHeading" Text="本次故障经过" Style="{DynamicResource SectionTitleStyle}" />
+                        <TextBlock x:Name="CountsText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingFieldGap}" />
+                        <ItemsControl x:Name="StepsList" AutomationProperties.Name="故障步骤">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate><TextBlock Text="{Binding}" Margin="0,3" TextWrapping="Wrap" /></DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </Border>
+                <Expander x:Name="RawDetails" Header="原始记录与探针证据" Margin="0,8,0,0" Expanded="RawExpanded">
+                    <TextBox x:Name="RawText" IsReadOnly="True" TextWrapping="Wrap" MaxHeight="260"
+                            AutomationProperties.Name="原始故障记录" VerticalScrollBarVisibility="Auto" />
+                </Expander>
+            </StackPanel>
         </StackPanel>
-    </StackPanel>
     </ScrollViewer>
 </UserControl>

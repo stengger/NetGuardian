@@ -56,7 +56,7 @@ public sealed class UiAuditCaptureTests
             }
             DesktopFixture.Save(window, $"首页-{theme}.png");
             Assert.True(nav.SelectPanel("ToolsPanel"));
-            Assert.Equal(Visibility.Collapsed, ((ComboBox)window.FindName("NetworkSectionPicker")).Visibility);
+            Assert.Equal("ToolsPanel", Assert.IsType<PanelNavigationItem>(nav.SelectedItem).Tag);
             Text("QualityStateText", localizer.T("Healthy")); Text("QualityPassedText", "6 / 6 项检查通过 · Lab Wi-Fi");
             foreach (var (name, value) in new[] { ("Gateway", "2 ms"), ("Dns", "14 ms"), ("Https", "86 ms") })
             {

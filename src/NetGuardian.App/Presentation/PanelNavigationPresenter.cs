@@ -10,7 +10,7 @@ internal static class PanelNavigationPresenter
 {
     private static readonly (string Name, string Title, string? Subtitle)[] Pages =
     [
-        ("StatusPanel", "Status", "HomeWorkspaceHint"), ("IncidentPanel", "Incidents", null), ("WifiPanel", "NetworkWorkspace", null),
+        ("StatusPanel", "Status", "HomeWorkspaceHint"), ("IncidentPanel", "Incidents", null), ("WifiPanel", "Wifi", null),
         ("ToolsPanel", "DiagnosticsWorkspace", "DiagnosticsWorkspaceHint"),
         ("ConfigurationWorkspace", "ConfigurationWorkspace", "ConfigurationWorkspaceHint"),
         ("PolicyPanel", "RecoveryWorkspace", "RecoveryWorkspaceHint"),
@@ -63,15 +63,10 @@ internal static class PanelNavigationPresenter
         Grid.SetColumnSpan(bar, inline ? 1 : 2);
         bar.Visibility = selectedAction is null ? Visibility.Collapsed : Visibility.Visible;
         ((UIElement)window.FindName("HomeMonitorActions")).Visibility = target.Name == "StatusPanel" ? Visibility.Visible : Visibility.Collapsed;
-        var picker = (ComboBox)window.FindName("NetworkSectionPicker");
-        var network = target.Name is "WifiPanel" or "ConfigurationWorkspace";
-        picker.Visibility = network ? Visibility.Visible : Visibility.Collapsed;
-        if (network) picker.SelectedValue = target.Name;
-        ((UIElement)window.FindName("HeaderStatusPill")).Visibility = network ? Visibility.Collapsed : Visibility.Visible;
-        ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(network ? "NetworkWorkspace" : target.Title);
+        ((TextBlock)window.FindName("PageTitleText")).Text = localizer.T(target.Title);
         var subtitle = (TextBlock)window.FindName("PageSubtitleText");
         subtitle.Text = target.Subtitle is null ? "" : localizer.T(target.Subtitle);
-        subtitle.Visibility = network || target.Subtitle is null ? Visibility.Collapsed : Visibility.Visible;
+        subtitle.Visibility = target.Subtitle is null ? Visibility.Collapsed : Visibility.Visible;
         ResponsiveLayout.ApplyWifi(window);
     }
 }

@@ -223,7 +223,7 @@ public sealed class PanelNavigationTests
                 ("PolicyPanel", "PolicyPageActions"), ("LogPanel", "LogPageActions"),
                 ("SettingsPanel", (string?)null)
             };
-            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("IncidentNavButton", "Incidents"), ("WifiNavButton", "NetworkWorkspace"), ("PolicyNavButton", "RecoveryWorkspace"), ("ToolsNavButton", "DiagnosticsWorkspace"), ("SettingsNavButton", "Settings") })
+            foreach (var (name, key) in new[] { ("StatusNavButton", "Status"), ("WifiNavButton", "Wifi"), ("ToolsNavButton", "DiagnosticsWorkspace"), ("AdapterNavButton", "ConfigurationWorkspace"), ("PolicyNavButton", "RecoveryWorkspace"), ("SettingsNavButton", "Settings") })
             {
                 var item = (PanelNavigationItem)window.FindName(name);
                 item.Content = localizer.T(key);
@@ -293,7 +293,7 @@ public sealed class PanelNavigationTests
             Assert.Equal(Visibility.Visible, ((FrameworkElement)window.FindName("WifiPanel")).Visibility);
             localizer.SetLanguage("en-US");
             PanelNavigationPresenter.Show(window, (navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString(), localizer);
-            Assert.Equal(localizer.T("NetworkWorkspace"), ((System.Windows.Controls.TextBlock)window.FindName("PageTitleText")).Text);
+            Assert.Equal(localizer.T("Wifi"), ((System.Windows.Controls.TextBlock)window.FindName("PageTitleText")).Text);
             Assert.Same(item, navigation.SelectedItem);
         });
     }

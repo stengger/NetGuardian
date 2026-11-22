@@ -50,13 +50,27 @@ public partial class MainWindow
         _incidentView?.ShowIncidents(IncidentHistory);
     }
 
+    private string? _incidentParent;
+    private FrameworkElement? _incidentOrigin;
+
+    private void CloseIncidents_Click(object sender, RoutedEventArgs e)
+    {
+        var parent = _incidentParent ?? "StatusPanel";
+        _incidentParent = null;
+        ShowPanelByTag(parent);
+        _incidentOrigin?.Focus();
+        _incidentOrigin = null;
+    }
+
     private void OpenIncidents_Click(object sender, RoutedEventArgs e)
     {
         var id = IncidentPresentation.LinkedIncident((sender as FrameworkElement)?.DataContext as UiLogEntry);
         _logParent = null;
-        RootNavigation.SelectPanel("IncidentPanel");
+        _incidentParent = PolicyPanel.IsVisible ? "PolicyPanel" : "StatusPanel";
+        _incidentOrigin = sender as FrameworkElement;
         ShowPanelByTag("IncidentPanel");
         _incidentView?.ShowIncidents(IncidentHistory, id ?? IncidentHistory.FirstOrDefault()?.Id);
+        IncidentBackButton.Focus();
     }
 
     private void InitializePersistedLogs()
@@ -171,6 +185,7 @@ public partial class MainWindow
     private void ParentWorkspace_Click(object sender, RoutedEventArgs e)
     {
         if (_logParent != null) CloseEventLog_Click(sender, e);
+        if (_incidentParent != null) CloseIncidents_Click(sender, e);
     }
 
     private void RebuildRecentEvents()

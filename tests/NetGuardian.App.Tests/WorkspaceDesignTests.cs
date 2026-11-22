@@ -37,32 +37,24 @@ public sealed class WorkspaceDesignTests
         DesktopFixture.Run(window =>
         {
             var nav = (PanelNavigationView)window.FindName("RootNavigation");
-            Assert.Equal(new[] { "StatusPanel", "IncidentPanel", "WifiPanel", "PolicyPanel", "ToolsPanel" },
+            Assert.Equal(new[] { "StatusPanel", "WifiPanel", "ToolsPanel", "ConfigurationWorkspace", "PolicyPanel" },
                 nav.MenuItems.OfType<PanelNavigationItem>().Select(item => item.Tag));
             Assert.Equal("SettingsPanel", Assert.Single(nav.FooterMenuItems.OfType<PanelNavigationItem>()).Tag);
         });
     }
 
     [Fact]
-    public void 网络页仅切换无线与网卡配置且故障页有原始日志入口()
+    public void 首页和恢复页可打开故障且故障页可返回或查看日志()
     {
         DesktopFixture.Run(window =>
         {
-            var picker = (ComboBox)window.FindName("NetworkSectionPicker");
-            var sections = picker.Items.Cast<ComboBoxItem>().Select(item => (string)item.Tag).ToArray();
-            Assert.Equal(new[] { "WifiPanel", "ConfigurationWorkspace" }, sections);
-            foreach (var section in sections)
-            {
-                DesktopFixture.ShowPage(window, section);
-                Assert.True(picker.Focusable && picker.IsVisible);
-                Assert.Equal(section, picker.SelectedValue);
-                Assert.True(((FrameworkElement)window.FindName(section)).IsVisible);
-            }
-            foreach (var page in new[] { "PolicyPanel", "ToolsPanel", "IncidentPanel" })
-            {
-                DesktopFixture.ShowPage(window, page);
-                Assert.False(picker.IsVisible);
-            }
+            DesktopFixture.ShowPage(window, "StatusPanel");
+            Assert.True(((Button)window.FindName("HomeLogsButton")).IsVisible);
+            DesktopFixture.ShowPage(window, "PolicyPanel");
+            DesktopFixture.Layout(window, 1180, 760);
+            Assert.True(((Button)window.FindName("RecoveryLogsButton")).IsVisible);
+            DesktopFixture.ShowPage(window, "IncidentPanel");
+            Assert.True(((Button)window.FindName("IncidentBackButton")).IsVisible);
             Assert.True(((Button)window.FindName("IncidentRawLogButton")).IsVisible);
         });
     }

@@ -741,6 +741,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         if (sender.SelectedItem is Wpf.Ui.Controls.NavigationViewItem item)
         {
             _logParent = null;
+            _incidentParent = null;
             ShowPanelByTag(item.Tag?.ToString());
         }
     }
@@ -793,13 +794,6 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         QualityProbeGrid.ScrollIntoView(_qualityRows[index]);
     }
 
-    private void NetworkSection_Changed(object sender, SelectionChangedEventArgs e)
-    {
-        if (e.OriginalSource == sender && IsLoaded && NetworkSectionPicker.IsVisible &&
-            NetworkSectionPicker.SelectedValue is string tag && FindName(tag) is UIElement { Visibility: Visibility.Collapsed })
-            ShowPanelByTag(tag);
-    }
-
     private void ShowPanelByTag(string? tag)
     {
         PanelNavigationPresenter.Show(this, tag, _localizer);
@@ -808,6 +802,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             _metricReturnTarget = null;
             MetricReturnButton.Visibility = Visibility.Collapsed;
         }
+        if (tag == "IncidentPanel") IncidentBackButton.Content = _localizer.T(_incidentParent == "PolicyPanel" ? "BackToRecovery" : "BackToHome");
         if (tag == "LogPanel") RenderLogContext();
         RenderCurrentWifi();
         if (tag == "SettingsPanel" && _updateSession is not null)
@@ -1967,11 +1962,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Resources["TableDragLabel"] = _localizer.T("DragHint");
         TitleBar.Title = _localizer.T("AppTitle");
         StatusNavButton.Content = _localizer.T("Status");
-        IncidentNavButton.Content = _localizer.T("Incidents");
-        WifiNavButton.Content = _localizer.T("NetworkWorkspace");
-        NetworkWifiSection.Content = _localizer.T("Wifi");
+        WifiNavButton.Content = _localizer.T("Wifi");
         PolicyNavButton.Content = _localizer.T("RecoveryWorkspace");
-        NetworkAdapterSection.Content = _localizer.T("ConfigurationWorkspace");
+        AdapterNavButton.Content = _localizer.T("ConfigurationWorkspace");
         ToolsNavButton.Content = _localizer.T("DiagnosticsWorkspace");
         IncidentRawLogButton.Content = _localizer.T("RawEventLog");
         MetricReturnButton.Content = _localizer.T("BackToHome");
@@ -1993,7 +1986,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         FailureStreakLabel.Text = _localizer.T("FailureStreak");
         ProbeTitleText.Text = _localizer.T("ProbeDetails");
         HomeDiagnosticsButton.Content = _localizer.T("OpenDiagnostics");
-        HomeLogsButton.Content = _localizer.T("Incidents");
+        HomeLogsButton.Content = _localizer.T("AllIncidents");
         RecoveryLogsButton.Content = _localizer.T("ViewRecoveryHistory");
         RecentRecoveryTitle.Text = _localizer.T("RecentRecovery");
         RecentRecoveryEmpty.Text = _localizer.T("NoRecoveryHistory");
@@ -2197,7 +2190,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         UpdateMonitorStatus();
         UpdateTrayText();
         var selected = (RootNavigation.SelectedItem as Wpf.Ui.Controls.NavigationViewItem)?.Tag?.ToString();
-        ShowPanelByTag(_logParent is not null ? "LogPanel" : selected == "WifiPanel" ? NetworkSectionPicker.SelectedValue as string ?? selected : selected);
+        ShowPanelByTag(_logParent is not null ? "LogPanel" : _incidentParent is not null ? "IncidentPanel" : selected);
     }
 
     private void UpdateEmptyStates()

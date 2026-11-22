@@ -33,6 +33,8 @@ public partial class IncidentTimelineView : UserControl
         if (english == _english) return;
         _english = english;
         EmptyText.Text = english ? "No incidents recorded" : "暂无故障记录";
+        HistoryHeading.Text = english ? "Incident history" : "历史故障";
+        TimelineHeading.Text = english ? "Incident timeline" : "本次故障经过";
         RawDetails.Header = english ? "Raw records and probe evidence" : "原始记录与探针证据";
         AutomationProperties.SetName(HistoryList, english ? "Incident time and outcome" : "故障时间与恢复结果");
         AutomationProperties.SetName(StepsList, english ? "Incident steps" : "故障步骤");

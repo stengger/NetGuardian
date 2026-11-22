@@ -40,6 +40,40 @@ public sealed class IncidentPresentationTests
         Assert.Contains("cause unknown", en.Summary);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void 旧日志只在详情解释证据范围且列表与时间线各有标题(bool english)
+    {
+        DesktopFixture.Run(window =>
+        {
+            var original = Incident("旧记录", "", IncidentOutcome.CauseUnknown);
+            var incident = original with { IsLegacy = true, OriginalNetwork = null,
+                Steps = [new(original.Id, original.StartedAt, IncidentStepKind.Failure, "旧版日志", "v1"), new("恢复", original.EndedAt!.Value, IncidentStepKind.LegacyRestored, "旧版日志", "v1", "恢复时的网络")] };
+            var summary = IncidentPresentation.HomeText(incident, english);
+            Assert.Contains(english ? "Recovery recorded" : "已记录恢复", summary);
+            Assert.DoesNotContain(english ? "unknown" : "未知", summary);
+            Assert.DoesNotContain("恢复时的网络", summary);
+            Assert.Contains(english ? "Network at recovery: 恢复时的网络" : "恢复时网络：恢复时的网络", IncidentPresentation.Describe(incident.Steps[^1], english));
+            var view = new IncidentTimelineView();
+            ((ContentControl)window.FindName("IncidentViewHost")).Content = view;
+            DesktopFixture.ShowPage(window, "IncidentPanel");
+            ((Button)window.FindName("IncidentBackButton")).Content = english ? "Back to home" : "返回首页";
+            view.SetLanguage(english);
+            view.ShowIncidents([incident]);
+            DesktopFixture.Layout(window, 1040, 660);
+            var history = (TextBlock)view.FindName("HistoryHeading");
+            var timeline = (TextBlock)view.FindName("TimelineHeading");
+            Assert.True(history.IsVisible && timeline.IsVisible);
+            Assert.True(timeline.TranslatePoint(new(), window).Y > history.TranslatePoint(new(), window).Y + history.ActualHeight);
+            if (!english) DesktopFixture.Save(window, "故障记录分区.png");
+            Assert.Equal(english ? "Incident history" : "历史故障", ((TextBlock)view.FindName("HistoryHeading")).Text);
+            Assert.Equal(english ? "Incident timeline" : "本次故障经过", ((TextBlock)view.FindName("TimelineHeading")).Text);
+            Assert.Contains(english ? "original network" : "断网前的网络", ((TextBlock)view.FindName("CountsText")).Text);
+            Assert.False(((Expander)view.FindName("RawDetails")).IsExpanded);
+        });
+    }
+
     [Fact]
     public void 首页钻取指定记录刷新仍保留选择并可展开原始证据()
     {
