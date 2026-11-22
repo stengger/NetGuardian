@@ -65,6 +65,7 @@ internal sealed class UpdateSession(IUpdateService service, Version currentVersi
     public void BeginInstall()
     {
         if (Phase != UpdatePhase.Ready || Downloaded is null) throw new InvalidOperationException("尚无已校验的安装包。");
+        if (service is SignedUpdateService signed) signed.ValidateForInstall(Release!);
         Error = null;
         Phase = UpdatePhase.Installing;
         Changed?.Invoke();
@@ -89,7 +90,25 @@ internal sealed class UpdateSession(IUpdateService service, Version currentVersi
     public void InstallFailed(Exception error)
     {
         Error = error;
-        Phase = UpdatePhase.Ready;
+        if (error is UpdateException { Error: UpdateError.Expired or UpdateError.VerificationFailed } || Phase != UpdatePhase.Installing && Phase != UpdatePhase.WaitingForExit)
+        {
+            Release = null;
+            Downloaded = null;
+            Phase = UpdatePhase.Failed;
+        }
+        else Phase = UpdatePhase.Ready;
+        Changed?.Invoke();
+    }
+
+    public void ResetSelection()
+    {
+        if (IsBusy) throw new InvalidOperationException("正在更新，无法切换来源。");
+        _generation++;
+        Release = null;
+        Downloaded = null;
+        Progress = null;
+        Error = null;
+        Phase = UpdatePhase.Idle;
         Changed?.Invoke();
     }
 
@@ -122,6 +141,7 @@ internal sealed class UpdateSession(IUpdateService service, Version currentVersi
     {
         if (generation != _generation) return;
         Error = error;
+        if (error is UpdateException { Error: UpdateError.VerificationFailed or UpdateError.Expired }) Release = null;
         Progress = error is UpdateException { Error: UpdateError.Network or UpdateError.RateLimited } interrupted
             ? interrupted.SavedProgress ?? previous : null;
         Phase = error is OperationCanceledException ? UpdatePhase.Cancelled : UpdatePhase.Failed;

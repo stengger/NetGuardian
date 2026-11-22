@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using System.Net.Http;
+using System.Windows.Controls;
 using System.Text.Json;
 using System.Threading;
 using System.Windows;
@@ -12,7 +12,9 @@ namespace NetGuardian.App;
 
 public partial class MainWindow
 {
-    private readonly HttpClient _updateHttp = new() { Timeout = TimeSpan.FromMinutes(30) };
+    private UpdateClient _updateHttp = null!;
+    private SignedUpdateControls? _signedControls;
+    private UpdateRouteStatus? _previousRoute;
     private readonly UpdateStorage _updateStorage = new();
     private UpdateSession? _updateSession;
     private bool _isUpdatePreparing;
@@ -31,13 +33,26 @@ public partial class MainWindow
 
     private void InitializeUpdates()
     {
-        var service = new GitHubUpdateService(_updateHttp, UpdateStorage.AssertProtected, UpdateStorage.CreatePartial);
-        _updateSession = new UpdateSession(service, CurrentAppVersion, async (release, token) =>
+        _updateHttp = UpdateClient.CreateOfficial(_updateStorage.PrepareRoot, UpdateStorage.AssertProtected,
+            UpdateStorage.CreatePartial, UpdateProxyPolicy.AllowMirrorDirect);
+        _updateSession = new UpdateSession(_updateHttp.Service, CurrentAppVersion, async (release, token) =>
         {
             var directory = Path.Combine(_updateStorage.Root, "downloads");
             if (!Directory.Exists(directory)) return default;
-            return await service.InspectCacheAsync(release, _updateStorage.PrepareDownloads(), token);
+            return await _updateHttp.InspectCacheAsync(release, _updateStorage.PrepareDownloads(), token);
         });
+        if (_updateHttp.Signed is { } signed)
+        {
+            _signedControls = new SignedUpdateControls((TextBlock)FindName("UpdateStatusText"), mode =>
+            {
+                signed.Mode = mode;
+                _updateSession.ResetSelection();
+            });
+            try { _previousRoute = signed.LastSuccessfulRoute(); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or UpdateException)
+            { _previousRoute = null; }
+            signed.StatusChanged += ApplyUpdateText;
+        }
         _updateSession.Changed += ApplyUpdateText;
         LoadPreviousUpdateResult();
         ApplyUpdateText();
@@ -46,8 +61,9 @@ public partial class MainWindow
     private void ApplyUpdateText()
     {
         if (_updateSession is null) return;
-        UpdatePresentation.Apply(this, _updateSession, CurrentAppVersion, _localizer,
-            UpdateInstallLauncher.IsInstalledDirectory(AppContext.BaseDirectory));
+        _signedControls?.Apply(_localizer.Language == "en-US", !_updateSession.IsBusy && !_isUpdatePreparing);
+        SignedUpdateText.Apply(this, _updateSession, CurrentAppVersion, _localizer,
+            UpdateInstallLauncher.IsInstalledDirectory(AppContext.BaseDirectory), _updateHttp.Signed?.Status, _previousRoute);
         UpdatePresentation.ApplyHistory(this, _localizer, _previousUpdateSucceeded, _previousUpdateVersion, _previousUpdateTime, _previousUpdateLog);
     }
 
@@ -74,13 +90,13 @@ public partial class MainWindow
 
     private async void UpdateCheck_Click(object sender, RoutedEventArgs e)
     {
-        if (_updateSession is null || _updateSession.IsBusy) return;
+        if (_updateSession is null || _isUpdatePreparing || _updateSession.IsBusy) return;
         await _updateSession.CheckAsync();
     }
 
     private async void UpdateDownload_Click(object sender, RoutedEventArgs e)
     {
-        if (_updateSession is null || _updateSession.IsBusy || _updateSession.Release is null) return;
+        if (_updateSession is null || _isUpdatePreparing || _updateSession.IsBusy || _updateSession.Release is null) return;
         try
         {
             await _updateSession.DownloadAsync(_updateStorage.PrepareDownloads());
@@ -100,6 +116,7 @@ public partial class MainWindow
         _isUpdatePreparing = true;
         try
         {
+            ApplyUpdateText();
             if (!await ConfirmActionAsync(_localizer.T("UpdateConfirmTitle"),
                 string.Format(_localizer.T("UpdateConfirmMessage"), downloaded.Version))) return;
             _updateSession.BeginInstall();
@@ -112,6 +129,6 @@ public partial class MainWindow
             _updateSession.InstallFailed(ex);
             Log(ex.Message, UiLogLevel.Error);
         }
-        finally { IsEnabled = true; _isUpdatePreparing = false; }
+        finally { IsEnabled = true; _isUpdatePreparing = false; ApplyUpdateText(); }
     }
 }

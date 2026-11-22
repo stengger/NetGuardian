@@ -24,10 +24,10 @@ internal sealed class UpdateStorage
         return CreateProtectedDirectory(Path.Combine(Root, "jobs", Guid.NewGuid().ToString()));
     }
 
-    private void PrepareRoot()
+    internal string PrepareRoot()
     {
         CreateProtectedDirectory(Path.GetDirectoryName(Root)!);
-        CreateProtectedDirectory(Root);
+        return CreateProtectedDirectory(Root);
     }
 
     private static string CreateProtectedDirectory(string path)

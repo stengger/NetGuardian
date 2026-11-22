@@ -52,7 +52,15 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
     public async Task<DownloadedUpdate> DownloadAsync(UpdateRelease release, string directory,
         IProgress<UpdateProgress>? progress, CancellationToken cancellationToken)
     {
-        var name = ValidateAssets(release);
+        ValidateAssets(release);
+        return await DownloadVerifiedAsync(release, directory, null, false, progress, cancellationToken);
+    }
+
+    // 两个协议共用磁盘与分片实现。签名协议只从已验证的清单取得摘要和所需长度。
+    internal async Task<DownloadedUpdate> DownloadVerifiedAsync(UpdateRelease release, string directory, string? expected,
+        bool signed, IProgress<UpdateProgress>? progress, CancellationToken cancellationToken)
+    {
+        var name = release.Installer.Name;
         Directory.CreateDirectory(directory);
         // ResponseHeadersRead 不限制正文耗时，单独计时才能区别慢连接超时与用户主动取消。
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -60,11 +68,11 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
         var token = deadline.Token;
         try
         {
-            var expected = await ExpectedHashAsync(release, name, token);
+            expected ??= await ExpectedHashAsync(release, name, token);
             var cached = await VerifyCacheAsync(release, directory, name, expected, token);
             if (cached is not null) return cached;
 
-            var partial = PartialFile(directory, name, expected);
+            var partial = PartialFile(directory, name, CacheKey(release, expected, signed));
             var ranges = new RangeCache(this, partial, release.Installer.Size);
             // 持有独占读写权直到校验和改名结束，另一次下载不能修改或清除正在写入的分片。
             await using var output = OpenPartial(partial);
@@ -72,7 +80,7 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
             {
                 if (output.Length > release.Installer.Size) output.SetLength(0);
                 progress?.Report(new UpdateProgress(ranges.SavedBytes(output.Length), release.Installer.Size));
-                await DownloadWithRetryAsync(release.Installer, output, ranges, progress, token);
+                await DownloadWithRetryAsync(release.Installer, output, ranges, progress, token, signed ? 1 : 3);
                 output.Position = 0;
                 var actual = Convert.ToHexString(await SHA256.HashDataAsync(output, token)).ToLowerInvariant();
                 token.ThrowIfCancellationRequested();
@@ -110,7 +118,7 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
         error.StatusCode is null or HttpStatusCode.RequestTimeout || (int)error.StatusCode >= 500;
 
     private async Task DownloadWithRetryAsync(UpdateAsset asset, FileStream output, RangeCache ranges,
-        IProgress<UpdateProgress>? progress, CancellationToken token)
+        IProgress<UpdateProgress>? progress, CancellationToken token, int maxAttempts)
     {
         bool parallel = ranges.Enabled;
         for (int attempt = 1; ; attempt++)
@@ -150,10 +158,17 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
                     parallel = false;
                 }
                 using var response = await SendAsync(asset.Url, token, output.Length);
+                if (output.Length > 0 && response.StatusCode == HttpStatusCode.RequestedRangeNotSatisfiable)
+                {
+                    using var full = await SendAsync(asset.Url, token);
+                    EnsureSuccess(full);
+                    await WriteSequentialAsync(full, output, asset.Size, progress, token);
+                    return;
+                }
                 await WriteSequentialAsync(response, output, asset.Size, progress, token);
                 return;
             }
-            catch (HttpRequestException ex) when (attempt < 3 && CanRetry(ex))
+            catch (HttpRequestException ex) when (attempt < maxAttempts && CanRetry(ex))
             {
                 await Task.Delay(TimeSpan.FromSeconds(attempt), token);
             }
@@ -251,7 +266,23 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
             if (!Directory.EnumerateFiles(directory, name + ".*.part").Any()) return default;
             expected = await ExpectedHashAsync(release, name, token);
         }
-        var part = PartialFile(directory, name, expected);
+        return PartialState(release, directory, expected);
+    }
+
+    internal async Task<UpdateCacheState> InspectVerifiedAsync(UpdateRelease release, string directory, string expected, CancellationToken token)
+    {
+        var complete = await VerifyCacheAsync(release, directory, release.Installer.Name, expected, token);
+        if (complete is not null) return new(complete, null);
+        if (File.Exists(Path.Combine(directory, release.Installer.Name))) throw Verification("已缓存安装包与签名清单不符。");
+        return PartialState(release, directory, CacheKey(release, expected, true));
+    }
+
+    private static string CacheKey(UpdateRelease release, string expected, bool signed) =>
+        signed ? $"signed.{release.Installer.Size}.{expected}" : expected;
+
+    private UpdateCacheState PartialState(UpdateRelease release, string directory, string key)
+    {
+        var part = PartialFile(directory, release.Installer.Name, key);
         if (!InspectFile(part) || part.Length > release.Installer.Size) return default;
         long saved = new RangeCache(this, part, release.Installer.Size).SavedBytes(part.Length);
         return saved == 0 ? default : new(null, new UpdateProgress(saved, release.Installer.Size));
@@ -284,7 +315,7 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
         var tag = release.ReleaseUrl.AbsolutePath.Split('/').Last();
         ValidateUrl(release.ReleaseUrl.AbsoluteUri, $"{Repository}/releases/tag/{tag}");
         if (tag != "v" + release.Version && tag != release.Version.ToString()) throw Invalid("版本与发布地址不一致。");
-        if (release.Installer.Name != name || release.Checksum.Name != name + ".sha256") throw Invalid("安装包名称无效。");
+        if (release.Installer.Name != name || release.Checksum?.Name != name + ".sha256") throw Invalid("安装包名称无效。");
         ValidateUrl(release.Installer.Url.AbsoluteUri, $"{Repository}/releases/download/{tag}/{name}");
         ValidateUrl(release.Checksum.Url.AbsoluteUri, $"{Repository}/releases/download/{tag}/{name}.sha256");
         if (release.Installer.Size <= 0 || release.Installer.Size > MaximumInstallerSize) throw Invalid("安装包大小无效。");
@@ -293,7 +324,7 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
 
     private async Task<string> ExpectedHashAsync(UpdateRelease release, string name, CancellationToken cancellationToken)
     {
-        using var checksumResponse = await SendAsync(release.Checksum.Url, cancellationToken);
+        using var checksumResponse = await SendAsync(release.Checksum!.Url, cancellationToken);
         EnsureSuccess(checksumResponse);
         var checksum = Encoding.UTF8.GetString(await ReadLimitedAsync(checksumResponse.Content, 4096, cancellationToken)).Trim().TrimStart('\uFEFF');
         var match = Regex.Match(checksum, @"\A([a-fA-F0-9]{64})[ \t]+\*?" + Regex.Escape(name) + @"\z");
@@ -328,7 +359,7 @@ public sealed partial class GitHubUpdateService(HttpClient client, Action<FileIn
         return uri;
     }
 
-    private static async Task<byte[]> ReadLimitedAsync(HttpContent content, int maximum, CancellationToken token)
+    internal static async Task<byte[]> ReadLimitedAsync(HttpContent content, int maximum, CancellationToken token)
     {
         if (content.Headers.ContentLength > maximum) throw Invalid("更新信息过大。");
         await using var input = await content.ReadAsStreamAsync(token);

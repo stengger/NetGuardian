@@ -1,7 +1,7 @@
 namespace NetGuardian.Core.Updates;
 
 public sealed record UpdateAsset(string Name, Uri Url, long Size, string? Digest);
-public sealed record UpdateRelease(Version Version, string Notes, Uri ReleaseUrl, UpdateAsset Installer, UpdateAsset Checksum);
+public sealed record UpdateRelease(Version Version, string Notes, Uri ReleaseUrl, UpdateAsset Installer, UpdateAsset? Checksum);
 public sealed record DownloadedUpdate(Version Version, string InstallerPath, string Sha256);
 public sealed record UpdateProgress(long Received, long Total)
 {
@@ -10,7 +10,7 @@ public sealed record UpdateProgress(long Received, long Total)
 
 public readonly record struct UpdateCacheState(DownloadedUpdate? Downloaded, UpdateProgress? Partial);
 
-public enum UpdateError { Network, RateLimited, InvalidRelease, VerificationFailed }
+public enum UpdateError { Network, RateLimited, InvalidRelease, VerificationFailed, Expired }
 
 public sealed class UpdateException(UpdateError error, string message, Exception? inner = null) : Exception(message, inner)
 {
