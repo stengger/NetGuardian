@@ -1,4 +1,5 @@
 using System.Net;
+using NetGuardian.Core.Models;
 
 namespace NetGuardian.Core.Connectivity;
 
@@ -24,6 +25,8 @@ public interface IConnectivityProbes
     Task<bool> PingAsync(string host, TimeSpan timeout, CancellationToken cancellationToken);
     Task ResolveAsync(string host, CancellationToken cancellationToken);
     Task<HttpStatusCode> HttpsHeadAsync(string host, CancellationToken cancellationToken);
+    Task<PortalEvidence> WifiPortalAsync(IPAddress address, int interfaceIndex, CancellationToken cancellationToken) =>
+        Task.FromResult(PortalEvidence.None);
     Task<HttpStatusCode> WifiHttpsHeadAsync(string host, IPAddress address, int interfaceIndex, CancellationToken cancellationToken) =>
         throw new HttpRequestException("探针不支持指定无线出口。");
 }

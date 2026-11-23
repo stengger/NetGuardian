@@ -14,7 +14,8 @@ internal static class ConnectivityReportPresentation
             _ => "ReportSourceForeground"
         });
         var kind = localizer.T(report.IsLightweight ? "LightweightCheck" : "FullDiagnosticCheck");
-        return string.Format(localizer.T("ConnectivityReportContext"), $"{source} · {kind}",
+        var context = string.Format(localizer.T("ConnectivityReportContext"), $"{source} · {kind}",
             report.CheckedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"));
+        return report.PortalEvidence == PortalEvidence.None ? context : $"{context} · {localizer.T("SuspectedWifiPortal")}";
     }
 }

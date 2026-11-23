@@ -174,6 +174,38 @@ public sealed class ConnectivityTests
         Assert.All(probes.WifiRoutes, route => Assert.Equal((IPAddress.Parse("192.0.2.2"), 42), route));
     }
 
+    [Theory]
+    [InlineData(false, HttpStatusCode.OK, null, null, PortalEvidence.None, 0)]
+    [InlineData(false, HttpStatusCode.ServiceUnavailable, "重定向", null, PortalEvidence.Redirect, 1)]
+    [InlineData(true, HttpStatusCode.ServiceUnavailable, "HTML", null, PortalEvidence.Html, 1)]
+    [InlineData(false, HttpStatusCode.ServiceUnavailable, null, "认证", PortalEvidence.None, 1)]
+    public async Task 仅完整诊断在已连接而公网检测失败后探测认证入口(bool dnsFails, HttpStatusCode https,
+        string? portal, string? timeoutStage, PortalEvidence expected, int portalRequests)
+    {
+        var probes = new FakeProbes
+        {
+            ScopedStatus = https, DnsFails = dnsFails, TimeoutStage = timeoutStage,
+            Portal = portal switch { "重定向" => PortalEvidence.Redirect, "HTML" => PortalEvidence.Html, _ => PortalEvidence.None }
+        };
+        var tester = new ConnectivityTester(new MonitorPolicy(), new FakeEnvironment(42), probes, requireWifiRoute: true);
+        var report = await tester.RunFullCheckAsync("校园网");
+        Assert.Equal(expected, report.PortalEvidence);
+        Assert.Equal(portalRequests, probes.PortalRoutes.Count);
+        Assert.All(probes.PortalRoutes, route => Assert.Equal((IPAddress.Parse("192.0.2.2"), 42), route));
+        Assert.Equal(dnsFails ? NetworkState.DnsIssue : https == HttpStatusCode.OK ? NetworkState.Healthy : NetworkState.InternetIssue, report.State);
+        Assert.Equal(PortalEvidence.None, (await tester.RunLightweightCheckAsync()).PortalEvidence);
+        Assert.Equal(portalRequests, probes.PortalRoutes.Count);
+    }
+
+    [Fact]
+    public async Task 认证探测保留调用方取消()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var probes = new FakeProbes { ScopedStatus = HttpStatusCode.ServiceUnavailable, CancelStage = "认证", Cancellation = cancellation };
+        var tester = new ConnectivityTester(new MonitorPolicy(), new FakeEnvironment(42), probes, requireWifiRoute: true);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => tester.RunFullCheckAsync("校园网", cancellationToken: cancellation.Token));
+    }
+
     private static ConnectivityTester Create(FakeProbes probes, MonitorPolicy? policy = null) =>
         new(policy ?? new MonitorPolicy(), new FakeEnvironment(), probes);
 
@@ -187,6 +219,8 @@ public sealed class ConnectivityTests
         public HttpStatusCode ScopedStatus { get; init; } = HttpStatusCode.OK;
         public int UnscopedRequests { get; private set; }
         public System.Collections.Concurrent.ConcurrentBag<(IPAddress Address, int Index)> WifiRoutes { get; } = [];
+        public PortalEvidence Portal { get; init; }
+        public List<(IPAddress Address, int Index)> PortalRoutes { get; } = [];
         public bool RejectDiagnosticProbes { get; init; }
         public bool GatewayOk { get; init; } = true;
         public bool DnsFails { get; init; }
@@ -222,6 +256,13 @@ public sealed class ConnectivityTests
             UnscopedRequests++;
             Check("HTTPS", cancellationToken);
             return Task.FromResult(HttpsStatuses is null ? Status : HttpsStatuses[host]);
+        }
+
+        public Task<PortalEvidence> WifiPortalAsync(IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
+        {
+            PortalRoutes.Add((address, interfaceIndex));
+            Check("认证", cancellationToken);
+            return Task.FromResult(Portal);
         }
 
         public Task<HttpStatusCode> WifiHttpsHeadAsync(string host, IPAddress address, int interfaceIndex, CancellationToken cancellationToken)

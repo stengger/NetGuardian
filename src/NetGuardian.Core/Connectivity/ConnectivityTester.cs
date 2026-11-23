@@ -122,7 +122,7 @@ public sealed class ConnectivityTester
 
         if (dnsSuccesses == 0)
         {
-            return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.", wifi.Context, started);
+            return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.", wifi.Context, started, await TryPortalProbeAsync(wifi, cancellationToken));
         }
 
         var httpsTargets = MonitorPolicy.NormalizeProbeList(_policy.HttpsProbeHosts, MonitorPolicy.DefaultHttpsProbeHosts);
@@ -132,7 +132,27 @@ public sealed class ConnectivityTester
 
         return httpsSuccesses >= Math.Min(2, httpsTargets.Count)
             ? Report(NetworkState.Healthy, currentSsid, ipv4, gateway, probes, "Network is healthy.", wifi.Context, started)
-            : Report(NetworkState.InternetIssue, currentSsid, ipv4, gateway, probes, "Public HTTPS probes did not reach quorum.", wifi.Context, started);
+            : Report(NetworkState.InternetIssue, currentSsid, ipv4, gateway, probes, "Public HTTPS probes did not reach quorum.", wifi.Context, started, await TryPortalProbeAsync(wifi, cancellationToken));
+    }
+
+    private async Task<PortalEvidence> TryPortalProbeAsync(NetworkSnapshot wifi, CancellationToken cancellationToken)
+    {
+        if (!_requireWifiRoute || wifi.Ipv4InterfaceIndex is not > 0 || !IPAddress.TryParse(wifi.Ipv4, out var address))
+            return PortalEvidence.None;
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(Math.Min(2, _policy.ProbeTimeoutSeconds)));
+        try
+        {
+            var evidence = await _probes.WifiPortalAsync(address, wifi.Ipv4InterfaceIndex.Value, timeout.Token).WaitAsync(timeout.Token);
+            cancellationToken.ThrowIfCancellationRequested();
+            return evidence;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or SocketException or OperationCanceledException)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return PortalEvidence.None;
+        }
     }
 
     private Task<ConnectivityProbe> PingAsync(string host, string name, CancellationToken cancellationToken) =>
@@ -183,11 +203,12 @@ public sealed class ConnectivityTester
         string? ipv4,
         string? gateway,
         List<ConnectivityProbe> probes,
-        string summary, string? context = null, DateTimeOffset? started = null)
+        string summary, string? context = null, DateTimeOffset? started = null, PortalEvidence portalEvidence = PortalEvidence.None)
     {
         return new ConnectivityReport
         {
             State = state,
+            PortalEvidence = portalEvidence,
             SampleStartedAt = started, NetworkContext = context,
             CurrentSsid = currentSsid,
             Ipv4 = ipv4,
@@ -271,15 +292,22 @@ internal sealed class SystemConnectivityProbes : IConnectivityProbes
 
     public async Task<HttpStatusCode> WifiHttpsHeadAsync(string host, IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
     {
-        using var handler = new SocketsHttpHandler
-        {
-            AllowAutoRedirect = false,
-            UseProxy = false,
-            ConnectCallback = (context, token) => ConnectWifiAsync(context.DnsEndPoint, address, interfaceIndex, token)
-        };
-        using var client = new HttpClient(handler);
+        using var client = CreateWifiHttpClient(address, interfaceIndex);
         return await SendHeadAsync(client, host, cancellationToken);
     }
+
+    public async Task<PortalEvidence> WifiPortalAsync(IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
+    {
+        using var client = CreateWifiHttpClient(address, interfaceIndex);
+        return await PortalProbe.InspectAsync(client, cancellationToken);
+    }
+
+    private static HttpClient CreateWifiHttpClient(IPAddress address, int interfaceIndex) => new(new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        UseProxy = false,
+        ConnectCallback = (context, token) => ConnectWifiAsync(context.DnsEndPoint, address, interfaceIndex, token)
+    });
 
     private static async ValueTask<Stream> ConnectWifiAsync(DnsEndPoint endpoint, IPAddress address, int interfaceIndex, CancellationToken token)
     {
