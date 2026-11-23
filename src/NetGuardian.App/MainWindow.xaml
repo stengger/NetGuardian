@@ -204,9 +204,9 @@
                     </Grid>
                 </ScrollViewer>
                 <WrapPanel x:Name="QualityPageActions" Visibility="Collapsed" AutomationProperties.Name="网络质量操作">
-                    <Button x:Name="QualityRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="QualityRun_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
-                    <Button x:Name="QualityCancelButton" Click="QualityCancel_Click" Margin="{DynamicResource SpacingHeaderCommand}" Visibility="Collapsed" />
-                    <Button x:Name="QualityOpenSettingsButton" Click="ToolsNetworkSettings_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="QualityRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="QualityRun_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="QualityCancelButton" Click="QualityCancel_Click" Margin="{DynamicResource SpacingItemGap}" Visibility="Collapsed" />
+                    <Button x:Name="QualityOpenSettingsButton" Click="ToolsNetworkSettings_Click" Margin="{DynamicResource SpacingItemGap}" />
                 </WrapPanel>
                 <WrapPanel x:Name="ToolsPageActions" Visibility="Collapsed" AutomationProperties.Name="诊断快捷操作">
                     <Button x:Name="ToolsCheckButton" Style="{StaticResource PrimaryButtonStyle}" Click="CheckNow_Click" Margin="{DynamicResource SpacingItemGap}" />
@@ -224,12 +224,12 @@
                     <Button x:Name="WebsiteCancelButton" Click="WebsiteCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
                 </WrapPanel>
                 <WrapPanel x:Name="IpInfoPageActions" Visibility="Collapsed" AutomationProperties.Name="IP 信息操作">
-                    <Button x:Name="IpInfoRefreshButton" Style="{StaticResource PrimaryButtonStyle}" Click="IpInfoRefresh_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
-                    <Button x:Name="IpInfoCancelButton" Click="IpInfoCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="IpInfoRefreshButton" Style="{StaticResource PrimaryButtonStyle}" Click="IpInfoRefresh_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="IpInfoCancelButton" Click="IpInfoCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
                 </WrapPanel>
                 <WrapPanel x:Name="ReportPageActions" Visibility="Collapsed" AutomationProperties.Name="诊断报告操作">
-                    <Button x:Name="ReportRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="ReportRun_Click" Margin="{DynamicResource SpacingHeaderCommand}" />
-                    <Button x:Name="ReportCancelButton" Click="ReportCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingHeaderCommand}" />
+                    <Button x:Name="ReportRunButton" Style="{StaticResource PrimaryButtonStyle}" Click="ReportRun_Click" Margin="{DynamicResource SpacingItemGap}" />
+                    <Button x:Name="ReportCancelButton" Click="ReportCancel_Click" Visibility="Collapsed" Margin="{DynamicResource SpacingItemGap}" />
                 </WrapPanel>
                 <WrapPanel x:Name="DnsPageActions" Visibility="Collapsed" AutomationProperties.Name="DNS 操作">
                     <Button x:Name="DnsRefreshButton" Click="DnsRefresh_Click" Margin="{DynamicResource SpacingHeaderCommand}" />

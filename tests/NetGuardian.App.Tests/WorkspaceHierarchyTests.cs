@@ -28,7 +28,7 @@ public sealed class WorkspaceHierarchyTests
             foreach (var (name, key) in new[] { ("AdapterConfigTab", "AdapterOverview"), ("DnsConfigTab", "DnsTools") })
                 ((TabItem)window.FindName(name)).Header = text.T(key);
             foreach (var (page, command) in new[] { ("NetworkPanel", "AdapterRefreshButton"), ("DnsPanel", "DnsApplyButton"),
-                ("PolicyPanel", "SavePolicyButton"), ("QualityPanel", "QualityRunButton"), ("LogPanel", "LogBackButton") })
+                ("PolicyPanel", "SavePolicyButton"), ("LogPanel", "LogBackButton") })
             {
                 PanelNavigationPresenter.Show(window, page, text);
                 DesktopFixture.Layout(window, width, height);
@@ -42,6 +42,49 @@ public sealed class WorkspaceHierarchyTests
                     var target = Bounds(window, "AdapterTargetComboBox");
                     Assert.True(target.Top < tab.Bottom && tab.Top < target.Bottom && target.Left > tab.Right);
                     Assert.Equal("Ethernet 2", picker.SelectedItem);
+                }
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(1180, 760, "zh-CN")]
+    [InlineData(960, 500, "en-US")]
+    public void 诊断六页切换时主按钮和标签栏位置固定(double width, double height, string language)
+    {
+        DesktopFixture.Run(window =>
+        {
+            window.MinWidth = 960; window.MinHeight = 500;
+            var text = new Localizer();
+            text.SetLanguage(language);
+            UiAuditCaptureTests.PopulateLabels(window, text);
+            var tabs = (TabControl)window.FindName("ToolsTabControl");
+            var speed = (NetGuardian.App.Views.SpeedTestView)window.FindName("SpeedView");
+            Point? anchor = null;
+            double? tabTop = null;
+            foreach (var (tab, command, cancel) in new[] {
+                ("SpeedToolsTab", "RunButton", "CancelButton"), ("QualityToolsTab", "QualityRunButton", "QualityCancelButton"),
+                ("WebsiteToolsTab", "WebsiteRunButton", "WebsiteCancelButton"), ("IpInfoToolsTab", "IpInfoRefreshButton", "IpInfoCancelButton"),
+                ("ReportToolsTab", "ReportRunButton", "ReportCancelButton"), ("QuickToolsTab", "ToolsCheckButton", "ToolsScanCancelButton") })
+            {
+                tabs.SelectedItem = window.FindName(tab);
+                PanelNavigationPresenter.Show(window, "ToolsPanel", text);
+                var primary = (Button)(tab == "SpeedToolsTab" ? speed.FindName(command) : window.FindName(command));
+                var cancelButton = (Button)(tab == "SpeedToolsTab" ? speed.FindName(cancel) : window.FindName(cancel));
+                foreach (var visibility in new[] { Visibility.Collapsed, Visibility.Visible })
+                {
+                    cancelButton.Visibility = visibility;
+                    DesktopFixture.Layout(window, width, height);
+                    Assert.True(primary.IsVisible && primary.ActualHeight > 0);
+                    var position = primary.TranslatePoint(new Point(), (FrameworkElement)window.FindName("WorkspaceBody"));
+                    var header = Bounds(window, "QualityToolsTab");
+                    anchor ??= position;
+                    tabTop ??= header.Top;
+                    Assert.True(Math.Abs(position.X - anchor.Value.X) <= 1 && Math.Abs(position.Y - anchor.Value.Y) <= 1
+                        && Math.Abs(header.Top - tabTop.Value) <= 1,
+                        $"{tab}（取消按钮 {visibility}）：主按钮 {position}，预期 {anchor}；页签顶部 {header.Top}，预期 {tabTop}");
+                    var buttonTop = primary.TranslatePoint(new Point(), window).Y;
+                    Assert.True(buttonTop >= Bounds(window, "PageSubtitleText").Bottom && buttonTop + primary.ActualHeight <= header.Top);
                 }
             }
         });

@@ -56,8 +56,7 @@ internal static class PanelNavigationPresenter
         foreach (var action in Actions.Values)
             ((UIElement)window.FindName(action)).Visibility = action == selectedAction ? Visibility.Visible : Visibility.Collapsed;
         var bar = (FrameworkElement)window.FindName("PageActionBar");
-        var inline = selectedAction is "QualityPageActions" or "IpInfoPageActions" or "ReportPageActions"
-            or "NetworkPageActions" or "DnsPageActions" or "PolicyPageActions" or "LogPageActions";
+        var inline = selectedAction is "NetworkPageActions" or "DnsPageActions" or "PolicyPageActions" or "LogPageActions";
         Grid.SetRow(bar, inline ? 0 : 1);
         Grid.SetColumn(bar, inline ? 1 : 0);
         Grid.SetColumnSpan(bar, inline ? 1 : 2);
