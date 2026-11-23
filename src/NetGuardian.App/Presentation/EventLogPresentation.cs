@@ -1,13 +1,26 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 
 namespace NetGuardian.App.Presentation;
 
 internal static class EventLogPresentation
 {
+    public static ICollectionView CreateView(DataGrid grid, EventLogStore store)
+    {
+        var view = CollectionViewSource.GetDefaultView(store.Entries);
+        view.SortDescriptions.Add(new(nameof(UiLogEntry.Time), ListSortDirection.Descending));
+        grid.ItemsSource = view;
+        grid.Columns[0].SortDirection = ListSortDirection.Descending;
+        return view;
+    }
+
+    public static UiLogEntry? LatestVisibleEntry(ICollectionView view) => view.Cast<UiLogEntry>().MaxBy(entry => entry.Time);
+
     public static void ImportHistory(DataGrid grid, EventLogStore store, IEnumerable<PersistedLogEntry> entries, DateTimeOffset now)
     {
         // 有筛选条件的 WPF 视图在导入时会查询当前位置，逐条通知必须在视图可用时发送。

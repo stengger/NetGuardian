@@ -6,8 +6,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Input;
 using System.Windows.Threading;
 using NetGuardian.App.Presentation;
 using NetGuardian.App.Views;
@@ -117,7 +115,7 @@ public partial class MainWindow
             if (result.Summary is not null) ApplyWeeklySummary(result.Summary);
             UpdateEmptyStates();
             if (result.Batch.Entries.Count > 0 && LogFollowCheckBox.IsChecked == true
-                && _logView?.Cast<UiLogEntry>().LastOrDefault() is { } last) LogGrid.ScrollIntoView(last);
+                && _logView is not null && EventLogPresentation.LatestVisibleEntry(_logView) is { } latest) LogGrid.ScrollIntoView(latest);
         }
         catch (Exception ex)
         {
@@ -202,10 +200,9 @@ public partial class MainWindow
 
     private void InitializeLogView()
     {
-        _logView = CollectionViewSource.GetDefaultView(_eventLogStore.Entries);
+        _logView = EventLogPresentation.CreateView(LogGrid, _eventLogStore);
         _logView.Filter = item => item is UiLogEntry entry && entry.Matches(LogSearchTextBox.Text,
             SelectedLogLevel(), SelectedLogSource(), KeyEventsOnly);
-        LogGrid.ItemsSource = _logView;
         LogReadingBehavior.Attach(LogGrid, LogFollowCheckBox);
         UpdateLogViewInfo();
     }
@@ -220,11 +217,12 @@ public partial class MainWindow
 
     private void Log(string message, UiLogLevel level = UiLogLevel.Information, UiLogSource source = UiLogSource.Interface)
     {
-        var entry = _eventLogStore.Add(message, level, source);
+        _eventLogStore.Add(message, level, source);
         _fileLog.Write($"[{level}/{source}] {message}");
         RebuildRecentEvents();
         UpdateLogViewInfo();
-        if (LogFollowCheckBox.IsChecked == true && _logView?.Contains(entry) == true) LogGrid.ScrollIntoView(entry);
+        if (LogFollowCheckBox.IsChecked == true && _logView is not null
+            && EventLogPresentation.LatestVisibleEntry(_logView) is { } latest) LogGrid.ScrollIntoView(latest);
         UpdateEmptyStates();
     }
 
@@ -248,13 +246,8 @@ public partial class MainWindow
     private void LogFollow_Changed(object sender, RoutedEventArgs e)
     {
         if (_logView is null || LogFollowCheckBox.IsChecked != true) return;
-        var last = _logView.Cast<UiLogEntry>().LastOrDefault();
-        if (last is not null) LogGrid.ScrollIntoView(last);
-    }
-
-    private void LogReading_KeyDown(object sender, KeyEventArgs e)
-    {
-        if (e.Key is Key.Up or Key.PageUp or Key.Home) LogFollowCheckBox.IsChecked = false;
+        var latest = EventLogPresentation.LatestVisibleEntry(_logView);
+        if (latest is not null) LogGrid.ScrollIntoView(latest);
     }
 
     private void UpdateLogViewInfo()

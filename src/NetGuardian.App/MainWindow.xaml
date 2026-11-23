@@ -897,9 +897,9 @@
                         <Grid x:Name="LogBodyLayout" Grid.Row="1">
                         <Grid.RowDefinitions><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                         <Grid>
-                            <DataGrid x:Name="LogGrid" presentation:ResultTablePresentation.CompactColumns="2" AutomationProperties.Name="{Binding Text, ElementName=PageTitleText}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" PreviewKeyDown="LogReading_KeyDown" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
+                            <DataGrid x:Name="LogGrid" presentation:ResultTablePresentation.CompactColumns="2" AutomationProperties.Name="{Binding Text, ElementName=PageTitleText}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" SelectionMode="Single" RowStyle="{StaticResource GridRowStyle}" ColumnHeaderStyle="{StaticResource GridHeaderStyle}">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn x:Name="LogTimeColumn" Binding="{Binding TimeText}" Width="160" MinWidth="155" ElementStyle="{StaticResource GridTextStyle}" />
+                                    <DataGridTextColumn x:Name="LogTimeColumn" Binding="{Binding TimeText}" SortMemberPath="Time" Width="160" MinWidth="155" ElementStyle="{StaticResource GridTextStyle}" />
                                     <DataGridTemplateColumn x:Name="LogLevelColumn" ClipboardContentBinding="{Binding LevelText}" Width="100" MinWidth="100">
                                         <DataGridTemplateColumn.CellTemplate><DataTemplate>
                                             <Border Padding="{DynamicResource SpacingCompactInset}" Margin="{DynamicResource SpacingIconPadding}" CornerRadius="{DynamicResource CornerControl}" BorderThickness="{DynamicResource StrokeControlThickness}" HorizontalAlignment="Left" VerticalAlignment="Center">
