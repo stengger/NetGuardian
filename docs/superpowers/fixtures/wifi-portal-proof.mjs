@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createServer } from 'node:http';
-import { access, mkdir, mkdtemp, readFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as wait } from 'node:timers/promises';
 
-// 此实验仅使用虚构凭据。调试端口不能用于真实账号。
+// 此实验在本机模拟门户，只使用固定测试数据。
 const scratch = join(import.meta.dirname, '..', '..', '..', '.dotnet-home', 'portal-proof');
 await mkdir(scratch, { recursive: true });
-const profile = await mkdtemp(join(scratch, 'edge-profile-'));
+const profile = await mkdtemp(join(scratch, 'edge-pipe-profile-'));
 const edge = process.argv[2];
 await access(edge);
 const submissions = [];
@@ -19,7 +20,11 @@ let forbiddenHits = 0;
 let rejectedRequests = 0;
 let scenario = '';
 const account = 'fixture-student';
-const password = 'test-value';
+const password = 'test-value&+😃';
+const userMarker = `ng-user-${randomUUID()}`;
+const secretMarker = `ng-password-${randomUUID()}`;
+const approvedFields = new Map([['username', [userMarker, account]], ['password', [secretMarker, password]]]);
+let refusedPayloads = 0;
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://127.0.0.1');
   if (url.pathname === '/probe') {
@@ -43,7 +48,11 @@ const server = createServer(async (req, res) => {
     e.preventDefault();
     const form = e.currentTarget;
     const payload = new URLSearchParams({ session, username: form.querySelector('[autocomplete=username]').value, password: form.querySelector('[type=password]').value, provider: form.querySelector('select').value });
-    const response = await fetch(form.dataset.submit, {method: 'POST', body: payload});
+    if (${JSON.stringify(scenario)} === '凭据在页面被变换') payload.set('password', 'transformed-' + payload.get('password'));
+    const json = ${JSON.stringify(scenario)} === 'JSON 表单';
+    const response = await fetch(form.dataset.submit, json
+      ? {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.fromEntries(payload))}
+      : {method: 'POST', body: payload});
     document.querySelector('main').textContent = await response.text();
     if (${JSON.stringify(scenario)} === '页面尝试额外上传') {
       try { await fetch('/unapproved', {method: 'POST', body: payload}); } catch {}
@@ -55,7 +64,8 @@ const server = createServer(async (req, res) => {
   if (url.pathname !== '/sign-in' || req.method !== 'POST') return res.writeHead(404).end();
   const body = [];
   for await (const chunk of req) body.push(chunk);
-  const values = new URLSearchParams(Buffer.concat(body).toString());
+  const raw = Buffer.concat(body).toString();
+  const values = req.headers['content-type'] === 'application/json' ? new URLSearchParams(JSON.parse(raw)) : new URLSearchParams(raw);
   submissions.push(values.get('session'));
   if (scenario === '登录无响应') { await wait(1800); return res.writeHead(503).end('unavailable'); }
   const good = values.get('username') === account && values.get('password') === password && values.get('provider') === 'campus' && values.get('session') === String(session);
@@ -67,10 +77,9 @@ server.listen(0, '127.0.0.1');
 await once(server, 'listening');
 const backend = `http://127.0.0.1:${server.address().port}`;
 const origin = 'https://portal-prototype.invalid';
-let browser, socket;
+let browser;
 let browserProblem = '';
 const mainTimer = setTimeout(() => {
-  socket?.close();
   browser?.kill();
   server.closeAllConnections();
   server.close();
@@ -80,32 +89,27 @@ const mainTimer = setTimeout(() => {
 try {
   browser = spawn(edge, [
     '--headless=new', '--no-first-run', '--disable-background-networking', '--disable-extensions',
-    '--no-default-browser-check', '--remote-debugging-port=0', '--disable-quic',
+    '--no-default-browser-check', '--remote-debugging-pipe', '--disable-quic',
     '--proxy-server=http://127.0.0.1:1', '--proxy-bypass-list=<-loopback>',
     `--user-data-dir=${profile}`, 'about:blank'
-  ], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
+  ], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe', 'pipe', 'pipe'] });
   browser.on('error', error => { browserProblem = error.message; });
   browser.stderr.on('data', bytes => { browserProblem = `${browserProblem}${bytes}`.slice(-4000); });
-  let port;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    if (browser.exitCode !== null) break;
-    try { port = Number((await readFile(join(profile, 'DevToolsActivePort'), 'utf8')).split(/\r?\n/)[0]); } catch (error) { if (error.code !== 'ENOENT') throw error; }
-    if (port) break;
-    await wait(100);
-  }
-  assert.ok(port, `无法取得隐藏浏览器调试端口：${browserProblem}`);
-  const tabs = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(3000) }).then(response => response.json());
-  const tab = tabs.find(item => item.type === 'page');
-  assert.ok(tab, '缺少测试标签页');
-  socket = new WebSocket(tab.webSocketDebuggerUrl);
-  await Promise.race([
-    once(socket, 'open'),
-    wait(3000, undefined, { ref: false }).then(() => { throw Error('连接调试端口超时'); })
-  ]);
   let nextId = 0;
+  let sessionId;
   const pending = new Map();
-  socket.addEventListener('message', event => {
-    const message = JSON.parse(event.data);
+  let remainder = Buffer.alloc(0);
+  browser.stdio[3].on('error', error => { browserProblem = error.message; });
+  browser.stdio[4].on('data', chunk => {
+    remainder = Buffer.concat([remainder, chunk]);
+    let cut;
+    while ((cut = remainder.indexOf(0)) !== -1) {
+      const text = remainder.subarray(0, cut).toString('utf8');
+      remainder = remainder.subarray(cut + 1);
+      if (text) receive(JSON.parse(text));
+    }
+  });
+  function receive(message) {
     if (message.method === 'Fetch.requestPaused') {
       forward(message.params).catch(error => {
         console.error('请求转发失败', error.message);
@@ -120,14 +124,34 @@ try {
       if (message.error) waiter.reject(new Error(message.error.message));
       else waiter.resolve(message.result);
     }
-  });
-  function call(method, params = {}) {
+  }
+  function call(method, params = {}, session = sessionId) {
     const id = ++nextId;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} 超时`)); }, 3500);
+      const timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} 超时 ${browserProblem}`)); }, 3500);
       pending.set(id, { resolve, reject, timer });
-      socket.send(JSON.stringify({id, method, params}));
+      browser.stdio[3].write(JSON.stringify({id, method, params, sessionId: session}) + '\0');
     });
+  }
+  function replaceSubmittedFields(request) {
+    const type = Object.entries(request.headers).find(([key]) => key.toLowerCase() === 'content-type')?.[1].split(';')[0].trim();
+    if (type === 'application/x-www-form-urlencoded') {
+      const fields = new URLSearchParams(request.postData);
+      for (const [field, [marker, value]] of approvedFields) {
+        if (fields.getAll(field).length !== 1 || fields.get(field) !== marker) return null;
+        fields.set(field, value);
+      }
+      return { type, body: fields.toString() };
+    }
+    if (type !== 'application/json') return null;
+    let fields;
+    try { fields = JSON.parse(request.postData); } catch { return null; }
+    if (!fields || Array.isArray(fields) || typeof fields !== 'object') return null;
+    for (const [field, [marker, value]] of approvedFields) {
+      if (!Object.hasOwn(fields, field) || fields[field] !== marker) return null;
+      fields[field] = value;
+    }
+    return { type, body: JSON.stringify(fields) };
   }
   async function forward(event) {
     const { requestId, request } = event;
@@ -141,9 +165,16 @@ try {
       await call('Fetch.failRequest', {requestId, errorReason: 'BlockedByClient'});
       return;
     }
+    const payload = request.method === 'POST' ? replaceSubmittedFields(request) : undefined;
+    if (payload === null) {
+      refusedPayloads++;
+      await call('Fetch.failRequest', {requestId, errorReason: 'BlockedByClient'});
+      return;
+    }
     const response = await fetch(`${backend}${url.pathname}${url.search}`, {
       method: request.method,
-      body: request.method === 'POST' ? request.postData : undefined,
+      body: payload?.body,
+      headers: payload ? { 'Content-Type': payload.type } : undefined,
       redirect: 'manual',
       signal: AbortSignal.timeout(2200)
     });
@@ -153,6 +184,8 @@ try {
       body: Buffer.from(await response.arrayBuffer()).toString('base64')
     });
   }
+  const { targetId } = await call('Target.createTarget', { url: 'about:blank' });
+  ({ sessionId } = await call('Target.attachToTarget', { targetId, flatten: true }));
   await call('Fetch.enable', {patterns: [{urlPattern: '*'}]});
   async function evaluate(expression) {
     const response = await call('Runtime.evaluate', {expression, returnByValue: true});
@@ -189,8 +222,8 @@ try {
       const password = form.querySelectorAll('input[type=password]');
       const choice = form.querySelector('select');
       if (user.length !== 1 || password.length !== 1 || !choice) return false;
-      user[0].value = ${JSON.stringify(account)};
-      password[0].value = ${JSON.stringify(password)};
+      user[0].value = ${JSON.stringify(userMarker)};
+      password[0].value = ${JSON.stringify(secretMarker)};
       choice.value = 'campus';
       form.requestSubmit();
       return true;
@@ -202,9 +235,9 @@ try {
     return await verify('/backup-probe') ? '备用网' : '失败';
   }
   for (const [name, expected, attempts] of [
-    ['首次认证', '校园网', 1], ['已经联网', '校园网', 0], ['过期后新会话', '校园网', 1],
+    ['首次认证', '校园网', 1], ['JSON 表单', '校园网', 1], ['已经联网', '校园网', 0], ['过期后新会话', '校园网', 1],
     ['登录拒绝', '备用网', 1], ['声称成功但公网仍不通', '备用网', 1],
-    ['目标不匹配', '备用网', 0], ['控件歧义', '备用网', 0], ['入口未知', '备用网', 0], ['页面尝试额外上传', '备用网', 1], ['登录无响应', '备用网', 1]
+    ['目标不匹配', '备用网', 0], ['控件歧义', '备用网', 0], ['入口未知', '备用网', 0], ['页面尝试额外上传', '备用网', 1], ['凭据在页面被变换', '备用网', 0], ['登录无响应', '备用网', 1]
   ]) {
     const before = submissions.length;
     scenario = name;
@@ -213,12 +246,12 @@ try {
     assert.equal(submissions.length - before, attempts, name);
     console.log(`通过：${name} → ${expected}，提交 ${attempts} 次`);
   }
+  assert.equal(refusedPayloads, 1, '被页面变换的凭据不应发往服务器');
   assert.equal(forbiddenHits, 0, '未获准的上传到达了模拟服务器');
   assert.equal(rejectedRequests, 1, '没有观测到额外上传被拦截');
   assert.equal(new Set(submissions).size, submissions.length, '会话地址不能复用');
 } finally {
   clearTimeout(mainTimer);
-  socket?.close();
   browser?.kill();
   server.closeAllConnections();
   server.close();

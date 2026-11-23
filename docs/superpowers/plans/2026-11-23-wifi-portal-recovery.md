@@ -45,3 +45,11 @@
 ```powershell
 node 'docs/superpowers/fixtures/wifi-portal-proof.mjs' 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 ```
+
+## 私有管道和凭据转发续验
+
+隐藏 Edge 使用继承管道收发控制命令，模拟门户用例现在覆盖普通表单和 JSON 提交。浏览器端填入当次会话生成的两个占位值。转发端只在已确认的提交位置和字段中替换这些值。当门户脚本变换这些字段时，模拟流程停止提交并尝试备用网。服务器收到的测试密码含特殊字符和 Unicode，表单编码与 JSON 两条路径都通过。实际系统还须对含凭据的请求和响应独立管理。后台复测应直接使用目标 Wi-Fi 发起的公网请求。
+
+- 同一普通 Windows 会话内，Node 和 .NET 的私有管道试验均能连接 Edge。改用私有管道后，模拟门户 12 项通过，退出码 0。
+- 将同一 .NET 启动器放入无网络能力的临时 AppContainer，两次得到 `Edge 没有返回管道数据，进程状态 0x00000103`，内部异常 `System.TimeoutException: The operation has timed out.`，退出码 `-532462766`。普通会话的原生管道对照通过，两次临时 AppContainer 均已清理。Session 0 启动、低权限身份及目标 Wi-Fi 出口仍需实机验收。
+- 在日常 Wi-Fi 上只读访问东莞理工学院的 HTTPS 页面路径，收到 `WEB认证设备未注册，请确认SAM+/portal/设备上的参数配置是否一致`，没有得到登录表单。东莞理工学院的提交方式和对凭据占位值的兼容性，须在校园 Wi-Fi 自然触发门户时检查。
