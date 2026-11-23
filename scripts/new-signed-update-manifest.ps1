@@ -13,7 +13,7 @@ $encoding = [Text.UTF8Encoding]::new($false)
 $package = Get-Item -LiteralPath $Installer
 if ($package.Name -cnotmatch '^NetGuardian-(\d+\.\d+\.\d+)-win-x64-Setup\.exe$') { throw '请选择带正式版本号的 win-x64 安装包。' }
 $version = $Matches[1]
-if (([version]$version).ToString() -cne $version -or ($package.VersionInfo.ProductVersion -split '\+')[0] -cne $version) { throw '文件名和安装包内的版本号需要一致。' }
+if (([version]$version).ToString() -cne $version -or ($package.VersionInfo.ProductVersion -split '\+')[0].TrimEnd(' ') -cne $version) { throw '文件名和安装包内的版本号需要一致。' }
 if ($ExpiresUtc -le [DateTimeOffset]::UtcNow) { throw '失效时间须晚于当前时间。' }
 if ($SigningKey.ExportParameters($false).Curve.Oid.Value -ne '1.2.840.10045.3.1.7') { throw '需要 ECDSA P-256 发布密钥。' }
 $inputStream = $package.OpenRead()

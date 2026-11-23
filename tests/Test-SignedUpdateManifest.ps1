@@ -1,5 +1,5 @@
 #Requires -Version 7.4
-param([string]$Configuration = 'Release')
+param([string]$Configuration = 'Release', [string]$SetupPath)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 $assembly = Join-Path $repo "src/NetGuardian.Core/bin/$Configuration/net8.0/NetGuardian.Core.dll"
@@ -12,7 +12,8 @@ $installer = Join-Path $folder "NetGuardian-$version-win-x64-Setup.exe"
 $output = Join-Path $folder 'stable.json'
 $key = [Security.Cryptography.ECDsa]::Create([Security.Cryptography.ECCurve]::CreateFromFriendlyName('nistP256'))
 try {
-    Copy-Item -LiteralPath $assembly -Destination $installer
+    $source = if ($SetupPath) { (Get-Item -LiteralPath $SetupPath).FullName } else { $assembly }
+    Copy-Item -LiteralPath $source -Destination $installer
     $parameters = @{Installer=$installer; Sequence=8; Notes='中文说明'; ExpiresUtc=[DateTimeOffset]::UtcNow.AddDays(7); SigningKey=$key; Output=$output}
     & (Join-Path $repo 'scripts/new-signed-update-manifest.ps1') @parameters
     $bytes = [IO.File]::ReadAllBytes($output)
