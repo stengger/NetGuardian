@@ -9,8 +9,16 @@ internal sealed record UpdateEndpoint(Uri Manifest, Uri PackageRoot, params Uri[
 internal sealed record UpdateTrust(byte[] PublicKey, UpdateEndpoint Primary, UpdateEndpoint Mirror);
 internal static class OfficialUpdateFeed
 {
-    // 维护者核实正式设施后在此装配。空值明确禁用分发，不读取外部配置。
-    internal static UpdateTrust? Trust => null;
+    private const string Releases = "https://github.com/stengger/NetGuardian/releases/";
+    private const string Proxy = "https://gh-proxy.org/";
+    private const string Manifest = Releases + "latest/download/stable.json";
+    private const string Packages = Releases + "download/";
+
+    // 两条线路分发同一份签名清单，代理只负责传输公开文件。
+    internal static UpdateTrust Trust { get; } = new(
+        Convert.FromBase64String("MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEBcx5N4ZEyktb3CP8qc9qLOpNxv5OsJqcsFziwM29vzvoy5GXFQc1C8oeaV5HKCIGFuAM6kYOjl+eN0BZC0UYYA=="),
+        new(new Uri(Manifest), new Uri(Packages), new Uri("https://release-assets.githubusercontent.com/")),
+        new(new Uri(Proxy + Manifest), new Uri(Proxy + Packages)));
 }
 
 internal sealed record SignedManifest(long Sequence, DateTimeOffset Expires, Version Version, string File,
