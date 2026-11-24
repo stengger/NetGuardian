@@ -113,7 +113,7 @@ public sealed class WorkspaceHierarchyTests
                 new WifiProfile { Ssid = ssid, Enabled = true, Priority = index + 1 }).ToArray();
             foreach (var (name, value) in new[] { ("CurrentWifiTitle", "当前连接"), ("CurrentWifiNameText", networks[0]),
                 ("CurrentWifiDetailsText", "信号 92% · WPA2-Personal · IPv4 192.0.2.18"),
-                ("CurrentWifiSelectionText", "已选择 Studio-5G"), ("WifiRecoverySummaryText", "自动恢复候选：2/2") })
+                ("CurrentWifiSelectionText", "已选择 Studio-5G"), ("WifiRecoverySummaryText", "恢复已启用 2/2 · 附近可用 1") })
                 ((TextBlock)window.FindName(name)).Text = value;
             ((DataGrid)window.FindName("ProfileGrid")).SelectedIndex = 0;
             DesktopFixture.Layout(window, 1180, 760);

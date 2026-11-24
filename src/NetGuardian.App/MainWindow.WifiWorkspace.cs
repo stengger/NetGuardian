@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using NetGuardian.App.Presentation;
 using NetGuardian.Core.Models;
+using NetGuardian.Core.Monitoring;
 
 namespace NetGuardian.App;
 
@@ -29,7 +30,12 @@ public partial class MainWindow
 
     private void RefreshWifiWorkspaceSummary()
     {
-        WifiRecoverySummaryText.Text = string.Format(_localizer.T("WifiRecoverySummary"), _profiles.Count(p => p.IsRecoveryCandidate), _profiles.Count);
+        var enabled = _profiles.Count(profile => profile.ParticipatesInRecovery);
+        var nearby = _wifiScan.Phase == WifiScanPhase.Complete && _wifiScan.Networks is { } networks
+            ? RecoveryPlanner.OrderSwitchCandidates(_profiles, _reportSelection.KnownSsid,
+                networks.Where(network => network.IsConnectable).Select(network => network.Ssid).ToHashSet(StringComparer.Ordinal)).Count.ToString()
+            : "—";
+        WifiRecoverySummaryText.Text = string.Format(_localizer.T("WifiRecoverySummary"), enabled, _profiles.Count, nearby);
         WifiRecoverySummaryText.ToolTip = _localizer.T("WifiRecoverySummaryHint");
         ShowAllWifiProfilesMenuItem.Header = _localizer.T("ShowAllWifiProfiles");
         ProfileEmptyText.Text = _localizer.T(_nearbySavedWifi.ShowsAll ? "NoConfiguredWifiRows" : "NoPriorityWifiRows");

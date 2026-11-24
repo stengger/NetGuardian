@@ -37,6 +37,9 @@ public sealed class WifiClient : IWifiClient
         return await _netsh.ScanAsync(cancellationToken);
     }
 
+    public Task<WifiRecoveryScan> ScanForRecoveryAsync(CancellationToken cancellationToken = default) =>
+        _nativeScanner.ScanForRecoveryAsync(cancellationToken);
+
     public Task<string?> GetCurrentSsidAsync(CancellationToken cancellationToken = default)
     {
         return _netsh.GetCurrentSsidAsync(cancellationToken);

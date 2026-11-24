@@ -972,6 +972,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             case EngineEventKind.RecoverySwitchWifi:
                 Log(string.Format(_localizer.T("RecoverySwitchWifi"), args[0]), source: UiLogSource.Recovery);
                 break;
+            case EngineEventKind.RecoveryWifiSwitchSummary:
+                EngineLog(string.Format(_localizer.T("RecoveryWifiSwitchSummary"), args[0], args[1], args[2], args[3], args[4], args[5]));
+                break;
             case EngineEventKind.RecoveryWifiConnected:
             {
                 _journal.RecordRecoveryResult(true, args[0]?.ToString());

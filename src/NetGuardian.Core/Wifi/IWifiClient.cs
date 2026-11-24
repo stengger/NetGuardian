@@ -7,6 +7,8 @@ public interface IWifiClient
     string? LastAdapterEnableFailure => null;
     string? LastConnectionFailure => null;
     Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default);
+    async Task<WifiRecoveryScan> ScanForRecoveryAsync(CancellationToken cancellationToken = default) =>
+        new(WifiScanStatus.Completed, await ScanAsync(cancellationToken));
     Task<string?> GetCurrentSsidAsync(CancellationToken cancellationToken = default);
     async Task<WifiConnectionInfo> GetConnectionInfoAsync(CancellationToken cancellationToken = default)
     {

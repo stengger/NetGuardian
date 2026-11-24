@@ -46,6 +46,8 @@ public sealed partial class EventJournal
                 EngineEventKind.MonitorStarted => (IncidentStepKind.Boundary, null, "监控开始"),
                 EngineEventKind.MonitorStopped => (IncidentStepKind.Boundary, null, "监控停止"),
                 EngineEventKind.RecoveryStarted => (IncidentStepKind.RoundStarted, null, $"已达到恢复阈值，连续失败 {Arg(0)} 次"),
+                EngineEventKind.RecoveryWifiSwitchSummary => (IncidentStepKind.ActionResult, null,
+                    $"{Arg(0)}，配置 {Arg(1)} 条，候选 {Arg(2)} 条，跳过 {Arg(3)} 条，尝试 {Arg(4)} 次。{Arg(5)}"),
                 EngineEventKind.RecoverySwitchWifi => (IncidentStepKind.SwitchAttempt, Arg(0), "尝试切换 Wi-Fi"),
                 EngineEventKind.RecoveryReconnectCurrent => (IncidentStepKind.ReconnectAttempt, Arg(0), "尝试重连当前网络"),
                 EngineEventKind.RecoveryDnsFlush => (IncidentStepKind.ActionStarted, "DNS", "刷新 DNS 缓存"),

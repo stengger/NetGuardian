@@ -86,8 +86,8 @@ public static class RecoveryPlanner
         return profiles
             .Where(profile => profile.IsRecoveryCandidate)
             .Where(profile => !SsidEquals(profile.Ssid, currentSsid))
-            .OrderByDescending(profile => nearbySsids?.Contains(profile.Ssid) == true)
-            .ThenBy(profile => profile.Priority)
+            .Where(profile => nearbySsids is null || nearbySsids.Contains(profile.Ssid))
+            .OrderBy(profile => profile.Priority)
             .ToList();
     }
 

@@ -136,6 +136,7 @@ public sealed class MonitoringEngineTests : IDisposable
 
     public MonitoringEngineTests()
     {
+        _wifi.ScanHandler = _ => Task.FromResult(FakeWifiClient.Visible(_profiles.Select(item => item.Ssid).ToArray()));
         _engine = new MonitoringEngine(_wifi, _tester, _commands, () => _policy, () => _profiles)
         {
             SsidPollInterval = TimeSpan.Zero,
@@ -260,7 +261,7 @@ public sealed class MonitoringEngineTests : IDisposable
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task 恢复优先尝试附近候选且扫描失败沿用原顺序(bool scanFails)
+    public async Task 恢复仅尝试附近候选且扫描失败无近期记录时跳过(bool scanFails)
     {
         _profiles.Add(new WifiProfile { Ssid = "历史", Priority = 1, CredentialSaved = true });
         _profiles.Add(new WifiProfile { Ssid = "附近甲", Priority = 2, CredentialSaved = true });
@@ -273,7 +274,7 @@ public sealed class MonitoringEngineTests : IDisposable
         await _engine.CheckNowAsync();
         await _engine.CheckNowAsync();
 
-        Assert.Equal(scanFails ? new[] { "历史", "附近甲", "附近乙" } : new[] { "附近甲", "附近乙", "历史" }, _wifi.ConnectAttempts);
+        Assert.Equal(scanFails ? [] : new[] { "附近甲", "附近乙" }, _wifi.ConnectAttempts);
     }
 
     [Fact]
@@ -368,6 +369,9 @@ internal sealed class FakeWifiClient : IWifiClient
     public List<string?> AdapterEnableAttempts { get; } = [];
     public bool AdapterEnableSucceeds { get; set; } = true;
     public string? LastAdapterEnableFailure { get; set; }
+
+    public static IReadOnlyList<WifiNetwork> Visible(params string[] ssids) =>
+        ssids.Select(ssid => new WifiNetwork(ssid, 80, "", "", true, true)).ToArray();
 
     public Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
         => ScanHandler?.Invoke(cancellationToken) ?? Task.FromResult<IReadOnlyList<WifiNetwork>>([]);

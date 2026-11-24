@@ -18,33 +18,47 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
     public uint? LastNativeError { get; private set; }
 
     public async Task<IReadOnlyList<WifiNetwork>> ScanAsync(CancellationToken cancellationToken = default)
+        => (await ScanCoreAsync(requireFresh: false, cancellationToken)).Networks;
+
+    public Task<WifiRecoveryScan> ScanForRecoveryAsync(CancellationToken cancellationToken = default) =>
+        ScanCoreAsync(requireFresh: true, cancellationToken);
+
+    private async Task<WifiRecoveryScan> ScanCoreAsync(bool requireFresh, CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         LastNativeError = null;
         var openResult = WlanOpenHandle(WlanClientVersion, IntPtr.Zero, out _, out var handle);
         if (openResult != ErrorSuccess)
         {
             LastNativeError = openResult;
-            return [];
+            return new(WifiScanStatus.Failed, []);
         }
 
         try
         {
             var interfaces = EnumerateInterfaces(handle, error => LastNativeError = error);
-            await ScanAndWaitAsync(handle, interfaces, cancellationToken, error => LastNativeError = error);
-
+            var (completed, timedOut) = await ScanAndWaitAsync(handle, interfaces, cancellationToken, error => LastNativeError = error);
+            cancellationToken.ThrowIfCancellationRequested();
+            // 恢复候选只使用此次收到完成通知的接口，避免把缓存或已保存的隐藏配置算成可见。
             var networks = new List<WifiNetwork>();
+            var readSucceeded = false;
             foreach (var wlanInterface in interfaces)
             {
-                networks.AddRange(GetAvailableNetworks(handle, wlanInterface.InterfaceGuid, error => LastNativeError = error));
+                if (requireFresh && !completed.Contains(wlanInterface.InterfaceGuid)) continue;
+                var available = GetAvailableNetworks(handle, wlanInterface.InterfaceGuid, requireFresh, error => LastNativeError = error);
+                if (available is null) continue;
+                readSucceeded = true;
+                networks.AddRange(available);
             }
 
-            return networks
+            if (!readSucceeded) return new(timedOut ? WifiScanStatus.TimedOut : WifiScanStatus.Failed, []);
+            return new(WifiScanStatus.Completed, networks
                 .Where(network => !string.IsNullOrWhiteSpace(network.Ssid))
                 .GroupBy(network => network.Ssid)
-                .Select(group => group.OrderByDescending(network => network.SignalPercent).First())
+                .Select(group => group.OrderByDescending(network => network.IsConnectable).ThenByDescending(network => network.SignalPercent).First())
                 .OrderByDescending(network => network.SignalPercent)
                 .ThenBy(network => network.Ssid)
-                .ToList();
+                .ToList());
         }
         finally
         {
@@ -124,14 +138,15 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
         }
     }
 
-    private static IReadOnlyList<WifiNetwork> GetAvailableNetworks(IntPtr handle, Guid interfaceGuid, Action<uint>? reportError = null)
+    private static IReadOnlyList<WifiNetwork>? GetAvailableNetworks(IntPtr handle, Guid interfaceGuid,
+        bool requireFresh, Action<uint> reportError)
     {
-        var flags = WlanAvailableNetworkIncludeAllAdhocProfiles | WlanAvailableNetworkIncludeAllManualHiddenProfiles;
+        var flags = requireFresh ? 0u : WlanAvailableNetworkIncludeAllAdhocProfiles | WlanAvailableNetworkIncludeAllManualHiddenProfiles;
         var result = WlanGetAvailableNetworkList(handle, ref interfaceGuid, flags, IntPtr.Zero, out var listPointer);
         if (result != ErrorSuccess || listPointer == IntPtr.Zero)
         {
-            if (result != ErrorSuccess) reportError?.Invoke(result);
-            return [];
+            if (result != ErrorSuccess) reportError(result);
+            return null;
         }
 
         try
@@ -144,6 +159,7 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
             for (var index = 0; index < numberOfItems; index++)
             {
                 var item = Marshal.PtrToStructure<WlanAvailableNetwork>(current);
+                if (requireFresh && item.NumberOfBssids == 0) continue;
                 var ssid = DecodeSsid(item.Dot11Ssid);
                 networks.Add(new WifiNetwork(
                     ssid,
@@ -163,16 +179,17 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
         }
     }
 
-    private static async Task ScanAndWaitAsync(
+    private static async Task<(HashSet<Guid> Completed, bool TimedOut)> ScanAndWaitAsync(
         IntPtr handle,
         IReadOnlyList<WlanInterfaceInfo> interfaces,
         CancellationToken cancellationToken, Action<uint>? reportError = null)
     {
         if (interfaces.Count == 0)
         {
-            return;
+            return ([], false);
         }
 
+        var completed = new HashSet<Guid>();
         var pending = interfaces.Select(wlanInterface => wlanInterface.InterfaceGuid).ToHashSet();
         var syncRoot = new object();
         var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -191,10 +208,10 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
 
             lock (syncRoot)
             {
-                if (pending.Remove(notificationData.InterfaceGuid) && pending.Count == 0)
-                {
-                    completion.TrySetResult(true);
-                }
+                if (!pending.Remove(notificationData.InterfaceGuid)) return;
+                if (notificationData.NotificationCode == WlanNotificationAcmScanComplete)
+                    completed.Add(notificationData.InterfaceGuid);
+                if (pending.Count == 0) completion.TrySetResult(true);
             }
         };
 
@@ -212,6 +229,7 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
         {
             foreach (var wlanInterface in interfaces)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var interfaceGuid = wlanInterface.InterfaceGuid;
                 var scanResult = WlanScan(handle, ref interfaceGuid, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
                 if (scanResult != ErrorSuccess)
@@ -235,7 +253,7 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
             if (!notificationRegistered)
             {
                 await Task.Delay(ScanFallbackDelay, cancellationToken);
-                return;
+                return ([], false);
             }
 
             using var timeout = new CancellationTokenSource(ScanNotificationTimeout);
@@ -247,6 +265,7 @@ public sealed partial class NativeWifiScanner : INativeWifiConnector
                 completion);
 
             await completion.Task.ConfigureAwait(false);
+            lock (syncRoot) return (new HashSet<Guid>(completed), timeout.IsCancellationRequested);
         }
         finally
         {

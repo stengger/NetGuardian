@@ -41,7 +41,7 @@ public static class SavedWifiProfileImporter
             {
                 Ssid = profile.Ssid, WindowsProfileName = profile.ProfileName,
                 Security = profile.Authentication, CredentialSaved = true,
-                Priority = ++priority, Enabled = true, AutoConnect = true
+                Priority = ++priority, Enabled = false, AutoConnect = false
             });
             added++;
         }

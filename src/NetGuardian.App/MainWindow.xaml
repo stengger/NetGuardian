@@ -372,7 +372,7 @@
                                     <TextBlock x:Name="CurrentWifiDetailsText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}" />
                                 </Expander>
                                 <Border x:Name="CurrentWifiConnectedBadge" Grid.Column="1" Style="{StaticResource WifiConnectedBadgeStyle}" Margin="{DynamicResource SpacingLeadingGap}" Visibility="Collapsed"><TextBlock x:Name="CurrentWifiConnectedText" Text="已连接" VerticalAlignment="Center" /></Border>
-                                <TextBlock x:Name="WifiRecoverySummaryText" Grid.Column="2" Text="自动恢复候选：0/0" FontSize="{DynamicResource FontCaption}" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingLeadingGap}" />
+                                <TextBlock x:Name="WifiRecoverySummaryText" Grid.Column="2" Text="恢复已启用 0/0 · 附近可用 —" FontSize="{DynamicResource FontCaption}" VerticalAlignment="Center" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingLeadingGap}" />
                                 <ProgressBar x:Name="CurrentWifiSignalBar" Visibility="Collapsed" />
                                 <TextBlock x:Name="DragHintText" Visibility="Collapsed" />
 

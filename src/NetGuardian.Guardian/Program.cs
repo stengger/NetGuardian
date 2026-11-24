@@ -40,7 +40,10 @@ if (args.Contains("--diagnose"))
         var scanner = new NativeWifiScanner();
         var nativeNetworks = await scanner.ScanAsync(diagnosticDeadline.Token);
         var netshNetworks = await new NetshWifiClient().ScanAsync(diagnosticDeadline.Token);
-        scanDiagnostic = new { NativeError = scanner.LastNativeError, NativeNetworks = nativeNetworks, NetshNetworks = netshNetworks };
+        var nativeError = scanner.LastNativeError;
+        var recovery = await scanner.ScanForRecoveryAsync(diagnosticDeadline.Token);
+        scanDiagnostic = new { NativeError = nativeError, NativeNetworks = nativeNetworks, NetshNetworks = netshNetworks,
+            RecoveryStatus = recovery.Status.ToString(), RecoveryNetworks = recovery.Networks };
     }
     var result = JsonSerializer.Serialize(new
     {

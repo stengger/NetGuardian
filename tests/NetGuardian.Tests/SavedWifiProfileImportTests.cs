@@ -18,7 +18,7 @@ public sealed class SavedWifiProfileImportTests
         Assert.Equal(new WifiProfileImportResult(2, true), SavedWifiProfileImporter.Apply(settings, inventory, "当前"));
         Assert.Equal(new[] { "当前", "备用" }, settings.Profiles.Select(profile => profile.Ssid));
         Assert.Equal(new[] { 1, 2 }, settings.Profiles.Select(profile => profile.Priority));
-        Assert.All(settings.Profiles, profile => Assert.True(profile.CredentialSaved && profile.Enabled && profile.AutoConnect));
+        Assert.All(settings.Profiles, profile => { Assert.True(profile.CredentialSaved); Assert.False(profile.ParticipatesInRecovery); });
         Assert.Equal("备用配置", settings.Profiles[1].ConnectionProfileName);
         Assert.Equal("WPA2-Personal", settings.Profiles[1].Security);
         Assert.Equal(new WifiProfileImportResult(0, false), SavedWifiProfileImporter.Apply(settings, inventory, "当前"));
@@ -118,7 +118,7 @@ public sealed class SavedWifiProfileImportTests
     [InlineData(true)]
     public async Task 恢复切换和当前网络重连使用真实配置名(bool reconnect)
     {
-        var wifi = new FakeWifiClient { CurrentSsid = reconnect ? "目标SSID" : "原网络" };
+        var wifi = new FakeWifiClient { CurrentSsid = reconnect ? "目标SSID" : "原网络", ScanHandler = _ => Task.FromResult(FakeWifiClient.Visible("目标SSID")) };
         wifi.ConnectSucceedsFor.Add("目标SSID");
         var probes = 0;
         var tester = new ScriptedTester((ssid, _) => Task.FromResult(new ConnectivityReport

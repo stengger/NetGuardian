@@ -13,7 +13,7 @@ public sealed class UnattendedEngineTests
     [InlineData(" Office ")]
     public async Task 一个网络失败不会让不同名称的备用网络进入冷却(string backup)
     {
-        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        var wifi = new FakeWifiClient { CurrentSsid = "Home", ScanHandler = _ => Task.FromResult(FakeWifiClient.Visible("Office", backup)) };
         wifi.ConnectHandler = (ssid, _) =>
         {
             wifi.CurrentSsid = ssid;
@@ -197,7 +197,7 @@ public sealed class UnattendedEngineTests
         wifi.ScanHandler = _ =>
         {
             wifi.ConnectSucceedsFor.Add("B");
-            return Task.FromResult<IReadOnlyList<WifiNetwork>>([]);
+            return Task.FromResult(FakeWifiClient.Visible("B"));
         };
         using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid,
             ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
@@ -208,7 +208,7 @@ public sealed class UnattendedEngineTests
     }
 
     [Fact]
-    public async Task 扫描失败仍继续尝试保存的备用配置()
+    public async Task 扫描失败且没有最近验证成功的网络时不发送连接请求()
     {
         var wifi = new FakeWifiClient { CurrentSsid = "Home", ScanHandler = _ => throw new InvalidOperationException("扫描暂不可用") };
         wifi.ConnectSucceedsFor.Add("B");
@@ -216,7 +216,116 @@ public sealed class UnattendedEngineTests
             ssid == "B" ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
         engine.Start();
         await engine.CheckNowAsync();
-        Assert.Equal("B", wifi.CurrentSsid);
+        Assert.Empty(wifi.ConnectAttempts);
+        Assert.Equal("Home", wifi.CurrentSsid);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task 恢复只尝试当前扫描确认的网络且最多三个(bool hasVisible)
+    {
+        var profiles = Enumerable.Range(1, 57).Select(i => new WifiProfile
+        {
+            Ssid = $"WiFi-{i}", Priority = i, Enabled = i > 3, CredentialSaved = true
+        }).ToArray();
+        var wifi = new FakeWifiClient { CurrentSsid = "Home", ScanHandler = _ =>
+            Task.FromResult<IReadOnlyList<WifiNetwork>>(hasVisible
+                ? [.. new[] { 2, 4, 53, 54, 55, 56, 57 }.Select(i => new WifiNetwork($"WiFi-{i}", 80, "", "", true, i != 4))]
+                : []) };
+        using var engine = new MonitoringEngine(wifi,
+            new ScriptedTester((ssid, _) => Task.FromResult(Report(ssid, NetworkState.InternetIssue))),
+            new FakeCommandRunner(), Policy, () => profiles);
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal(hasVisible ? new[] { "WiFi-53", "WiFi-54", "WiFi-55" } : [], wifi.ConnectAttempts);
+        if (hasVisible)
+        {
+            wifi.ConnectAttempts.Clear();
+            await engine.CheckNowAsync();
+            Assert.Equal(new[] { "WiFi-56", "WiFi-57" }, wifi.ConnectAttempts);
+        }
+    }
+
+    [Fact]
+    public async Task 两次扫描失败后只尝试近期验证成功的一个备用网络()
+    {
+        var scans = 0;
+        var wifi = new FakeWifiClient { CurrentSsid = "B", ScanHandler = _ =>
+        {
+            scans++;
+            throw new InvalidOperationException("扫描暂不可用");
+        } };
+        var healthy = true;
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid,
+            healthy ? NetworkState.Healthy : NetworkState.InternetIssue))), Policy());
+        engine.Start();
+        await engine.CheckNowAsync();
+        healthy = false;
+        wifi.CurrentSsid = "Home";
+        await engine.CheckNowAsync();
+        Assert.Equal(2, scans);
+        Assert.Equal(new[] { "B" }, wifi.ConnectAttempts);
+    }
+
+    [Fact]
+    public async Task 扫描超时后补扫但无近期记录时零连接请求()
+    {
+        var scans = 0;
+        var wifi = new FakeWifiClient { CurrentSsid = "Home", ScanHandler = async token =>
+        {
+            scans++;
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return FakeWifiClient.Visible("A");
+        } };
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid, NetworkState.InternetIssue))), Policy());
+        engine.RecoveryScanAttemptTimeout = TimeSpan.FromMilliseconds(25);
+        EngineEventArgs? summary = null;
+        engine.EngineEvent += (_, e) => { if (e.Kind == EngineEventKind.RecoveryWifiSwitchSummary) summary = e; };
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal(2, scans);
+        Assert.Empty(wifi.ConnectAttempts);
+        Assert.NotNull(summary);
+        Assert.Equal("扫描超时", summary.Args[0]);
+        Assert.Equal(0, summary.Args[4]);
+    }
+
+    [Fact]
+    public async Task 切换预算覆盖原生连接等待且不会下发下一条请求()
+    {
+        var cancelled = false;
+        var wifi = new FakeWifiClient { CurrentSsid = "Home", ConnectHandler = async (_, token) =>
+        {
+            try { await Task.Delay(Timeout.InfiniteTimeSpan, token); }
+            finally { cancelled = token.IsCancellationRequested; }
+            return false;
+        } };
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(Report(ssid, NetworkState.InternetIssue))), Policy());
+        engine.WifiSwitchBudget = TimeSpan.FromMilliseconds(50);
+        engine.Start();
+        await engine.CheckNowAsync().WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.True(cancelled);
+        Assert.Equal(new[] { "A" }, wifi.ConnectAttempts);
+    }
+
+    [Fact]
+    public async Task DNS复测确认恢复时保留当前关联不重连不切网()
+    {
+        var wifi = new FakeWifiClient { CurrentSsid = "Home" };
+        var probes = 0;
+        var policy = Policy();
+        policy.EnableCurrentWifiReconnect = true;
+        using var engine = Engine(wifi, new((ssid, _) => Task.FromResult(++probes == 1
+            ? new ConnectivityReport { CurrentSsid = ssid, State = NetworkState.DnsIssue, Gateway = "192.168.1.1",
+                Probes = [new ConnectivityProbe("Gateway ping", true, 3, "192.168.1.1")] }
+            : Report(ssid, NetworkState.Healthy))), policy);
+        engine.Start();
+        await engine.CheckNowAsync();
+        Assert.Equal(2, probes);
+        Assert.Empty(wifi.ConnectAttempts);
+        Assert.Equal("Home", wifi.CurrentSsid);
+        Assert.Equal(0, engine.FailureStreak);
     }
 
     private static MonitorPolicy Policy() => new()
@@ -227,11 +336,15 @@ public sealed class UnattendedEngineTests
     };
 
     private static MonitoringEngine Engine(FakeWifiClient wifi, ScriptedTester tester, MonitorPolicy policy,
-        FakeCommandRunner? commands = null, TimeProvider? time = null) => new(wifi, tester, commands ?? new(), () => policy,
-            () => new[] { new WifiProfile { Ssid = "A", CredentialSaved = true }, new WifiProfile { Ssid = "B", CredentialSaved = true } }, time)
+        FakeCommandRunner? commands = null, TimeProvider? time = null)
     {
-        SsidPollInterval = TimeSpan.Zero, HighRiskSettleDelay = TimeSpan.Zero
-    };
+        wifi.ScanHandler ??= _ => Task.FromResult(FakeWifiClient.Visible("A", "B"));
+        return new(wifi, tester, commands ?? new(), () => policy,
+            () => new[] { new WifiProfile { Ssid = "A", CredentialSaved = true }, new WifiProfile { Ssid = "B", CredentialSaved = true } }, time)
+        {
+            SsidPollInterval = TimeSpan.Zero, HighRiskSettleDelay = TimeSpan.Zero
+        };
+    }
 
     [Fact]
     public async Task AssociatedWithoutInternet_ContinuesUntilHealthyCandidate()

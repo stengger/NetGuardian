@@ -266,6 +266,11 @@ public sealed partial class MonitoringEngine : IDisposable
                 if (report.Ok) _failedRecoveryRounds = 0;
                 reportRecorded = true;
             }
+            if (report.Ok)
+            {
+                _previousSwitchFailures.Clear();
+                if (!report.IsLightweight) RememberVerifiedWifi(report.CurrentSsid);
+            }
             ObserveReport(report);
             CheckCompleted?.Invoke(this, new CheckCompletedEventArgs(report, _failureStreak));
             token.ThrowIfCancellationRequested();
@@ -383,6 +388,54 @@ public sealed partial class MonitoringEngine : IDisposable
             if (dnsRecovered) return;
         }
 
+        if (report.State == NetworkState.DnsIssue && !string.IsNullOrWhiteSpace(currentSsid) &&
+            report.Probes.Any(probe => probe.Name == "Gateway ping" && probe.Ok))
+        {
+            attempted = true;
+            var dnsRecheckRecovered = await TryRecoveryStepAsync(async () =>
+            {
+                using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+                var token = linked.Token;
+                try
+                {
+                    var before = await _wifi.GetConnectionInfoAsync(token).WaitAsync(token);
+                    if (!before.ReadSucceeded || !before.Connected || !RecoveryPlanner.SsidEquals(before.Ssid, currentSsid))
+                    {
+                        currentSsid = before.ReadSucceeded && before.Connected ? before.Ssid : null;
+                        return false;
+                    }
+                    var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(token).WaitAsync(token);
+                    var retest = await CheckWifiAsync(policy, diagnostics, token, before);
+                    var after = await _wifi.GetConnectionInfoAsync(token).WaitAsync(token);
+                    if (!after.ReadSucceeded || !after.Connected || !RecoveryPlanner.SsidEquals(after.Ssid, before.Ssid)
+                        || !string.Equals(after.AdapterName, before.AdapterName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        currentSsid = after.ReadSucceeded && after.Connected ? after.Ssid : null;
+                        return false;
+                    }
+                    ObserveReport(retest);
+                    if (!retest.Ok) return false;
+                    lock (_lifecycle)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        _lastCheckHealthy = true;
+                        _failureStreak = _failedRecoveryRounds = 0;
+                    }
+                    _previousSwitchFailures.Clear();
+                    RememberVerifiedWifi(after.Ssid);
+                    CheckCompleted?.Invoke(this, new CheckCompletedEventArgs(retest, 0));
+                    return true;
+                }
+                catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+                {
+                    Raise(EngineEventKind.CheckError, "原 Wi-Fi DNS 与公网复测超时。");
+                    return false;
+                }
+            }, cancellationToken);
+            if (dnsRecheckRecovered) return;
+        }
+
         if (policy.EnableCurrentWifiReconnect && !string.IsNullOrWhiteSpace(currentSsid) && !IsSsidCoolingDown(currentSsid))
         {
             attempted = true;
@@ -406,39 +459,9 @@ public sealed partial class MonitoringEngine : IDisposable
 
         if (policy.EnableAutoSwitch)
         {
-            // 长期关联后可用网络缓存可能过期；刷新失败仍保留已保存配置的连接机会。
-            IReadOnlyList<WifiNetwork> nearby = [];
-            await TryRecoveryStepAsync(async () =>
-            {
-                using var scanCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                scanCancellation.CancelAfter(TimeSpan.FromSeconds(8));
-                try { nearby = await _wifi.ScanAsync(scanCancellation.Token).WaitAsync(scanCancellation.Token); }
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-                {
-                    throw new TimeoutException("恢复前无线扫描超过时限，继续尝试保存的配置。");
-                }
-                return true;
-            }, cancellationToken);
-            var visibleSsids = nearby.Select(network => network.Ssid).ToHashSet(StringComparer.Ordinal);
-            var candidates = RecoveryPlanner.OrderSwitchCandidates(_profilesProvider(), currentSsid, visibleSsids);
-            foreach (var profile in candidates)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                if (IsSsidCoolingDown(profile.Ssid)) continue;
-                attempted = true;
-                Raise(EngineEventKind.RecoverySwitchWifi, profile.Ssid);
-                var connected = await TryRecoveryStepAsync(
-                    () => ConnectAndValidateAsync(policy, profile.Ssid, WifiValidationTimeout, cancellationToken), cancellationToken);
-                RecordProfileResult(policy, profile.Ssid, connected);
-                ProfileRecoveryResult?.Invoke(this, new ProfileRecoveryResultEventArgs(profile.Ssid, connected));
-                if (connected)
-                {
-                    _failedRecoveryRounds = 0;
-                    _failureStreak = 0;
-                    Raise(EngineEventKind.RecoveryWifiConnected, profile.Ssid);
-                    return;
-                }
-            }
+            var switched = await TrySwitchWifiAsync(policy, currentSsid, cancellationToken);
+            attempted |= switched.Attempted;
+            if (switched.Connected) return;
         }
 
         if (!attempted)
@@ -549,20 +572,22 @@ public sealed partial class MonitoringEngine : IDisposable
         token.ThrowIfCancellationRequested();
         // 已启动的连接操作必须收尾后才释放检查控制权，避免停止后延迟切网。
         var profile = _profilesProvider().FirstOrDefault(item => RecoveryPlanner.SsidEquals(item.Ssid, ssid));
-        var accepted = profile is not null && profile.ConnectionProfileName != ssid
-            ? await _wifi.ConnectProfileAsync(profile.ConnectionProfileName, ssid, token)
-            : await _wifi.ConnectAsync(ssid, token);
-        token.ThrowIfCancellationRequested();
-        if (!accepted)
-        {
-            Raise(EngineEventKind.CheckError, $"连接网络“{ssid}”的请求失败：{_wifi.LastConnectionFailure ?? "系统未提供原因。"}");
-            return false;
-        }
         using var deadline = new CancellationTokenSource(timeout);
         using var validation = CancellationTokenSource.CreateLinkedTokenSource(token, deadline.Token);
         var validationToken = validation.Token;
         try
         {
+            var accepted = profile is not null && profile.ConnectionProfileName != ssid
+                ? await _wifi.ConnectProfileAsync(profile.ConnectionProfileName, ssid, validationToken)
+                : await _wifi.ConnectAsync(ssid, validationToken);
+            validationToken.ThrowIfCancellationRequested();
+            if (!accepted)
+            {
+                var reason = _wifi.LastConnectionFailure ?? "系统未提供原因。";
+                Observe(IncidentStepKind.ActionResult, ssid, $"连接请求失败：{reason}");
+                Raise(EngineEventKind.CheckError, $"连接网络“{ssid}”的请求失败：{reason}");
+                return false;
+            }
             var associationRecorded = false;
             while (true)
             {
@@ -582,7 +607,11 @@ public sealed partial class MonitoringEngine : IDisposable
                     var confirmed = await _wifi.GetConnectionInfoAsync(token).WaitAsync(token);
                     var sameRoute = confirmed.ReadSucceeded && confirmed.Connected && RecoveryPlanner.SsidEquals(confirmed.Ssid, ssid)
                         && string.Equals(confirmed.AdapterName, connection.AdapterName, StringComparison.OrdinalIgnoreCase);
-                    if (sameRoute) ObserveReport(report, afterAction: true);
+                    if (sameRoute)
+                    {
+                        RememberVerifiedWifi(ssid);
+                        ObserveReport(report, afterAction: true);
+                    }
                     else Observe(IncidentStepKind.Inconclusive, ssid, "复测后出口已改变或未知", report);
                     return sameRoute;
                 }
@@ -593,6 +622,7 @@ public sealed partial class MonitoringEngine : IDisposable
                     && diagnostics.HardwareRadioOn != false && diagnostics.SoftwareRadioOn != false;
                 if (!canWaitForConnection)
                 {
+                    Observe(IncidentStepKind.ActionResult, ssid, $"已关联，公网验证失败：{report.State}，{report.Summary}");
                     Raise(EngineEventKind.CheckError, $"网络“{ssid}”连接后校验失败：{report.State}，{report.Summary}");
                     return false;
                 }
@@ -601,7 +631,8 @@ public sealed partial class MonitoringEngine : IDisposable
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested && !token.IsCancellationRequested)
         {
-            Raise(EngineEventKind.CheckError, $"网络“{ssid}”在 {timeout.TotalSeconds:g} 秒内未完成关联或地址配置。");
+            Observe(IncidentStepKind.ActionResult, ssid, "连接或公网验证超时");
+            Raise(EngineEventKind.CheckError, $"网络“{ssid}”在 {timeout.TotalSeconds:g} 秒内未完成连接或公网验证。");
             return false;
         }
     }

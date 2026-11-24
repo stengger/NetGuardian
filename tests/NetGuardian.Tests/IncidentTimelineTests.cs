@@ -18,6 +18,7 @@ public sealed class IncidentTimelineTests : IDisposable
 
     private MonitoringEngine Engine(string actor, params string[] candidates)
     {
+        _wifi.ScanHandler = _ => Task.FromResult(FakeWifiClient.Visible(candidates));
         var engine = new MonitoringEngine(_wifi, _tester, new FakeCommandRunner(), () => _policy,
             () => candidates.Select((s, i) => new WifiProfile { Ssid = s, Priority = i, CredentialSaved = true }), _clock);
         var journal = new EventJournal(_directory, _clock);

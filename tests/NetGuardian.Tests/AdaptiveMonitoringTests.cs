@@ -222,7 +222,7 @@ public sealed class AdaptiveMonitoringTests
     public async Task 切换网络验证成功后返回正常周期而非保留故障前周期()
     {
         var clock = new DrivenClock();
-        var wifi = new FakeWifiClient { CurrentSsid = "原网络" };
+        var wifi = new FakeWifiClient { CurrentSsid = "原网络", ScanHandler = _ => Task.FromResult(FakeWifiClient.Visible("备用网络")) };
         wifi.ConnectSucceedsFor.Add("备用网络");
         var tester = new FakeConnectivityTester { NextState = NetworkState.InternetIssue };
         tester.HealthySsids.Add("备用网络");

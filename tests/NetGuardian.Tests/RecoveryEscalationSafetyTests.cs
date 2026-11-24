@@ -82,7 +82,7 @@ public sealed class RecoveryEscalationSafetyTests
     [InlineData(true)]
     public async Task CandidateAssociationReplacesInitialDeviceFault_BeforeEscalation(bool probeUnknown)
     {
-        var wifi = new FakeWifiClient();
+        var wifi = new FakeWifiClient { ScanHandler = _ => Task.FromResult(FakeWifiClient.Visible("Backup")) };
         wifi.ConnectSucceedsFor.Add("Backup");
         var runner = new FakeCommandRunner();
         using var engine = Engine(wifi, new((ssid, _) => ssid is not null && probeUnknown
