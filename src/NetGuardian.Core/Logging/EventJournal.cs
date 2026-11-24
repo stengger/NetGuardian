@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -27,6 +28,7 @@ public sealed record WeeklySummary(int OutageEpisodes, int RecoveryAttempts, int
 /// </summary>
 public sealed partial class EventJournal
 {
+    private const int RetentionDays = 90;
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
@@ -38,6 +40,7 @@ public sealed partial class EventJournal
     private readonly object _syncRoot = new();
     private bool _lastCheckFailed;
     private DateTimeOffset? _lastHealthyWriteAt;
+    private DateOnly? _lastCleanupDate;
 
     public EventJournal(string? directory = null, TimeProvider? timeProvider = null)
     {
@@ -197,9 +200,38 @@ public sealed partial class EventJournal
             System.IO.Directory.CreateDirectory(_directory);
             var path = Path.Combine(_directory, $"events-{record.Timestamp:yyyyMM}.jsonl");
             File.AppendAllText(path, JsonSerializer.Serialize(record, JsonOptions) + Environment.NewLine, Encoding.UTF8);
+            CleanupExpiredMonths(record.Timestamp);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+        }
+    }
+
+    private void CleanupExpiredMonths(DateTimeOffset now)
+    {
+        var today = DateOnly.FromDateTime(now.Date);
+        if (_lastCleanupDate == today) return;
+        _lastCleanupDate = today;
+
+        // 截止日所在月份仍可能有保留期内的事件，必须保留整卷。
+        var cutoff = today.AddDays(-RetentionDays);
+        var cutoffMonth = new DateOnly(cutoff.Year, cutoff.Month, 1);
+        foreach (var path in System.IO.Directory.EnumerateFiles(_directory, "events-??????.jsonl"))
+        {
+            var name = Path.GetFileName(path);
+            if (name.Length != "events-yyyyMM.jsonl".Length
+                || !name.StartsWith("events-", StringComparison.Ordinal)
+                || !name.EndsWith(".jsonl", StringComparison.Ordinal)
+                || !DateOnly.TryParseExact(name.AsSpan(7, 6), "yyyyMM", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var month)
+                || month >= cutoffMonth)
+                continue;
+
+            try { File.Delete(path); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // 单个文件暂时无法清理时继续处理其他文件，下次检查再重试。
+            }
         }
     }
 

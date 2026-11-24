@@ -192,7 +192,7 @@ dist\releases\NetGuardian-1.1.5-win-x64-Setup.exe.sha256
 - 未安装后台：`%APPDATA%\NetGuardian`。
 - 安装后台后：`%ProgramData%\NetGuardian`，界面与后台共用。
 - `settings.json` / `.bak`：配置和备份，不保存明文无线密码。
-- `logs\app-YYYYMMDD.log`：按天记录；`events-YYYYMM.jsonl`：恢复事件。
+- `logs\app-YYYYMMDD.log` 按天记录。`events-YYYYMM.jsonl` 按月记录恢复事件，写入时每天最多检查一次，自动清理整个自然月均早于近 90 天的事件分卷。
 - `guardian-status.json`：进程身份、心跳及最近检测结果。
 - `recovery-budget.json`：跨进程恢复冷却；`alerts\last-high-risk.json`：最近高风险动作。
 

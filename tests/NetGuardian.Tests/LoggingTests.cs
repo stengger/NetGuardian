@@ -97,6 +97,53 @@ public sealed class EventJournalTests : IDisposable
     }
 
     [Fact]
+    public void 写入事件时只清理超出保留期的完整月份()
+    {
+        Directory.CreateDirectory(_dir);
+        foreach (var name in new[] { "events-202607.jsonl", "events-202608.jsonl", "events-202610.jsonl",
+            "events-202613.jsonl", "events-202601.jsonl.bak", "app-20260101.log" })
+            File.WriteAllText(Path.Combine(_dir, name), "历史记录");
+        var clock = new JournalClock(new DateTimeOffset(2026, 11, 29, 12, 0, 0, TimeSpan.Zero));
+        var journal = new EventJournal(_dir, clock);
+
+        journal.RecordRecoveryStarted(1);
+        Assert.False(File.Exists(Path.Combine(_dir, "events-202607.jsonl")));
+        Assert.True(File.Exists(Path.Combine(_dir, "events-202608.jsonl")));
+
+        clock.Now = clock.Now.AddDays(1);
+        journal.RecordRecoveryResult(true, "备用网络");
+        Assert.False(File.Exists(Path.Combine(_dir, "events-202608.jsonl")));
+        foreach (var name in new[] { "events-202610.jsonl", "events-202611.jsonl", "events-202613.jsonl",
+            "events-202601.jsonl.bak", "app-20260101.log" })
+            Assert.True(File.Exists(Path.Combine(_dir, name)), name);
+    }
+
+    [Fact]
+    public void 清理后仍能统计跨月的近七天事件()
+    {
+        var clock = new JournalClock(new DateTimeOffset(2026, 10, 31, 12, 0, 0, TimeSpan.Zero));
+        var journal = new EventJournal(_dir, clock);
+        journal.RecordCheck(NetworkState.InternetIssue, ok: false);
+        journal.RecordRecoveryStarted(1);
+        var expired = Path.Combine(_dir, "events-202601.jsonl");
+        File.WriteAllText(expired, "过期记录");
+
+        clock.Now = clock.Now.AddDays(1);
+        journal.RecordRecoveryResult(true, "备用网络");
+        journal.RecordCheck(NetworkState.Healthy, ok: true);
+
+        Assert.False(File.Exists(expired));
+        Assert.Equal(new WeeklySummary(1, 1, 1), journal.GetSummary());
+    }
+
+    private sealed class JournalClock(DateTimeOffset now) : TimeProvider
+    {
+        public DateTimeOffset Now { get; set; } = now;
+        public override DateTimeOffset GetUtcNow() => Now;
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
+
+    [Fact]
     public void GetSummary_EmptyJournal_ReturnsZeros()
     {
         var summary = Journal().GetSummary();
