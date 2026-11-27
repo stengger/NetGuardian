@@ -190,7 +190,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RootSnackbar.Configure(_localizer);
 
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
-        _countdownTimer.Tick += (_, _) => { UpdateMonitorStatus(); RefreshCurrentWifiIfDue(); RefreshMetricAge(); };
+        _countdownTimer.Tick += (_, _) => { UpdateMonitorStatus(); RefreshCurrentWifiIfDue(); RefreshMetricAge(); RefreshProxyAndVpnIfDue(); };
         _countdownTimer.Start();
         _sidebarSpeedTimer.Interval = TimeSpan.FromSeconds(1);
         _sidebarSpeedTimer.Tick += (_, _) => UpdateSidebarSpeed();
@@ -764,6 +764,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (sender != e.OriginalSource || sender is not TabControl { IsVisible: true }) return;
         PanelNavigationPresenter.Show(this, sender == ToolsTabControl ? "ToolsPanel" : "ConfigurationWorkspace", _localizer);
+        if (AdapterConfigTab.IsVisible || IpInfoToolsTab.IsVisible) RefreshProxyAndVpnBanners();
     }
 
     private Button? _metricReturnTarget;
@@ -825,6 +826,10 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             ApplyUpdateText();
         }
         if (tag == "WifiPanel") _ = RefreshCurrentWifiAsync();
+        if (tag is "ConfigurationWorkspace" or "ToolsPanel" && (AdapterConfigTab.IsVisible || IpInfoToolsTab.IsVisible))
+        {
+            RefreshProxyAndVpnBanners();
+        }
     }
 
     private async Task StartMonitoringAsync(bool checkImmediately = true)

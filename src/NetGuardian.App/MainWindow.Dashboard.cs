@@ -21,6 +21,7 @@ public partial class MainWindow
             _reportSelection.NetworkChanged(changedAt);
             CurrentSsidText.Text = _reportSelection.KnownSsid ?? "—";
             RenderDashboardMetrics(_reportSelection.Report);
+            if (AdapterConfigTab.IsVisible || IpInfoToolsTab.IsVisible) RefreshProxyAndVpnBanners();
         }), DispatcherPriority.Send);
     }
 

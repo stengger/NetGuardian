@@ -746,12 +746,6 @@
                             <TabItem x:Name="IpInfoToolsTab">
                                 <Grid Margin="{DynamicResource SpacingSectionStart}">
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-                                    <Border x:Name="IpProxyVpnBanner" Grid.Row="0" Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingFieldGap}">
-                                        <DockPanel>
-                                            <TextBlock x:Name="ProxyVpnBannerTitleIp" DockPanel.Dock="Left" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center" />
-                                            <TextBlock x:Name="IpProxyVpnText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                        </DockPanel>
-                                    </Border>
                                     <StackPanel Grid.Row="1">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="IpInfoStatusText" Margin="{DynamicResource SpacingStatusBody}" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="IpInfoActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="{DynamicResource SpacingBlockGap}" /></StackPanel>

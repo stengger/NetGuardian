@@ -42,17 +42,22 @@ public partial class MainWindow
     private async Task RefreshPublicIpInfoAsync()
     {
         if (_resourcesCleaned || _ipSession.IsBusy) return;
-        RefreshProxyAndVpnBanners();
         await _ipSession.RunAsync(async token =>
         {
             var ipv6Task = NetworkEnvironmentInspector.ProbeIpv6StatusAsync(token);
             var routeTask = Task.Run(() => NetworkEnvironmentInspector.GetDefaultRouteAdapterName(), token);
+            var proxyTask = Task.Run(() => ProxyAndVpnInspector.Inspect(), token);
             var info = await _publicIpInfo.GetAsync(token, forceRefresh: true);
             _latestIpv6Status = await ipv6Task;
             _latestDefaultRouteAdapter = await routeTask;
+            _latestProxySnapshot = await proxyTask;
             return info;
         }, RefreshIpToolUi);
-        if (!_resourcesCleaned) DiagnosticLog(IpInfoStatusText.Text, _ipSession.Phase == DiagnosticPhase.Failed ? UiLogLevel.Error : UiLogLevel.Information);
+        if (!_resourcesCleaned)
+        {
+            if (_latestProxySnapshot is { } snap) ApplyProxyAndVpnSnapshot(snap, _latestDefaultRouteAdapter, refreshIpTable: false);
+            DiagnosticLog(IpInfoStatusText.Text, _ipSession.Phase == DiagnosticPhase.Failed ? UiLogLevel.Error : UiLogLevel.Information);
+        }
     }
 
     private async Task RunDiagnosticReportAsync()
@@ -119,6 +124,11 @@ public partial class MainWindow
             AddIpInfoRow("AutonomousSystem", info.AutonomousSystem);
             AddIpInfoRow("Timezone", info.Timezone);
             AddIpInfoRow("IpCoordinates", PublicIpPresentation.Coordinates(info.Latitude, info.Longitude, _localizer.T("UnknownData")));
+            if (_latestProxySnapshot is { } proxySnap)
+            {
+                AddIpInfoRow("SystemProxyRowLabel", ProxyVpnPresentation.FormatSystemProxyValue(proxySnap, _localizer));
+                AddIpInfoRow("ActiveVpnRowLabel", ProxyVpnPresentation.FormatVpnValue(proxySnap, _localizer));
+            }
             if (_latestIpv6Status is { } v6)
             {
                 var v6Text = !v6.HasLocalGlobalIpv6

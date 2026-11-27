@@ -161,9 +161,13 @@ public sealed class OperationsAndObservabilityUiTests
 
             var localizer = new Localizer();
             var bannerText = ProxyVpnPresentation.FormatBanner(snap, "WLAN", localizer);
+            var proxyRowText = ProxyVpnPresentation.FormatSystemProxyValue(snap, localizer);
+            var vpnRowText = ProxyVpnPresentation.FormatVpnValue(snap, localizer);
             Assert.Contains("127.0.0.1:7890", bannerText);
             Assert.Contains("Clash", bannerText);
             Assert.Contains("WLAN", bannerText);
+            Assert.Contains("127.0.0.1:7890", proxyRowText);
+            Assert.Contains("Clash (198.18.0.1)", vpnRowText);
 
             var detail = new AdapterExtendedDetail(
                 InterfaceId: "if-1",
@@ -183,11 +187,10 @@ public sealed class OperationsAndObservabilityUiTests
             Assert.Contains("192.168.1.1", detailText);
 
             var adapterBanner = (TextBlock)window.FindName("AdapterProxyVpnText");
-            var ipBanner = (TextBlock)window.FindName("IpProxyVpnText");
             var adapterDetail = (TextBlock)window.FindName("AdapterDetailText");
             adapterBanner.Text = bannerText;
-            ipBanner.Text = bannerText;
             adapterDetail.Text = detailText;
+            Assert.Null(window.FindName("IpProxyVpnBanner"));
 
             DesktopFixture.ShowPage(window, "PolicyPanel");
             DesktopFixture.Layout(window, 1180, 760);

@@ -23,6 +23,8 @@ public partial class MainWindow
     private bool _offlineAlertSentInEpisode;
     private int _notifyFlushInFlight;
     private int _proxyBannerRefreshId;
+    private int _proxyBannerRunning;
+    private DateTimeOffset _nextProxyBannerRefresh;
 
     private void InitializeOperationsServices(string dataDirectory)
     {
@@ -207,10 +209,23 @@ public partial class MainWindow
         });
     }
 
+    private void RefreshProxyAndVpnIfDue()
+    {
+        if (!_resourcesCleaned
+            && Volatile.Read(ref _proxyBannerRunning) == 0
+            && (AdapterConfigTab.IsVisible || IpInfoToolsTab.IsVisible)
+            && DateTimeOffset.UtcNow >= _nextProxyBannerRefresh)
+        {
+            RefreshProxyAndVpnBanners();
+        }
+    }
+
     private void RefreshProxyAndVpnBanners()
     {
         if (_resourcesCleaned) return;
         var seq = Interlocked.Increment(ref _proxyBannerRefreshId);
+        Interlocked.Exchange(ref _proxyBannerRunning, 1);
+        _nextProxyBannerRefresh = DateTimeOffset.UtcNow.AddSeconds(5);
         _ = Task.Run(() =>
         {
             var snap = ProxyAndVpnInspector.Inspect();
@@ -219,6 +234,8 @@ public partial class MainWindow
             return (snap, defaultAdapter);
         }).ContinueWith(t =>
         {
+            Interlocked.Exchange(ref _proxyBannerRunning, 0);
+            _nextProxyBannerRefresh = DateTimeOffset.UtcNow.AddSeconds(5);
             if (t.IsCompletedSuccessfully && !_resourcesCleaned && seq == Volatile.Read(ref _proxyBannerRefreshId))
             {
                 Dispatcher.BeginInvoke(() =>
@@ -232,11 +249,20 @@ public partial class MainWindow
         });
     }
 
-    internal void ApplyProxyAndVpnSnapshot(ProxyAndVpnSnapshot snapshot, string? defaultRouteAdapter)
+    internal void ApplyProxyAndVpnSnapshot(ProxyAndVpnSnapshot snapshot, string? defaultRouteAdapter, bool refreshIpTable = true)
     {
+        _latestProxySnapshot = snapshot;
+        _latestDefaultRouteAdapter = defaultRouteAdapter;
         var summary = FormatProxyAndVpnBannerText(snapshot, defaultRouteAdapter);
         if (AdapterProxyVpnText is not null) AdapterProxyVpnText.Text = summary;
-        if (IpProxyVpnText is not null) IpProxyVpnText.Text = summary;
+        if (AdapterConfigTab.IsVisible)
+        {
+            RenderSelectedAdapterDetail(AdapterTargetComboBox.SelectedItem as NetworkAdapterCandidate);
+        }
+        if (refreshIpTable && _ipSession.Result is not null)
+        {
+            RefreshIpToolUi();
+        }
     }
 
     internal string FormatProxyAndVpnBannerText(ProxyAndVpnSnapshot snapshot, string? defaultRouteAdapter)
@@ -336,7 +362,6 @@ public partial class MainWindow
     private void ApplyOperationsLanguage()
     {
         ProxyVpnBannerTitleAdapter.Text = _localizer.T("ProxyVpnBannerTitle");
-        ProxyVpnBannerTitleIp.Text = _localizer.T("ProxyVpnBannerTitle");
         AdapterDetailTitleText.Text = _localizer.T("AdapterDetailTitle");
         PolicyOpsTitle.Text = _localizer.T("PolicyOpsTitle");
         EnableMaintenanceWindowCheckBox.Content = _localizer.T("EnableMaintenanceWindowLabel");

@@ -7,7 +7,7 @@ namespace NetGuardian.App.Presentation;
 
 internal static class ProxyVpnPresentation
 {
-    public static string FormatBanner(ProxyAndVpnSnapshot snapshot, string? defaultRouteAdapter, Localizer localizer)
+    public static string FormatSystemProxyValue(ProxyAndVpnSnapshot snapshot, Localizer localizer)
     {
         var parts = new List<string>();
         if (snapshot.SystemProxyEnabled)
@@ -35,15 +35,30 @@ internal static class ProxyVpnPresentation
             parts.Add(string.Format(localizer.T("ProxyEnv"), envList));
         }
 
-        if (snapshot.ActiveVpnInterfaces.Count > 0)
+        return string.Join(" · ", parts);
+    }
+
+    public static string FormatVpnValue(ProxyAndVpnSnapshot snapshot, Localizer localizer)
+    {
+        if (snapshot.ActiveVpnInterfaces.Count == 0)
         {
-            var vpns = string.Join(", ", snapshot.ActiveVpnInterfaces.Select(v => v.Name));
-            parts.Add(string.Format(localizer.T("VpnActiveInterfaces"), vpns));
+            return localizer.T("VpnNoneActive");
         }
-        else
+
+        var items = snapshot.ActiveVpnInterfaces.Select(v =>
+            v.Addresses.Count > 0 ? $"{v.Name} ({v.Addresses[0]})" : v.Name);
+        return string.Join(", ", items);
+    }
+
+    public static string FormatBanner(ProxyAndVpnSnapshot snapshot, string? defaultRouteAdapter, Localizer localizer)
+    {
+        var parts = new List<string>
         {
-            parts.Add(localizer.T("VpnNoneActive"));
-        }
+            FormatSystemProxyValue(snapshot, localizer),
+            snapshot.ActiveVpnInterfaces.Count > 0
+                ? string.Format(localizer.T("VpnActiveInterfaces"), string.Join(", ", snapshot.ActiveVpnInterfaces.Select(v => v.Name)))
+                : localizer.T("VpnNoneActive")
+        };
 
         var routeText = string.IsNullOrWhiteSpace(defaultRouteAdapter)
             ? localizer.T("DefaultRouteNone")
