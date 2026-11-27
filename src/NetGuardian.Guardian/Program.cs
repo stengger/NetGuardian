@@ -5,6 +5,7 @@ using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Logging;
 using NetGuardian.Core.Models;
 using NetGuardian.Core.Monitoring;
+using NetGuardian.Core.Notifications;
 using NetGuardian.Core.Portal;
 using NetGuardian.Core.Recovery;
 using NetGuardian.Core.Runtime;
@@ -73,6 +74,10 @@ using var cancellation = new CancellationTokenSource();
 Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
 using var log = new FileLogSink(Path.Combine(directory, "logs"), initialSettings.LogRetentionDays);
 var journal = new EventJournal(Path.Combine(directory, "logs"));
+var baselineStore = new QualityBaselineStore(Path.Combine(directory, "logs"));
+var notifier = new AlertNotificationService(directory, log);
+var offlineAlertSentInEpisode = false;
+var flushInFlight = 0;
 var commands = new ProcessCommandRunner();
 var settings = initialSettings;
 var budget = new RecoveryBudget(directory);
@@ -107,20 +112,77 @@ engine.CheckCompleted += (_, e) =>
     Interlocked.Exchange(ref progressTicks, DateTimeOffset.UtcNow.UtcTicks);
     deviceFailures.Record(e.Report.State, DateTimeOffset.UtcNow);
     journal.RecordCheck(e.Report.State, e.Report.Ok);
+    baselineStore.TryRecord(e.Report, null);
     log.Write($"{(e.Report.IsLightweight ? "轻量检测" : "完整诊断")}：{e.Report.State}，{e.Report.Summary}");
+
+    var currentCfg = Volatile.Read(ref settings);
+    if (e.Report.Ok)
+    {
+        offlineAlertSentInEpisode = false;
+        if (currentCfg.Notifications.IsConfigured()
+            && notifier.GetPendingSnapshot().Count > 0
+            && Interlocked.CompareExchange(ref flushInFlight, 1, 0) == 0)
+        {
+            _ = Task.Run(async () =>
+            {
+                try { await notifier.FlushPendingAsync(currentCfg.Notifications, cancellation.Token); }
+                finally { Interlocked.Exchange(ref flushInFlight, 0); }
+            });
+        }
+    }
+    else if (!offlineAlertSentInEpisode
+        && e.FailureStreak >= currentCfg.Policy.ConsecutiveFailuresBeforeRecovery
+        && currentCfg.Notifications.ShouldNotify(AlertEventKind.OfflineDetected))
+    {
+        offlineAlertSentInEpisode = true;
+        var alertMsg = new AlertNotificationMessage(
+            Guid.NewGuid().ToString("N"),
+            AlertEventKind.OfflineDetected,
+            "NetGuardian 断网告警",
+            $"连续 {e.FailureStreak} 次探测异常（{e.Report.State}）：{e.Report.Summary}",
+            e.Report.CurrentSsid,
+            DateTimeOffset.UtcNow);
+        _ = Task.Run(() => notifier.NotifyAsync(currentCfg.Notifications, alertMsg, cancellation.Token));
+    }
 };
 engine.EngineEvent += (_, e) =>
 {
     log.Write($"{e.Kind}：{string.Join(" | ", e.Args.Select(value => value?.ToString()))}");
+    var currentNotifyCfg = Volatile.Read(ref settings).Notifications;
     if (e.Kind == EngineEventKind.RecoveryStarted) journal.RecordRecoveryStarted(engine.FailureStreak);
     if (e.Kind == EngineEventKind.RecoveryWifiConnected)
     {
-        journal.RecordRecoveryResult(true, e.Args[0]?.ToString());
+        offlineAlertSentInEpisode = false;
+        var ssid = e.Args[0]?.ToString();
+        journal.RecordRecoveryResult(true, ssid);
         deviceFailures.Record(NetworkState.Healthy, DateTimeOffset.UtcNow);
         state = NetworkState.Healthy.ToString();
-        Volatile.Write(ref lastReport, new ConnectivityReport { State = NetworkState.Healthy, CurrentSsid = e.Args[0]?.ToString(), Summary = "恢复后的互联网连接已验证。" });
+        Volatile.Write(ref lastReport, new ConnectivityReport { State = NetworkState.Healthy, CurrentSsid = ssid, Summary = "恢复后的互联网连接已验证。" });
+        if (currentNotifyCfg.ShouldNotify(AlertEventKind.RecoverySucceeded))
+        {
+            var msg = new AlertNotificationMessage(Guid.NewGuid().ToString("N"), AlertEventKind.RecoverySucceeded,
+                "NetGuardian 网络已恢复", $"已自动恢复连接并验证公网可达（{ssid ?? "-"}）。", ssid, DateTimeOffset.UtcNow);
+            _ = Task.Run(() => notifier.NotifyAsync(currentNotifyCfg, msg, cancellation.Token));
+        }
     }
-    if (e.Kind == EngineEventKind.RecoveryFailed) journal.RecordRecoveryResult(false, null);
+    if (e.Kind == EngineEventKind.RecoveryFailed)
+    {
+        journal.RecordRecoveryResult(false, null);
+        if (currentNotifyCfg.ShouldNotify(AlertEventKind.RecoveryFailed))
+        {
+            var reportNow = Volatile.Read(ref lastReport);
+            var msg = new AlertNotificationMessage(Guid.NewGuid().ToString("N"), AlertEventKind.RecoveryFailed,
+                "NetGuardian 自动恢复失败", $"本轮恢复结束但公网尚未恢复（当前状态：{reportNow?.State}）。", reportNow?.CurrentSsid, DateTimeOffset.UtcNow);
+            _ = Task.Run(() => notifier.NotifyAsync(currentNotifyCfg, msg, cancellation.Token));
+        }
+    }
+    if (e.Kind == EngineEventKind.PrimaryFailbackSucceeded && currentNotifyCfg.ShouldNotify(AlertEventKind.PrimaryFailbackSucceeded))
+    {
+        var ssid = e.Args[0]?.ToString();
+        var msg = new AlertNotificationMessage(Guid.NewGuid().ToString("N"), AlertEventKind.PrimaryFailbackSucceeded,
+            "NetGuardian 已回切主 Wi-Fi", $"已自动切回主网络 {ssid ?? "-"} 并验证公网可达。", ssid, DateTimeOffset.UtcNow);
+        _ = Task.Run(() => notifier.NotifyAsync(currentNotifyCfg, msg, cancellation.Token));
+    }
     if (e.Kind == EngineEventKind.RecoveryPortalAuthPaused && e.Args.Count >= 2 && e.Args[0] is string pausedSsid)
     {
         var currentSettings = store.TryLoad(out var diskSettings) ? diskSettings : Volatile.Read(ref settings);
@@ -154,6 +216,13 @@ engine.EngineEvent += (_, e) =>
         journal.RecordHighRisk(e.Args[0]?.ToString() ?? "", commandOk, networkOk);
         HighRiskAlertWriter.Write(new HighRiskAlert(DateTimeOffset.Now, e.Args[0]?.ToString() ?? "", commandOk,
             networkOk, e.Args[3]?.ToString(), e.Args[4]?.ToString()), Path.Combine(directory, "alerts"));
+        if (currentNotifyCfg.ShouldNotify(AlertEventKind.HighRiskActionTriggered))
+        {
+            var actionName = e.Args[0]?.ToString() ?? "Unknown";
+            var msg = new AlertNotificationMessage(Guid.NewGuid().ToString("N"), AlertEventKind.HighRiskActionTriggered,
+                "NetGuardian 已执行高风险设备恢复", $"动作：{actionName}，命令执行：{commandOk}，公网恢复：{networkOk}。", Volatile.Read(ref lastReport)?.CurrentSsid, DateTimeOffset.UtcNow);
+            _ = Task.Run(() => notifier.NotifyAsync(currentNotifyCfg, msg, cancellation.Token));
+        }
     }
 };
 engine.StateChanged += (_, _) => Interlocked.Exchange(ref progressTicks, DateTimeOffset.UtcNow.UtcTicks);

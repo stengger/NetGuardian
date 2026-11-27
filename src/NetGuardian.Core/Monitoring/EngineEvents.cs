@@ -26,7 +26,12 @@ public enum EngineEventKind
     HighRiskCooldownActive,
     HighRiskActionStarted,
     HighRiskActionCompleted,
-    RecoveryWifiSwitchSummary
+    RecoveryWifiSwitchSummary,
+    RecoverySuppressedByMaintenanceOrPause,
+    RecoverySuppressedByHealthyEthernet,
+    PrimaryFailbackStarted,
+    PrimaryFailbackSucceeded,
+    PrimaryFailbackRolledBack
 }
 
 public sealed class EngineEventArgs : EventArgs

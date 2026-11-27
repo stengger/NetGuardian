@@ -17,6 +17,10 @@ public partial class MainWindow
     private readonly DiagnosticSession<PublicIpInfo> _ipSession = new();
     private readonly DiagnosticSession<ConnectivityReport> _diagnosticSession = new();
     private readonly List<(WebsiteTestResult Result, DateTimeOffset At)> _websiteHistory = new();
+    private Ipv6DualStackStatus? _latestIpv6Status;
+    private string? _latestDefaultRouteAdapter;
+    private HostsFileSummary? _latestHostsSummary;
+    private ProxyAndVpnSnapshot? _latestProxySnapshot;
 
     private async Task RunWebsiteTestAsync(string name, string url)
     {
@@ -38,7 +42,16 @@ public partial class MainWindow
     private async Task RefreshPublicIpInfoAsync()
     {
         if (_resourcesCleaned || _ipSession.IsBusy) return;
-        await _ipSession.RunAsync(token => _publicIpInfo.GetAsync(token, forceRefresh: true), RefreshIpToolUi);
+        RefreshProxyAndVpnBanners();
+        await _ipSession.RunAsync(async token =>
+        {
+            var ipv6Task = NetworkEnvironmentInspector.ProbeIpv6StatusAsync(token);
+            var routeTask = Task.Run(() => NetworkEnvironmentInspector.GetDefaultRouteAdapterName(), token);
+            var info = await _publicIpInfo.GetAsync(token, forceRefresh: true);
+            _latestIpv6Status = await ipv6Task;
+            _latestDefaultRouteAdapter = await routeTask;
+            return info;
+        }, RefreshIpToolUi);
         if (!_resourcesCleaned) DiagnosticLog(IpInfoStatusText.Text, _ipSession.Phase == DiagnosticPhase.Failed ? UiLogLevel.Error : UiLogLevel.Information);
     }
 
@@ -49,6 +62,8 @@ public partial class MainWindow
         {
             var currentSsid = await _wifi.GetCurrentSsidAsync(token);
             var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(token);
+            _latestHostsSummary = await Task.Run(() => NetworkEnvironmentInspector.InspectHostsFile(), token);
+            _latestProxySnapshot = await Task.Run(() => ProxyAndVpnInspector.Inspect(), token);
             return await _connectivityTester.RunFullCheckAsync(_settings.Policy, currentSsid, diagnostics, token);
         }, RefreshDiagnosticReportUi);
         if (!_resourcesCleaned) DiagnosticLog(ReportStatusText.Text, _diagnosticSession.Phase == DiagnosticPhase.Failed ? UiLogLevel.Error
@@ -104,6 +119,16 @@ public partial class MainWindow
             AddIpInfoRow("AutonomousSystem", info.AutonomousSystem);
             AddIpInfoRow("Timezone", info.Timezone);
             AddIpInfoRow("IpCoordinates", PublicIpPresentation.Coordinates(info.Latitude, info.Longitude, _localizer.T("UnknownData")));
+            if (_latestIpv6Status is { } v6)
+            {
+                var v6Text = !v6.HasLocalGlobalIpv6
+                    ? _localizer.T("Ipv6NotAssigned")
+                    : v6.PublicIpv6Reachable
+                        ? string.Format(_localizer.T("Ipv6DualStackReachable"), v6.LocalGlobalIpv6, v6.PublicIpv6)
+                        : string.Format(_localizer.T("Ipv6LocalOnlyUnreachable"), v6.LocalGlobalIpv6);
+                AddIpInfoRow("Ipv6DualStackLabel", v6Text);
+            }
+            AddIpInfoRow("DefaultOutboundLabel", string.IsNullOrWhiteSpace(_latestDefaultRouteAdapter) ? _localizer.T("DefaultRouteNone") : _latestDefaultRouteAdapter);
             AddIpInfoRow("LastRefresh", info.RefreshedAt.ToString("yyyy-MM-dd HH:mm:ss"));
             IpInfoStatusText.Text = string.Format(_localizer.T("IpInfoQueryResult"), info.Ip, info.RefreshedAt.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss"));
         }
@@ -126,6 +151,20 @@ public partial class MainWindow
             AddReportRow("Gateway", string.IsNullOrWhiteSpace(report.Gateway) ? "-" : report.Gateway, report.State == NetworkState.GatewayIssue ? _localizer.T("CheckRouter") : _localizer.T("NoActionNeeded"));
             AddReportRow("DnsTools", ProbeSummary(report, "DNS"), report.State == NetworkState.DnsIssue ? _localizer.T("TryDnsSettings") : _localizer.T("NoActionNeeded"));
             AddReportRow("Internet", ProbeSummary(report, "HTTPS"), report.State == NetworkState.InternetIssue ? _localizer.T("CheckProxyOrIsp") : _localizer.T("NoActionNeeded"));
+            if (_latestHostsSummary is { } hosts)
+            {
+                var hostsText = !hosts.ReadSucceeded
+                    ? string.Format(_localizer.T("HostsReadFailed"), hosts.Error ?? "-")
+                    : hosts.CustomEntryCount == 0
+                        ? _localizer.T("HostsNoCustomEntries")
+                        : string.Format(_localizer.T("HostsCustomEntriesFound"), hosts.CustomEntryCount, string.Join(", ", hosts.SampleHosts));
+                var hostsAdvice = hosts.CustomEntryCount > 0 ? _localizer.T("HostsCheckAdvice") : _localizer.T("NoActionNeeded");
+                AddReportRow("HostsCheckLabel", hostsText, hostsAdvice);
+            }
+            if (_latestProxySnapshot is { } proxySnap)
+            {
+                AddReportRow("ProxyVpnCheckLabel", FormatProxyAndVpnBannerText(proxySnap, NetworkEnvironmentInspector.GetDefaultRouteAdapterName()), _localizer.T("NoActionNeeded"));
+            }
             ReportStatusText.Text = $"{report.CheckedAt.ToLocalTime():yyyy-MM-dd HH:mm:ss} · {StateText(report.State)} - {LocalizeSummary(report.Summary)}";
         }
         UpdateEmptyStates();

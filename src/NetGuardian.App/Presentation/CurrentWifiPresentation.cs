@@ -16,6 +16,19 @@ internal sealed record CurrentWifiPresentation(string Name, string Details)
         if (!string.IsNullOrWhiteSpace(info.Authentication)) details.Add(info.Authentication);
         if (!string.IsNullOrWhiteSpace(info.Encryption)) details.Add(info.Encryption);
         details.Add(string.Format(localizer.T("WifiCurrentIpv4"), info.Ipv4 ?? localizer.T("WifiCurrentAddressPending")));
+        if (!string.IsNullOrWhiteSpace(info.Band))
+            details.Add(info.Channel is { } ch ? $"{info.Band} Ch{ch}" : info.Band);
+        else if (info.Channel is { } chOnly)
+            details.Add($"Ch{chOnly}");
+        if (!string.IsNullOrWhiteSpace(info.RadioType)) details.Add(info.RadioType);
+        if (info.ReceiveRateMbps is { } rx || info.TransmitRateMbps is { } tx)
+        {
+            var rateText = info.ReceiveRateMbps is { } r && info.TransmitRateMbps is { } t
+                ? $"{r:0.#}/{t:0.#} Mbps"
+                : $"{(info.ReceiveRateMbps ?? info.TransmitRateMbps):0.#} Mbps";
+            details.Add(rateText);
+        }
+        if (!string.IsNullOrWhiteSpace(info.Bssid)) details.Add($"BSSID {info.Bssid}");
         return new(info.Ssid ?? "-", string.Join(" · ", details));
     }
 }

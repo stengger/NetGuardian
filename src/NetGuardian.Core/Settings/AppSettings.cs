@@ -1,4 +1,5 @@
 using NetGuardian.Core.Models;
+using NetGuardian.Core.Notifications;
 
 namespace NetGuardian.Core.Settings;
 
@@ -16,6 +17,7 @@ public sealed class AppSettings
     /// <summary>Theme mode: "auto" (follow OS), "light" or "dark".</summary>
     public string Theme { get; set; } = "auto";
     public MonitorPolicy Policy { get; set; } = new();
+    public NotificationSettings Notifications { get; set; } = new();
     public List<WifiProfile> Profiles { get; set; } = [];
     public List<string> ExcludedWifiSsids { get; set; } = [];
 }

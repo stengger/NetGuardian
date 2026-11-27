@@ -79,16 +79,48 @@ public sealed partial class NetshWifiClient : IWifiClient
         interfaces.Add(fields);
         var connections = interfaces.Select(values =>
         {
-            string? Read(string english, string chinese) => values.GetValueOrDefault(english) ?? values.GetValueOrDefault(chinese);
-            var state = Read("State", "状态")?.Trim();
+            string? ReadRaw(params string[] keys)
+            {
+                foreach (var key in keys)
+                {
+                    if (values.TryGetValue(key, out var found) && !string.IsNullOrWhiteSpace(found))
+                    {
+                        return found;
+                    }
+                }
+                return null;
+            }
+
+            string? Read(params string[] keys) => ReadRaw(keys)?.Trim();
+
+            var state = Read("State", "状态");
+            var rawSsid = ReadRaw("SSID", "SSID 名称");
             var connected = (state?.Equals("connected", StringComparison.OrdinalIgnoreCase) == true || state == "已连接")
-                && !string.IsNullOrWhiteSpace(Read("SSID", "SSID 名称"));
+                && !string.IsNullOrWhiteSpace(rawSsid);
             var signal = Regex.Match(Read("Signal", "信号") ?? "", @"\d+");
-            return new WifiConnectionInfo(true, connected, connected ? Read("SSID", "SSID 名称") : null,
-                Read("Name", "名称")?.Trim(), connected && signal.Success && int.TryParse(signal.Value, out var percent)
+            var channelMatch = Regex.Match(Read("Channel", "信道") ?? "", @"\d+");
+            int? channel = connected && channelMatch.Success && int.TryParse(channelMatch.Value, out var ch) ? ch : null;
+            var band = connected ? Read("Band", "频段") : null;
+            if (connected && string.IsNullOrWhiteSpace(band) && channel is { } c)
+            {
+                band = InferBandFromChannel(c);
+            }
+
+            return new WifiConnectionInfo(
+                ReadSucceeded: true,
+                Connected: connected,
+                Ssid: connected ? rawSsid : null,
+                AdapterName: Read("Name", "名称"),
+                SignalPercent: connected && signal.Success && int.TryParse(signal.Value, out var percent)
                     ? Math.Clamp(percent, 0, 100) : null,
-                connected ? Read("Authentication", "身份验证")?.Trim() : null,
-                connected ? Read("Cipher", "密码")?.Trim() : null);
+                Authentication: connected ? Read("Authentication", "身份验证") : null,
+                Encryption: connected ? Read("Cipher", "密码") : null,
+                Bssid: connected ? Read("AP BSSID", "BSSID", "AP MAC") : null,
+                RadioType: connected ? Read("Radio type", "无线电类型") : null,
+                Band: band,
+                Channel: channel,
+                ReceiveRateMbps: connected ? ParseRateMbps(Read("Receive rate (Mbps)", "接收速率(Mbps)", "接收速率 (Mbps)")) : null,
+                TransmitRateMbps: connected ? ParseRateMbps(Read("Transmit rate (Mbps)", "传输速率(Mbps)", "传输速率 (Mbps)")) : null);
         }).ToList();
         return connections.FirstOrDefault(item => item.Connected) ?? connections.FirstOrDefault(item => item.AdapterName is not null)
             ?? new(true, false);
@@ -465,6 +497,24 @@ public sealed partial class NetshWifiClient : IWifiClient
 
     // netsh 在冒号后固定添加一个格式空格，其余空格属于网络或配置名称。
     private static string ReadNameValue(string value) => value.StartsWith(' ') ? value[1..] : value;
+
+    private static string? InferBandFromChannel(int channel) => channel switch
+    {
+        >= 1 and <= 14 => "2.4 GHz",
+        >= 32 and <= 177 => "5 GHz",
+        > 177 => "6 GHz",
+        _ => null
+    };
+
+    private static double? ParseRateMbps(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        var m = Regex.Match(raw, @"\d+(?:\.\d+)?");
+        return m.Success && double.TryParse(m.Value, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out var rate)
+            ? rate
+            : null;
+    }
 
     private static bool? ParseRadioFlag(string line, string englishKey, string chineseKey)
     {

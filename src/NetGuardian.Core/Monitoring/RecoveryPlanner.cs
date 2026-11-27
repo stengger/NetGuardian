@@ -91,6 +91,34 @@ public static class RecoveryPlanner
             .ToList();
     }
 
+    /// <summary>当连接中的 Wi-Fi 并非最高优先级可用候选时，选出值得尝试低频回切的主 Wi-Fi。</summary>
+    public static WifiProfile? SelectPrimaryProfileForFailback(IEnumerable<WifiProfile> profiles, string? currentSsid)
+    {
+        if (string.IsNullOrWhiteSpace(currentSsid))
+        {
+            return null;
+        }
+
+        var ordered = profiles
+            .Where(profile => profile.IsRecoveryCandidate)
+            .OrderBy(profile => profile.Priority)
+            .ToList();
+        if (ordered.Count == 0)
+        {
+            return null;
+        }
+
+        var primary = ordered[0];
+        if (SsidEquals(primary.Ssid, currentSsid))
+        {
+            return null;
+        }
+
+        var currentProfile = ordered.FirstOrDefault(p => SsidEquals(p.Ssid, currentSsid));
+        // 若当前连着配置的备用 Wi-Fi（Priority > primary.Priority），或连接了临时未入配置但希望回到主 Wi-Fi 的情景：
+        return currentProfile is null || currentProfile.Priority > primary.Priority ? primary : null;
+    }
+
     /// <summary>Whether the Wi-Fi adapter should be auto-enabled before probing.</summary>
     public static bool ShouldTryEnableWifi(MonitorPolicy policy, WifiAdapterDiagnostics diagnostics)
     {

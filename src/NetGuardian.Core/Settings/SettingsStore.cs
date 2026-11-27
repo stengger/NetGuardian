@@ -57,6 +57,8 @@ public sealed class SettingsStore
     private void SaveCore(AppSettings settings, bool createBackup)
     {
         settings.Policy.Normalize();
+        settings.Notifications ??= new();
+        settings.Notifications.Normalize();
         settings.LogRetentionDays = Math.Clamp(settings.LogRetentionDays, 1, 90);
         settings.DeviceFailureMinutesBeforeRestart = Math.Clamp(settings.DeviceFailureMinutesBeforeRestart, 10, 24 * 60);
         settings.Profiles = settings.Profiles
@@ -110,6 +112,10 @@ public sealed class SettingsStore
             settings = loaded;
             settings.ExcludedWifiSsids ??= [];
             settings.Policy.Normalize();
+            settings.Notifications ??= new();
+            settings.Notifications.Normalize();
+        settings.Notifications ??= new();
+        settings.Notifications.Normalize();
             settings.LogRetentionDays = Math.Clamp(settings.LogRetentionDays, 1, 90);
             settings.DeviceFailureMinutesBeforeRestart = Math.Clamp(settings.DeviceFailureMinutesBeforeRestart, 10, 24 * 60);
             settings.Profiles = settings.Profiles

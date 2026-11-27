@@ -567,6 +567,42 @@
                                         <TextBlock x:Name="ProbeTargetsTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="{DynamicResource SpacingBlockStart}" />
                                     </StackPanel>
                                 </Border>
+                                <Border x:Name="PolicyOpsCard" Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
+                                    <StackPanel>
+                                        <DockPanel Margin="{DynamicResource SpacingFieldGap}">
+                                            <ui:SymbolIcon Symbol="Clock24" Style="{DynamicResource SectionGlyphStyle}" />
+                                            <TextBlock x:Name="PolicyOpsTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <Grid Margin="{DynamicResource SpacingFieldGap}">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <ui:ToggleSwitch x:Name="EnableMaintenanceWindowCheckBox" Grid.Row="0" Grid.Column="0" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" />
+                                            <ui:ToggleSwitch x:Name="PreferEthernetCheckBox" Grid.Row="0" Grid.Column="2" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" />
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Margin="{DynamicResource SpacingBlockStart}">
+                                                <TextBlock x:Name="MaintenanceStartLabel" Margin="{DynamicResource SpacingFieldCaptionGap}" TextWrapping="Wrap" />
+                                                <ui:TextBox x:Name="MaintenanceStartTextBox" PlaceholderText="02:00" AutomationProperties.LabeledBy="{Binding ElementName=MaintenanceStartLabel}" />
+                                            </StackPanel>
+                                            <StackPanel Grid.Row="1" Grid.Column="2" Margin="{DynamicResource SpacingBlockStart}">
+                                                <TextBlock x:Name="MaintenanceEndLabel" Margin="{DynamicResource SpacingFieldCaptionGap}" TextWrapping="Wrap" />
+                                                <ui:TextBox x:Name="MaintenanceEndTextBox" PlaceholderText="05:00" AutomationProperties.LabeledBy="{Binding ElementName=MaintenanceEndLabel}" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <Grid Margin="{DynamicResource SpacingFieldGap}">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="{DynamicResource FormColumnGap}" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                            <ui:ToggleSwitch x:Name="EnablePrimaryFailbackCheckBox" Grid.Row="0" Grid.Column="0" MinHeight="{DynamicResource ToolbarControlHeight}" ContentTemplate="{StaticResource FormToggleLabelTemplate}" />
+                                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                                <TextBlock x:Name="PrimaryFailbackIntervalLabel" Margin="{DynamicResource SpacingFieldCaptionGap}" TextWrapping="Wrap" />
+                                                <ui:NumberBox x:Name="PrimaryFailbackIntervalBox" Minimum="5" Maximum="1440" ClearButtonEnabled="False" SpinButtonPlacementMode="Compact" AutomationProperties.LabeledBy="{Binding ElementName=PrimaryFailbackIntervalLabel}" />
+                                            </StackPanel>
+                                        </Grid>
+                                        <DockPanel Margin="{DynamicResource SpacingBlockStart}">
+                                            <Button x:Name="PauseRecoveryButton" DockPanel.Dock="Right" Style="{StaticResource SecondaryButtonStyle}" Click="PauseRecovery_Click" Margin="{DynamicResource SpacingLeadingGap}" />
+                                            <TextBlock x:Name="PauseRecoveryStatusText" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                        </DockPanel>
+                                        <TextBlock x:Name="PolicyOpsTipText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" Margin="{DynamicResource SpacingBlockStart}" />
+                                    </StackPanel>
+                                </Border>
                                 <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingFieldGap}">
                                     <StackPanel>
                                         <DockPanel>
@@ -710,6 +746,12 @@
                             <TabItem x:Name="IpInfoToolsTab">
                                 <Grid Margin="{DynamicResource SpacingSectionStart}">
                                     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                    <Border x:Name="IpProxyVpnBanner" Grid.Row="0" Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingFieldGap}">
+                                        <DockPanel>
+                                            <TextBlock x:Name="ProxyVpnBannerTitleIp" DockPanel.Dock="Left" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="IpProxyVpnText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </Border>
                                     <StackPanel Grid.Row="1">
                                         <ScrollViewer MaxHeight="72" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><TextBlock x:Name="IpInfoStatusText" Margin="{DynamicResource SpacingStatusBody}" TextWrapping="Wrap" /></ScrollViewer>
                                         <ProgressBar x:Name="IpInfoActivity" Height="3" IsIndeterminate="True" Visibility="Collapsed" Margin="{DynamicResource SpacingBlockGap}" /></StackPanel>
@@ -785,10 +827,16 @@
                         <TabItem x:Name="AdapterConfigTab" Header="接口概览">
                             <Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Name="NetworkPanel" Style="{DynamicResource SectionBorderStyle}">
                                 <Grid>
-                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /></Grid.RowDefinitions>
+                                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                     <StackPanel>
                                     <TextBlock x:Name="AdapterToolsTitle" Visibility="Collapsed" />
                                     <TextBlock x:Name="AdapterToolsHint" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                    <Border x:Name="AdapterProxyVpnBanner" Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingBlockStart}">
+                                        <DockPanel>
+                                            <TextBlock x:Name="ProxyVpnBannerTitleAdapter" DockPanel.Dock="Left" FontWeight="SemiBold" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                            <TextBlock x:Name="AdapterProxyVpnText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </Border>
                                     <TextBlock x:Name="AdapterStatusText" Margin="{DynamicResource SpacingStatusBody}" TextWrapping="Wrap" />
                                     </StackPanel>
                                     <Grid Grid.Row="1">
@@ -804,6 +852,12 @@
                                     </DataGrid>
                                     <Border Style="{StaticResource EmptyStateStyle}" Visibility="{Binding Visibility, ElementName=AdapterEmptyText}"><StackPanel><ui:SymbolIcon Symbol="Info24" FontSize="{DynamicResource FontMetric}" HorizontalAlignment="Center" Foreground="{DynamicResource StatusInfoBrush}" /><TextBlock x:Name="AdapterEmptyText" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Visibility="Collapsed"  TextAlignment="Center" Margin="{DynamicResource SpacingEmptyCaption}" /><Button Content="{Binding Content, ElementName=AdapterRefreshButton}" IsEnabled="{Binding IsEnabled, ElementName=AdapterRefreshButton}" Click="AdapterRefresh_Click" HorizontalAlignment="Center"/></StackPanel></Border>
                                     </Grid>
+                                    <Border x:Name="AdapterDetailCard" Grid.Row="2" Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="{DynamicResource CornerCard}" Padding="{DynamicResource SpacingCompactCardPadding}" Margin="{DynamicResource SpacingBlockStart}">
+                                        <StackPanel>
+                                            <TextBlock x:Name="AdapterDetailTitleText" FontWeight="SemiBold" FontSize="{DynamicResource FontCaption}" Margin="0,0,0,2" />
+                                            <TextBlock x:Name="AdapterDetailText" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
                                 </Grid>
                             </Border>
                         </TabItem>
@@ -1048,6 +1102,24 @@
                                         </Expander.Header>
                                         <TextBox x:Name="UpdateLogPathText" IsReadOnly="True" TextWrapping="Wrap" />
                                     </Expander>
+                                </StackPanel>
+                            </Border>
+
+                            <Border x:Name="OperationsSupportCard" Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingSectionStart}">
+                                <StackPanel>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                                        <DockPanel VerticalAlignment="Center" Margin="{DynamicResource SpacingInlineGap}">
+                                            <ui:SymbolIcon Symbol="Alert24" Style="{DynamicResource SectionGlyphStyle}" />
+                                            <TextBlock x:Name="OperationsSupportTitle" Style="{DynamicResource SectionTitleStyle}" Margin="0" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <WrapPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Button x:Name="ConfigureAlertsButton" Style="{StaticResource SecondaryButtonStyle}" Click="ConfigureAlerts_Click" />
+                                            <Button x:Name="ExportDiagnosticBundleButton" Style="{StaticResource SecondaryButtonStyle}" Click="ExportDiagnosticBundle_Click" Margin="{DynamicResource SpacingLeadingGap}" />
+                                        </WrapPanel>
+                                    </Grid>
+                                    <TextBlock x:Name="RemoteAlertsSummaryText" TextWrapping="Wrap" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingBlockStart}" />
+                                    <TextBlock x:Name="OperationsBundleStatusText" TextWrapping="Wrap" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="{DynamicResource SpacingValidationGap}" />
                                 </StackPanel>
                             </Border>
                         </StackPanel>

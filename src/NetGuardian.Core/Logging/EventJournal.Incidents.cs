@@ -61,6 +61,11 @@ public sealed partial class EventJournal
                 EngineEventKind.HighRiskActionStarted => (IncidentStepKind.ActionStarted, Arg(0), "尝试重启网络组件"),
                 EngineEventKind.RecoveryNoActionsEnabled => (IncidentStepKind.ActionResult, null, "本轮没有可执行动作"),
                 EngineEventKind.RecoveryFailed => (IncidentStepKind.ActionResult, null, "恢复轮次结束，公网尚未验证恢复"),
+                EngineEventKind.RecoverySuppressedByMaintenanceOrPause => (IncidentStepKind.ActionResult, null, $"处于维护窗口或暂停状态，已跳过自动恢复：{Arg(0)}"),
+                EngineEventKind.RecoverySuppressedByHealthyEthernet => (IncidentStepKind.ActionResult, Arg(0), "有线互联网畅通，已抑制无线设备高风险重启"),
+                EngineEventKind.PrimaryFailbackStarted => (IncidentStepKind.SwitchAttempt, Arg(0), "低频检查并尝试回切主 Wi-Fi"),
+                EngineEventKind.PrimaryFailbackSucceeded => (IncidentStepKind.ActionResult, Arg(0), "已成功回切至主 Wi-Fi"),
+                EngineEventKind.PrimaryFailbackRolledBack => (IncidentStepKind.ActionResult, Arg(1), $"回切主 Wi-Fi“{Arg(0)}”未通过公网校验，已回滚备用网"),
                 _ => ((IncidentStepKind?)null, null, null)
             };
             if (entry.Kind is { } kind) Write(kind, entry.Target, entry.Detail, null, false);

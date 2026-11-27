@@ -71,6 +71,7 @@ public partial class MainWindow
             AdapterStatusText.Text = string.Format(_localizer.T("AdapterCount"), _adapterRows.Count);
         }
         UpdateEmptyStates();
+        RefreshProxyAndVpnBanners();
         return !_configurationReadFailed;
     }
 
@@ -118,6 +119,7 @@ public partial class MainWindow
         FillDnsFieldsFromSelectedAdapter();
         UpdateRenewAvailability();
         var target = AdapterTargetComboBox.SelectedItem as NetworkAdapterCandidate;
+        RenderSelectedAdapterDetail(target);
         AdapterGrid.SelectedItem = _adapterRows.FirstOrDefault(row => row.Id == target?.Id);
         DnsGrid.SelectedItem = _dnsRows.FirstOrDefault(row => row.Id == target?.Id);
         if (AdapterGrid.SelectedItem is { } adapter) AdapterGrid.ScrollIntoView(adapter);

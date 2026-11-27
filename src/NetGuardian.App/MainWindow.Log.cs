@@ -46,6 +46,7 @@ public partial class MainWindow
     {
         HomeIncidentButton.Content = IncidentPresentation.HomeText(IncidentHistory.FirstOrDefault(), IncidentEnglish);
         _incidentView?.ShowIncidents(IncidentHistory);
+        RefreshObservabilitySummary();
     }
 
     private string? _incidentParent;

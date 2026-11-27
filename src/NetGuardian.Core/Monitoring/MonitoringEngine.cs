@@ -53,7 +53,8 @@ public sealed partial class MonitoringEngine : IDisposable
         IHighRiskRecoveryService? highRiskService = null,
         INetworkChangeSource? networkChanges = null,
         IPortalAuthenticator? portalAuthenticator = null,
-        IPortalCredentialStore? portalCredentials = null)
+        IPortalCredentialStore? portalCredentials = null,
+        Func<MonitorPolicy, CancellationToken, Task<(bool Healthy, string? AdapterName)>>? wiredInternetProbe = null)
     {
         _wifi = wifi;
         _tester = tester;
@@ -65,6 +66,7 @@ public sealed partial class MonitoringEngine : IDisposable
         _networkChanges = networkChanges;
         _portalAuthenticator = portalAuthenticator;
         _portalCredentials = portalCredentials;
+        _wiredInternetProbe = wiredInternetProbe;
     }
 
     public bool IsMonitoring { get; private set; }
@@ -297,6 +299,10 @@ public sealed partial class MonitoringEngine : IDisposable
             CheckCompleted?.Invoke(this, new CheckCompletedEventArgs(report, _failureStreak));
             token.ThrowIfCancellationRequested();
             await TryRecoverIfNeededAsync(policy, report, adapterName, token);
+            if (report.Ok && IsMonitoring && !policy.IsRecoverySuppressed(_time.GetLocalNow(), out _))
+            {
+                await TryPrimaryWifiFailbackIfDueAsync(policy, report.CurrentSsid, token);
+            }
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -370,6 +376,12 @@ public sealed partial class MonitoringEngine : IDisposable
 
         if (decision.Kind != RecoveryDecisionKind.Proceed)
         {
+            return;
+        }
+
+        if (policy.IsRecoverySuppressed(_time.GetLocalNow(), out var suppressReason))
+        {
+            Raise(EngineEventKind.RecoverySuppressedByMaintenanceOrPause, suppressReason);
             return;
         }
 
@@ -533,6 +545,12 @@ public sealed partial class MonitoringEngine : IDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!RecoveryPlanner.IsDeviceLayerFailure(report.State)) return;
+        var (wiredHealthy, wiredAdapter) = await CheckWiredInternetHealthyAsync(policy, cancellationToken);
+        if (wiredHealthy)
+        {
+            Raise(EngineEventKind.RecoverySuppressedByHealthyEthernet, wiredAdapter ?? "Ethernet");
+            return;
+        }
         var decision = RecoveryPlanner.EvaluateHighRisk(policy, _failedRecoveryRounds, _lastHighRiskAt, _time.GetLocalNow());
         if (decision.Kind == HighRiskDecisionKind.CooldownActive)
         {

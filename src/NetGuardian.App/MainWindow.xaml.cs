@@ -135,6 +135,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _localizer.SetLanguage(_settings.Language);
 
         var dataDirectory = Path.GetDirectoryName(_store.Path)!;
+        InitializeOperationsServices(dataDirectory);
         var isMachineDirectory = string.Equals(
             Path.GetFullPath(dataDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
             Path.GetFullPath(GuardianPaths.MachineDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
@@ -916,6 +917,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         Dispatcher.BeginInvoke(() =>
         {
             ApplyReport(e.Report);
+            RecordCheckObservability(e.Report);
             UpdateWeeklySummary();
             EngineLog($"{e.Report.CheckedAt:yyyy-MM-dd HH:mm:ss}  {_localizer.T(e.Report.IsLightweight ? "LightweightCheck" : "FullDiagnosticCheck")} · {StateText(e.Report.State)}: {LocalizeSummary(e.Report.Summary)}", e.Report.Ok ? UiLogLevel.Information : UiLogLevel.Warning);
             SetToolOutput($"{StateText(e.Report.State)}{Environment.NewLine}{LocalizeSummary(e.Report.Summary)}");
@@ -934,6 +936,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
     private void HandleEngineEvent(EngineEventArgs e)
     {
+        HandleOperationsEngineEvent(e);
         var args = e.Args;
         switch (e.Kind)
         {
@@ -1907,6 +1910,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _isSyncingHighRiskToggle = false;
         DnsProbeHostsTextBox.Text = string.Join(", ", _settings.Policy.DnsProbeHosts);
         HttpsProbeHostsTextBox.Text = string.Join(", ", _settings.Policy.HttpsProbeHosts);
+        ApplyOperationsPolicyToUi();
         StartMonitoringOnLaunchCheckBox.IsChecked = _settings.StartMonitoringOnLaunch;
         StartMinimizedToTrayCheckBox.IsChecked = _settings.StartMinimizedToTray;
         SelectComboByTag(LanguageComboBox, _settings.Language);
@@ -1940,6 +1944,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         policy.EnableHighRiskRecovery = HighRiskCheckBox.IsChecked == true;
         policy.DnsProbeHosts = ParseProbeHosts(DnsProbeHostsTextBox.Text);
         policy.HttpsProbeHosts = ParseProbeHosts(HttpsProbeHostsTextBox.Text);
+        ReadOperationsPolicyFromUi(policy);
         policy.Normalize();
         return policy;
     }
@@ -1957,7 +1962,13 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         FlushDns = DnsFlushCheckBox.IsChecked,
         HighRisk = HighRiskCheckBox.IsChecked,
         Dns = DnsProbeHostsTextBox.Text,
-        Https = HttpsProbeHostsTextBox.Text
+        Https = HttpsProbeHostsTextBox.Text,
+        EnableMaintenance = EnableMaintenanceWindowCheckBox.IsChecked,
+        MaintenanceStart = MaintenanceStartTextBox.Text,
+        MaintenanceEnd = MaintenanceEndTextBox.Text,
+        EnableFailback = EnablePrimaryFailbackCheckBox.IsChecked,
+        FailbackInterval = PrimaryFailbackIntervalBox.Value,
+        PreferEthernet = PreferEthernetCheckBox.IsChecked
     });
 
     private static int ReadTimeSeconds(Wpf.Ui.Controls.NumberBox numberBox, ComboBox comboBox, int fallback)
@@ -2223,6 +2234,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         }
 
         ApplyTooltips();
+        ApplyOperationsLanguage();
         if (_reportSelection.Report is { } currentReport) ApplyReport(currentReport, _reportSelection.Origin, forceRefresh: true);
         RefreshNearbyPriorityMarkers();
         UpdateWifiSelectionUi();

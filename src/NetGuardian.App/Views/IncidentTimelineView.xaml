@@ -46,6 +46,54 @@
     </UserControl.Resources>
     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
         <StackPanel>
+            <Border x:Name="ObservabilityCard" Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingGroupGap}">
+                <StackPanel>
+                    <TextBlock x:Name="ObservabilityHeading" Text="可用性与质量基线概览" Style="{DynamicResource SectionTitleStyle}" />
+                    <Grid Margin="{DynamicResource SpacingFieldGap}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock x:Name="Obs7dLabel" Text="近 7 天可用率" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="Obs7dValue" Text="100.00%" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Margin="0,0,8,0">
+                            <TextBlock x:Name="Obs30dLabel" Text="近 30 天可用率" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="Obs30dValue" Text="100.00%" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Margin="0,0,8,0">
+                            <TextBlock x:Name="ObsMttrLabel" Text="平均恢复 (MTTR)" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="ObsMttrValue" Text="—" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="3">
+                            <TextBlock x:Name="ObsLongestLabel" Text="最长中断 / 恢复率" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBlock x:Name="ObsLongestValue" Text="— / 100%" FontSize="{DynamicResource FontSection}" FontWeight="SemiBold" />
+                        </StackPanel>
+                    </Grid>
+                    <Grid Margin="{DynamicResource SpacingFieldGap}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1.2*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                            <TextBlock x:Name="ObsTrendHeading" Text="近期网络延迟趋势 (HTTPS)" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock x:Name="ObsTrendMetricsText" Text="—" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                            <Border Background="{DynamicResource SubtleFillColorSecondaryBrush}" CornerRadius="{DynamicResource CornerCard}" Padding="6,4" MinHeight="64">
+                                <Canvas x:Name="LatencyTrendCanvas" Height="56" ClipToBounds="True" SizeChanged="LatencyTrendCanvas_SizeChanged">
+                                    <Polyline x:Name="LatencyTrendLine" Stroke="{DynamicResource AccentTextFillColorPrimaryBrush}" StrokeThickness="2" StrokeLineJoin="Round" />
+                                </Canvas>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock x:Name="ObsWifiRankingHeading" Text="Wi-Fi 稳定性排行" FontSize="{DynamicResource FontCaption}" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock x:Name="ObsWifiRankingText" Text="近 7 天暂无断网 Wi-Fi 统计" FontSize="{DynamicResource FontCaption}" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </StackPanel>
+            </Border>
             <TextBlock x:Name="EmptyText" Text="暂无故障记录" TextWrapping="Wrap" />
             <StackPanel x:Name="HistoryDetails" Visibility="Collapsed">
                 <Border Style="{DynamicResource SectionBorderStyle}" Margin="{DynamicResource SpacingGroupGap}">
