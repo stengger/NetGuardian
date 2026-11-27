@@ -183,6 +183,7 @@
                                             <MenuItem Header="{Binding PlacementTarget.Tag.Children[0].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[0].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="SetPassword_Click" />
                                             <MenuItem Header="{Binding PlacementTarget.Tag.Children[1].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[1].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="ImportPassword_Click" />
                                             <MenuItem Header="{Binding PlacementTarget.Tag.Children[2].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[2].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="AddManual_Click" />
+                                            <MenuItem Header="{Binding PlacementTarget.Tag.Children[3].Content, RelativeSource={RelativeSource AncestorType=ContextMenu}}" IsEnabled="{Binding PlacementTarget.Tag.Children[3].IsEnabled, RelativeSource={RelativeSource AncestorType=ContextMenu}}" Click="ConfigurePortalAuth_Click" />
                                             <Separator />
                                             <MenuItem x:Name="ShowAllWifiProfilesMenuItem" Header="查看全部恢复配置" IsCheckable="True" Click="ShowAllWifiProfiles_Click" />
                                         </ContextMenu></Button.ContextMenu>
@@ -200,6 +201,7 @@
                             <Button x:Name="SetPasswordButton" Click="SetPassword_Click" />
                             <Button x:Name="ImportPasswordButton" Click="ImportPassword_Click" />
                             <Button x:Name="AddManualButton" Click="AddManual_Click" />
+                            <Button x:Name="ConfigurePortalAuthButton" Click="ConfigurePortalAuth_Click" />
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>
@@ -445,6 +447,7 @@
                                     <DataGrid.RowDetailsTemplate><DataTemplate><StackPanel>
                                         <presentation:TableRowDetails IsCompact="True" />
                                         <presentation:WifiPasswordDetails Ssid="{Binding Ssid}" CredentialSaved="{Binding CredentialSaved}" Security="{Binding Security}" RowDetailsVisibility="{Binding DetailsVisibility, RelativeSource={RelativeSource AncestorType=DataGridRow}}" />
+                                        <presentation:WifiPortalDetails PortalAuth="{Binding PortalAuth}" />
                                     </StackPanel></DataTemplate></DataGrid.RowDetailsTemplate>
                                     <DataGrid.Columns>
                                         <DataGridTextColumn x:Name="ProfileDragColumn" Binding="{Binding DragHandle}" Width="24" MinWidth="24" IsReadOnly="True" ElementStyle="{StaticResource WifiWorkspaceDragHandleStyle}" HeaderStyle="{StaticResource WifiWorkspaceCenteredHeaderStyle}" />

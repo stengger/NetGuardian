@@ -115,7 +115,7 @@ public sealed class WifiWorkspaceLayoutTests
             Assert.Equal(source.Content, item.Header);
             source.IsEnabled = false; window.UpdateLayout(); Assert.False(item.IsEnabled);
             source.IsEnabled = true; window.UpdateLayout(); Assert.True(item.IsEnabled);
-            Assert.Equal(4, menu.Items.OfType<MenuItem>().Count());
+            Assert.Equal(5, menu.Items.OfType<MenuItem>().Count());
             var showAll = menu.Items.OfType<MenuItem>().Last();
             Assert.True(showAll.IsCheckable);
             Assert.False(showAll.IsChecked);

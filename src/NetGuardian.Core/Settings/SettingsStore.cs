@@ -63,6 +63,8 @@ public sealed class SettingsStore
             .Where(profile => !string.IsNullOrWhiteSpace(profile.Ssid))
             .OrderBy(profile => profile.Priority)
             .ToList();
+        foreach (var profile in settings.Profiles)
+            profile.PortalAuth?.Normalize();
 
         var directory = System.IO.Path.GetDirectoryName(Path);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -114,6 +116,8 @@ public sealed class SettingsStore
                 .Where(profile => !string.IsNullOrWhiteSpace(profile.Ssid))
                 .OrderBy(profile => profile.Priority)
                 .ToList();
+            foreach (var profile in settings.Profiles)
+                profile.PortalAuth?.Normalize();
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)

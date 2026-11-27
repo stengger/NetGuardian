@@ -25,6 +25,7 @@ using NetGuardian.Core.Logging;
 using NetGuardian.Core.Models;
 using NetGuardian.Core.Monitoring;
 using NetGuardian.Core.Network;
+using NetGuardian.Core.Portal;
 using NetGuardian.Core.Recovery;
 using NetGuardian.Core.Runtime;
 using NetGuardian.Core.Settings;
@@ -48,6 +49,8 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
     private readonly PublicIpInfoService _publicIpInfo;
     private readonly NetworkSpeedTestService _speedTester;
     private readonly MonitoringEngine _engine;
+    private readonly IPortalCredentialStore _portalCredentials;
+    private readonly IPortalAuthenticator _portalAuthenticator;
     private readonly IConnectivityTester _connectivityTester;
     private readonly ISystemCommandRunner _commandRunner;
     private readonly UserLogonStartup _userLogonStartup;
@@ -131,6 +134,14 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         _settings = _store.Load();
         _localizer.SetLanguage(_settings.Language);
 
+        var dataDirectory = Path.GetDirectoryName(_store.Path)!;
+        var isMachineDirectory = string.Equals(
+            Path.GetFullPath(dataDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            Path.GetFullPath(GuardianPaths.MachineDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            StringComparison.OrdinalIgnoreCase);
+        _portalCredentials = new DpapiPortalCredentialStore(dataDirectory, isMachineDirectory);
+        _portalAuthenticator = new EdgeCdpPortalAuthenticator();
+
         _engine = new MonitoringEngine(
             _wifi,
             connectivityTester,
@@ -138,9 +149,11 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
             () => _settings.Policy,
             () => _profiles.ToList(),
             highRiskService: new BudgetedRecoveryService(new HighRiskRecoveryService(commandRunner),
-                new RecoveryBudget(Path.GetDirectoryName(_store.Path)!),
+                new RecoveryBudget(dataDirectory),
                 () => TimeSpan.FromMinutes(_settings.Policy.HighRiskCooldownMinutes)),
-            networkChanges: new NetworkChangeSource())
+            networkChanges: new NetworkChangeSource(),
+            portalAuthenticator: _portalAuthenticator,
+            portalCredentials: _portalCredentials)
         {
             WifiValidationTimeout = WifiValidationTimeout,
             WifiRestoreTimeout = WifiRestoreTimeout
@@ -966,6 +979,31 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
 
                 break;
             }
+            case EngineEventKind.RecoveryPortalAuthStarted:
+                Log(string.Format(_localizer.T("RecoveryPortalAuthStarted"), args[0], args[1]), source: UiLogSource.Recovery);
+                break;
+            case EngineEventKind.RecoveryPortalAuthCompleted:
+                Log(string.Format(_localizer.T("RecoveryPortalAuthCompleted"), args[0], args[1], args[2]), source: UiLogSource.Recovery);
+                break;
+            case EngineEventKind.RecoveryPortalAuthPaused:
+            {
+                var pausedSsid = args[0]?.ToString() ?? "";
+                var reason = args[1]?.ToString() ?? "";
+                var pausedMessage = string.Format(_localizer.T("RecoveryPortalAuthPaused"), pausedSsid, reason);
+                Log(pausedMessage, UiLogLevel.Warning, UiLogSource.Recovery);
+                var targetProfile = _profiles.FirstOrDefault(p => SsidEquals(p.Ssid, pausedSsid));
+                if (targetProfile?.PortalAuth is not null)
+                {
+                    targetProfile.PortalAuth.Paused = true;
+                    targetProfile.PortalAuth.PauseReason = reason;
+                    targetProfile.PortalAuth.LastFailureSummary = reason;
+                    SaveSettings();
+                    ProfileGrid.Items.Refresh();
+                }
+                if (!IsVisible || WindowState == WindowState.Minimized)
+                    ShowTrayBalloon(pausedMessage, Forms.ToolTipIcon.Warning);
+                break;
+            }
             case EngineEventKind.RecoveryReconnectCurrent:
                 Log(string.Format(_localizer.T("RecoveryReconnectCurrent"), args[0]), source: UiLogSource.Recovery);
                 break;
@@ -1636,6 +1674,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         var actions = WifiActionAvailability.Create(_profiles, profile, nearby?.Ssid, _isNetworkActionRunning);
         AddSelectedButton.IsEnabled = actions.CanAdd;
         SetPasswordButton.IsEnabled = ImportPasswordButton.IsEnabled = actions.CanEdit;
+        ConfigurePortalAuthButton.IsEnabled = !_isNetworkActionRunning && actions.ConnectTarget is not null;
         RemoveButton.IsEnabled = !_isNetworkActionRunning && hasProfile;
         ConnectButton.IsEnabled = actions.CanConnect;
         ConnectButton.ToolTip = _localizer.T(_isNetworkActionRunning ? "ManualNetworkRunning"
@@ -2010,7 +2049,9 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         RemoveButton.Content = _localizer.T("Remove");
         SetPasswordButton.Content = _localizer.T("SetPassword");
         ImportPasswordButton.Content = _localizer.T("ImportPassword");
+        ConfigurePortalAuthButton.Content = _localizer.T("ConfigurePortalAuth");
         WifiPasswordDetails.SetUiLanguage(ProfileGrid, _localizer.Language);
+        WifiPortalDetails.SetUiLanguage(ProfileGrid, _localizer.Language);
         ConnectButton.Content = _localizer.T("Connect");
         DragHintText.Text = _localizer.T("DoubleClickWifiHint");
         Resources["WifiCurrentConnectionLabel"] = _localizer.T("WifiCurrentConnection");
@@ -2225,6 +2266,7 @@ public partial class MainWindow : Wpf.Ui.Controls.FluentWindow
         SetTooltip(AddSelectedButton, "AddSelectedTip");
         SetTooltip(SetPasswordButton, "SetPasswordTip");
         SetTooltip(ImportPasswordButton, "ImportPasswordTip");
+        SetTooltip(ConfigurePortalAuthButton, "ConfigurePortalAuthTip");
         SetTooltip(AddManualButton, "AddManualTip");
         SetTooltip(MoveUpButton, "MoveUpTip");
         SetTooltip(MoveDownButton, "MoveDownTip");

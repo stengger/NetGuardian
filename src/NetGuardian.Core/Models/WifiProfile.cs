@@ -33,6 +33,7 @@ public sealed class WifiProfile
     public int FailureCount { get; set; }
     public double? AverageLatencyMs { get; set; }
     public double? LastSpeedMbps { get; set; }
+    public PortalAuthConfig? PortalAuth { get; set; }
 
     [JsonIgnore]
     public string DragHandle => "⋮⋮";

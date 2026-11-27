@@ -27,6 +27,8 @@ public interface IConnectivityProbes
     Task<HttpStatusCode> HttpsHeadAsync(string host, CancellationToken cancellationToken);
     Task<PortalEvidence> WifiPortalAsync(IPAddress address, int interfaceIndex, CancellationToken cancellationToken) =>
         Task.FromResult(PortalEvidence.None);
+    async Task<PortalDiscoveryResult> WifiPortalDiscoverAsync(IPAddress address, int interfaceIndex, CancellationToken cancellationToken) =>
+        new(await WifiPortalAsync(address, interfaceIndex, cancellationToken), null, null);
     Task<HttpStatusCode> WifiHttpsHeadAsync(string host, IPAddress address, int interfaceIndex, CancellationToken cancellationToken) =>
         throw new HttpRequestException("探针不支持指定无线出口。");
 }

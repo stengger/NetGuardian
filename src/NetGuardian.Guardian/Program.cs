@@ -5,6 +5,7 @@ using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Logging;
 using NetGuardian.Core.Models;
 using NetGuardian.Core.Monitoring;
+using NetGuardian.Core.Portal;
 using NetGuardian.Core.Recovery;
 using NetGuardian.Core.Runtime;
 using NetGuardian.Core.Settings;
@@ -83,13 +84,21 @@ var processStartedAt = new DateTimeOffset(Process.GetCurrentProcess().StartTime)
 var wifi = new WifiClient();
 var profileInventory = new WifiProfileInventory(false, []);
 var nextInventoryCheck = DateTimeOffset.MinValue;
+var useMachineCredentials = string.Equals(
+    Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+    Path.GetFullPath(GuardianPaths.MachineDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+    StringComparison.OrdinalIgnoreCase);
+var portalCredentials = new DpapiPortalCredentialStore(directory, useMachineCredentials);
+var portalAuthenticator = new EdgeCdpPortalAuthenticator();
 using var engine = new MonitoringEngine(wifi, new ConnectivityTesterService(), commands,
     () => Volatile.Read(ref settings).Policy,
     () => Volatile.Read(ref settings).Profiles,
     highRiskService: new BudgetedRecoveryService(new HighRiskRecoveryService(commands), budget,
         () => TimeSpan.FromMinutes(Volatile.Read(ref settings).Policy.HighRiskCooldownMinutes),
         deviceFailures.RecordRecoveryAttempt),
-    networkChanges: new NetworkChangeSource());
+    networkChanges: new NetworkChangeSource(),
+    portalAuthenticator: portalAuthenticator,
+    portalCredentials: portalCredentials);
 journal.ObserveIncidents(engine, "后台守护");
 engine.CheckCompleted += (_, e) =>
 {
@@ -112,6 +121,26 @@ engine.EngineEvent += (_, e) =>
         Volatile.Write(ref lastReport, new ConnectivityReport { State = NetworkState.Healthy, CurrentSsid = e.Args[0]?.ToString(), Summary = "恢复后的互联网连接已验证。" });
     }
     if (e.Kind == EngineEventKind.RecoveryFailed) journal.RecordRecoveryResult(false, null);
+    if (e.Kind == EngineEventKind.RecoveryPortalAuthPaused && e.Args.Count >= 2 && e.Args[0] is string pausedSsid)
+    {
+        var currentSettings = store.TryLoad(out var diskSettings) ? diskSettings : Volatile.Read(ref settings);
+        var targetProfile = currentSettings.Profiles.FirstOrDefault(p => RecoveryPlanner.SsidEquals(p.Ssid, pausedSsid));
+        if (targetProfile?.PortalAuth is not null)
+        {
+            targetProfile.PortalAuth.Paused = true;
+            targetProfile.PortalAuth.PauseReason = e.Args[1]?.ToString();
+            targetProfile.PortalAuth.LastFailureSummary = targetProfile.PortalAuth.PauseReason;
+            try
+            {
+                store.Save(currentSettings);
+                Volatile.Write(ref settings, currentSettings);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                log.Write($"保存自动认证暂停状态失败：{ex.Message}");
+            }
+        }
+    }
     if (e.Kind == EngineEventKind.HighRiskActionCompleted)
     {
         var commandOk = e.Args[1] is true;

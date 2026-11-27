@@ -1,5 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Text;
+using System.Text.Json;
 using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Models;
 using Xunit;
@@ -28,7 +30,87 @@ public sealed class PortalProbeTests
         Assert.Equal(1, handler.RequestCount);
     }
 
-    private sealed class ProbeHandler(int status, string? contentType, string? location) : HttpMessageHandler
+    [Fact]
+    public async Task 发现重定向入口时保留内存地址并生成脱敏路径()
+    {
+        using var handler = new ProbeHandler(302, null, "https://portal.example:8443/eportal/index.jsp?wlanuserip=10.1.2.3&token=secret#frag");
+        using var client = new HttpClient(handler);
+
+        var result = await PortalProbe.DiscoverAsync(client, CancellationToken.None);
+
+        Assert.Equal(PortalEvidence.Redirect, result.Evidence);
+        Assert.Equal("https://portal.example:8443/eportal/index.jsp?wlanuserip=10.1.2.3&token=secret#frag", result.EntryUri?.AbsoluteUri);
+        Assert.Equal("https://portal.example:8443/eportal/index.jsp", result.SanitizedEntry);
+    }
+
+    [Theory]
+    [InlineData("<meta http-equiv=\"refresh\" content=\"0;url=https://portal.example/login?s=123\">", "https://portal.example/login")]
+    [InlineData("<script>window.location.href='https://portal.example/auth?sid=abc';</script>", "https://portal.example/auth")]
+    [InlineData("<script>location.replace(\"https://portal.example/portal?k=1\")</script>", "https://portal.example/portal")]
+    public async Task 发现替换HTML中的安全重定向入口(string html, string expectedSanitized)
+    {
+        using var handler = new ProbeHandler(200, "text/html", null, html);
+        using var client = new HttpClient(handler);
+
+        var result = await PortalProbe.DiscoverAsync(client, CancellationToken.None);
+
+        Assert.Equal(PortalEvidence.Html, result.Evidence);
+        Assert.NotNull(result.EntryUri);
+        Assert.Equal(expectedSanitized, result.SanitizedEntry);
+    }
+
+    [Theory]
+    [InlineData("<script>location.href='javascript:alert(1)'</script>")]
+    [InlineData("<meta http-equiv='refresh' content='0;url=file:///c:/windows/win.ini'>")]
+    [InlineData("<script>location.href='https://user:pass@portal.example/login'</script>")]
+    public async Task 拒绝HTML中的非HTTP或含凭据跳转地址(string html)
+    {
+        using var handler = new ProbeHandler(200, "text/html", null, html);
+        using var client = new HttpClient(handler);
+
+        var result = await PortalProbe.DiscoverAsync(client, CancellationToken.None);
+
+        Assert.Equal(PortalEvidence.Html, result.Evidence);
+        Assert.Null(result.EntryUri);
+        Assert.Null(result.SanitizedEntry);
+    }
+
+    [Fact]
+    public async Task 发现阶段HTML响应正文有64KiB上限保护()
+    {
+        var largePrefix = new string(' ', 70 * 1024);
+        var html = largePrefix + "<script>location.href='https://portal.example/late'</script>";
+        using var handler = new ProbeHandler(200, "text/html", null, html);
+        using var client = new HttpClient(handler);
+
+        var result = await PortalProbe.DiscoverAsync(client, CancellationToken.None);
+
+        Assert.Equal(PortalEvidence.Html, result.Evidence);
+        Assert.Null(result.EntryUri);
+    }
+
+    [Fact]
+    public void 报告序列化不得包含完整门户查询参数()
+    {
+        var entry = new Uri("https://portal.example/login?token=super-secret-value&wlanuserip=10.1.1.2");
+        var report = new ConnectivityReport
+        {
+            State = NetworkState.InternetIssue,
+            PortalEvidence = PortalEvidence.Redirect,
+            PortalEntryUri = entry,
+            PortalSanitizedOrigin = PortalDiscoveryResult.SanitizeUri(entry),
+            WifiInterfaceIndex = 12
+        };
+
+        var json = JsonSerializer.Serialize(report);
+
+        Assert.DoesNotContain("super-secret-value", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("wlanuserip", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("WifiInterfaceIndex", json, StringComparison.Ordinal);
+        Assert.Contains("https://portal.example/login", json, StringComparison.Ordinal);
+    }
+
+    private sealed class ProbeHandler(int status, string? contentType, string? location, string? body = null) : HttpMessageHandler
     {
         internal int RequestCount { get; private set; }
 
@@ -38,7 +120,8 @@ public sealed class PortalProbeTests
             Assert.Equal(HttpMethod.Get, request.Method);
             Assert.Equal(PortalProbe.Endpoint, request.RequestUri);
             Assert.Empty(request.Headers);
-            var response = new HttpResponseMessage((HttpStatusCode)status) { Content = new UnreadableContent() };
+            HttpContent content = body is null ? new UnreadableContent() : new StringContent(body, Encoding.UTF8);
+            var response = new HttpResponseMessage((HttpStatusCode)status) { Content = content };
             if (contentType is not null) response.Content.Headers.ContentType = new MediaTypeHeaderValue(contentType);
             if (location is not null) response.Headers.Location = new Uri(location, UriKind.RelativeOrAbsolute);
             return Task.FromResult(response);

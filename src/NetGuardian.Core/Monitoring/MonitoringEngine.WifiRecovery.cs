@@ -47,7 +47,12 @@ public sealed partial class MonitoringEngine
         return scan;
     }
 
-    private async Task<(bool Attempted, bool Connected)> TrySwitchWifiAsync(MonitorPolicy policy, string? currentSsid, CancellationToken token)
+    private async Task<(bool Attempted, bool Connected)> TrySwitchWifiAsync(
+        MonitorPolicy policy,
+        string? currentSsid,
+        CancellationToken token,
+        HashSet<string>? portalAttempted = null,
+        DateTimeOffset? roundDeadline = null)
     {
         var scan = await ScanRecoveryWifiAsync(token);
         var profiles = _profilesProvider().ToArray();
@@ -87,7 +92,7 @@ public sealed partial class MonitoringEngine
                 var timeout = remaining < WifiValidationTimeout ? remaining : WifiValidationTimeout;
                 Raise(EngineEventKind.RecoverySwitchWifi, profile.Ssid);
                 var connected = await TryRecoveryStepAsync(
-                    () => ConnectAndValidateAsync(policy, profile.Ssid, timeout, token), token);
+                    () => ConnectAndValidateAsync(policy, profile.Ssid, timeout, token, portalAttempted, roundDeadline), token);
                 RecordProfileResult(policy, profile.Ssid, connected);
                 ProfileRecoveryResult?.Invoke(this, new ProfileRecoveryResultEventArgs(profile.Ssid, connected));
                 if (connected)

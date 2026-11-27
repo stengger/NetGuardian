@@ -1,6 +1,8 @@
+using System.Net;
 using NetGuardian.Core.Connectivity;
 using NetGuardian.Core.Recovery;
 using NetGuardian.Core.Models;
+using NetGuardian.Core.Portal;
 using NetGuardian.Core.SystemCommands;
 using NetGuardian.Core.Wifi;
 
@@ -22,6 +24,8 @@ public sealed partial class MonitoringEngine : IDisposable
     private readonly Func<IEnumerable<WifiProfile>> _profilesProvider;
     private readonly TimeProvider _time;
     private readonly INetworkChangeSource? _networkChanges;
+    private readonly IPortalAuthenticator? _portalAuthenticator;
+    private readonly IPortalCredentialStore? _portalCredentials;
     private IDisposable? _networkSubscription;
     private long _generation;
     private DateTimeOffset? _networkChangeDue;
@@ -30,6 +34,7 @@ public sealed partial class MonitoringEngine : IDisposable
     private readonly SemaphoreSlim _checkLock = new(1, 1);
     private readonly object _lifecycle = new();
     private readonly Dictionary<string, DateTimeOffset> _failedSsids = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, DateTimeOffset> _pausedPortalSince = new(StringComparer.Ordinal);
     private CancellationTokenSource? _activeCheck;
     private ITimer? _timer;
     private int _failureStreak;
@@ -46,7 +51,9 @@ public sealed partial class MonitoringEngine : IDisposable
         Func<IEnumerable<WifiProfile>> profilesProvider,
         TimeProvider? timeProvider = null,
         IHighRiskRecoveryService? highRiskService = null,
-        INetworkChangeSource? networkChanges = null)
+        INetworkChangeSource? networkChanges = null,
+        IPortalAuthenticator? portalAuthenticator = null,
+        IPortalCredentialStore? portalCredentials = null)
     {
         _wifi = wifi;
         _tester = tester;
@@ -56,6 +63,8 @@ public sealed partial class MonitoringEngine : IDisposable
         _profilesProvider = profilesProvider;
         _time = timeProvider ?? TimeProvider.System;
         _networkChanges = networkChanges;
+        _portalAuthenticator = portalAuthenticator;
+        _portalCredentials = portalCredentials;
     }
 
     public bool IsMonitoring { get; private set; }
@@ -83,6 +92,19 @@ public sealed partial class MonitoringEngine : IDisposable
 
     /// <summary>单次完整探测的时限，为候选网络恢复保留时间。</summary>
     public TimeSpan FullProbeTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>单次网页自动认证与复测的子时限。</summary>
+    public TimeSpan PortalAuthTimeout { get; set; } = TimeSpan.FromSeconds(25);
+
+    /// <summary>当存在可尝试的备用 Wi-Fi 时，原地认证必须保留的备用切换预算。</summary>
+    public TimeSpan BackupSwitchReserveBudget { get; set; } = TimeSpan.FromSeconds(30);
+
+    /// <summary>用户更新凭据或重新验证后，清除引擎内存中的门户暂停标记。</summary>
+    public void ClearPortalAuthPause(string ssid)
+    {
+        if (string.IsNullOrWhiteSpace(ssid)) return;
+        lock (_lifecycle) _pausedPortalSince.Remove(ssid);
+    }
 
     public event EventHandler<EngineEventArgs>? EngineEvent;
     public event EventHandler<CheckCompletedEventArgs>? CheckCompleted;
@@ -360,6 +382,9 @@ public sealed partial class MonitoringEngine : IDisposable
     {
         var currentSsid = report.CurrentSsid;
         var attempted = false;
+        var roundDeadline = _time.GetUtcNow().Add(CheckTimeout);
+        var portalAttempted = new HashSet<string>(StringComparer.Ordinal);
+        var skipCurrentReconnect = false;
         Raise(EngineEventKind.RecoveryStarted, _failureStreak);
 
         if (policy.EnableDnsFlush && report.State == NetworkState.DnsIssue)
@@ -436,7 +461,37 @@ public sealed partial class MonitoringEngine : IDisposable
             if (dnsRecheckRecovered) return;
         }
 
-        if (policy.EnableCurrentWifiReconnect && !string.IsNullOrWhiteSpace(currentSsid) && !IsSsidCoolingDown(currentSsid))
+        if (_portalAuthenticator is not null
+            && !string.IsNullOrWhiteSpace(currentSsid)
+            && report.PortalEvidence != PortalEvidence.None
+            && !IsSsidCoolingDown(currentSsid))
+        {
+            var currentProfile = _profilesProvider().FirstOrDefault(p => RecoveryPlanner.SsidEquals(p.Ssid, currentSsid));
+            if (currentProfile is not null && CanAttemptPortalAuth(currentProfile) && portalAttempted.Add(currentSsid))
+            {
+                var hasBackup = policy.EnableAutoSwitch
+                    && RecoveryPlanner.OrderSwitchCandidates(_profilesProvider(), currentSsid).Any(p => !IsSsidCoolingDown(p.Ssid));
+                var remaining = roundDeadline - _time.GetUtcNow();
+                var reserved = hasBackup ? BackupSwitchReserveBudget : TimeSpan.Zero;
+                var available = remaining - reserved;
+                var subTimeout = available < PortalAuthTimeout ? available : PortalAuthTimeout;
+
+                if (subTimeout > TimeSpan.Zero)
+                {
+                    attempted = true;
+                    var (portalRecovered, pauseOrStopCurrent) = await TryPortalAuthenticateAndVerifyAsync(
+                        policy, currentProfile, report, subTimeout, cancellationToken);
+                    if (portalRecovered) return;
+                    skipCurrentReconnect = pauseOrStopCurrent || policy.EnableAutoSwitch;
+                }
+                else
+                {
+                    Raise(EngineEventKind.CheckError, $"跳过“{currentSsid}”原地认证：需为备用 Wi-Fi 切换保留恢复预算。");
+                }
+            }
+        }
+
+        if (!skipCurrentReconnect && policy.EnableCurrentWifiReconnect && !string.IsNullOrWhiteSpace(currentSsid) && !IsSsidCoolingDown(currentSsid))
         {
             attempted = true;
             Raise(EngineEventKind.RecoveryReconnectCurrent, currentSsid);
@@ -444,7 +499,7 @@ public sealed partial class MonitoringEngine : IDisposable
             {
                 await _wifi.DisconnectAsync(cancellationToken).WaitAsync(cancellationToken);
                 await DelayAsync(SsidPollInterval, cancellationToken);
-                return await ConnectAndValidateAsync(policy, currentSsid, WifiRestoreTimeout, cancellationToken);
+                return await ConnectAndValidateAsync(policy, currentSsid, WifiRestoreTimeout, cancellationToken, portalAttempted, roundDeadline);
             }, cancellationToken);
             RecordProfileResult(policy, currentSsid, reconnected);
             ProfileRecoveryResult?.Invoke(this, new ProfileRecoveryResultEventArgs(currentSsid, reconnected));
@@ -459,7 +514,7 @@ public sealed partial class MonitoringEngine : IDisposable
 
         if (policy.EnableAutoSwitch)
         {
-            var switched = await TrySwitchWifiAsync(policy, currentSsid, cancellationToken);
+            var switched = await TrySwitchWifiAsync(policy, currentSsid, cancellationToken, portalAttempted, roundDeadline);
             attempted |= switched.Attempted;
             if (switched.Connected) return;
         }
@@ -567,7 +622,13 @@ public sealed partial class MonitoringEngine : IDisposable
         else _failedSsids[ssid] = _time.GetUtcNow().AddSeconds(Math.Max(0, policy.RecoveryCooldownSeconds));
     }
 
-    private async Task<bool> ConnectAndValidateAsync(MonitorPolicy policy, string ssid, TimeSpan timeout, CancellationToken token)
+    private async Task<bool> ConnectAndValidateAsync(
+        MonitorPolicy policy,
+        string ssid,
+        TimeSpan timeout,
+        CancellationToken token,
+        HashSet<string>? portalAttempted = null,
+        DateTimeOffset? roundDeadline = null)
     {
         token.ThrowIfCancellationRequested();
         // 已启动的连接操作必须收尾后才释放检查控制权，避免停止后延迟切网。
@@ -616,6 +677,28 @@ public sealed partial class MonitoringEngine : IDisposable
                     return sameRoute;
                 }
                 ObserveReport(report);
+
+                if (report.PortalEvidence != PortalEvidence.None
+                    && _portalAuthenticator is not null
+                    && profile is not null
+                    && CanAttemptPortalAuth(profile)
+                    && (portalAttempted is null || portalAttempted.Add(ssid)))
+                {
+                    var subTimeout = PortalAuthTimeout;
+                    if (roundDeadline is { } rd)
+                    {
+                        var remaining = rd - _time.GetUtcNow();
+                        if (remaining < subTimeout) subTimeout = remaining;
+                    }
+                    if (subTimeout > TimeSpan.Zero)
+                    {
+                        var (portalRecovered, _) = await TryPortalAuthenticateAndVerifyAsync(
+                            policy, profile, report, subTimeout, token, connection);
+                        return portalRecovered;
+                    }
+                    return false;
+                }
+
                 // 连接建立期间接口状态及 SSID 可能短暂回落，明确的关闭或设备故障不等待。
                 var canWaitForConnection = (report.State is NetworkState.Disconnected or NetworkState.WifiDisabled or NetworkState.WifiDisconnected)
                     && diagnostics.AdapterPresent && (diagnostics.ProblemCode is null or 0)
@@ -635,6 +718,128 @@ public sealed partial class MonitoringEngine : IDisposable
             Raise(EngineEventKind.CheckError, $"网络“{ssid}”在 {timeout.TotalSeconds:g} 秒内未完成连接或公网验证。");
             return false;
         }
+    }
+
+    private bool CanAttemptPortalAuth(WifiProfile profile)
+    {
+        if (profile.PortalAuth is not { CanAutoAuthenticate: true } config) return false;
+        lock (_lifecycle)
+        {
+            if (_pausedPortalSince.TryGetValue(profile.Ssid, out var pausedAt))
+            {
+                if (config.LastAuthenticatedAt is { } authAt && authAt > pausedAt)
+                    _pausedPortalSince.Remove(profile.Ssid);
+                else
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    private async Task<(bool Recovered, bool ShouldSkipCurrentReconnect)> TryPortalAuthenticateAndVerifyAsync(
+        MonitorPolicy policy,
+        WifiProfile profile,
+        ConnectivityReport report,
+        TimeSpan timeout,
+        CancellationToken cancellationToken,
+        WifiConnectionInfo? initialConnection = null)
+    {
+        var config = profile.PortalAuth!;
+        var sanitizedOrigin = report.PortalSanitizedOrigin ?? config.AllowedOrigin;
+        PortalCredential? credential = null;
+        if (config.Mode == PortalAuthMode.CredentialsForm)
+        {
+            if (_portalCredentials is null
+                || string.IsNullOrWhiteSpace(config.CredentialId)
+                || !_portalCredentials.TryLoad(config.CredentialId, out credential)
+                || credential is null)
+            {
+                Raise(EngineEventKind.RecoveryPortalAuthCompleted, profile.Ssid, PortalAuthOutcome.CredentialMissing.ToString(), "未能读取已保存的网页认证凭据。");
+                return (false, true);
+            }
+        }
+
+        var beforeConnection = initialConnection ?? await _wifi.GetConnectionInfoAsync(cancellationToken).WaitAsync(cancellationToken);
+        if (!beforeConnection.ReadSucceeded || !beforeConnection.Connected || !RecoveryPlanner.SsidEquals(beforeConnection.Ssid, profile.Ssid))
+        {
+            Observe(IncidentStepKind.Inconclusive, profile.Ssid, "网页认证前无线连接已变化", report);
+            return (false, true);
+        }
+
+        IPAddress.TryParse(report.Ipv4, out var wifiAddress);
+        Raise(EngineEventKind.RecoveryPortalAuthStarted, profile.Ssid, sanitizedOrigin);
+
+        using var authCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        authCts.CancelAfter(timeout);
+
+        PortalAuthResult authResult;
+        try
+        {
+            var request = new PortalAuthRequest(profile.Ssid, config, report.PortalEntryUri, wifiAddress, report.WifiInterfaceIndex);
+            authResult = await _portalAuthenticator!.AuthenticateAsync(request, credential, authCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && authCts.IsCancellationRequested)
+        {
+            authResult = new PortalAuthResult(PortalAuthOutcome.TimedOut, $"网页认证超过 {timeout.TotalSeconds:F0} 秒时限。", sanitizedOrigin);
+        }
+
+        Raise(EngineEventKind.RecoveryPortalAuthCompleted, profile.Ssid, authResult.Outcome.ToString(), authResult.Detail);
+
+        if (authResult.ShouldPause)
+        {
+            lock (_lifecycle) _pausedPortalSince[profile.Ssid] = _time.GetUtcNow();
+            Raise(EngineEventKind.RecoveryPortalAuthPaused, profile.Ssid, authResult.Detail);
+            return (false, true);
+        }
+
+        if (authResult.Outcome is not (PortalAuthOutcome.Submitted or PortalAuthOutcome.AlreadyOnline))
+        {
+            return (false, true);
+        }
+
+        var diagnostics = await _wifi.GetAdapterDiagnosticsAsync(cancellationToken).WaitAsync(cancellationToken);
+        if (beforeConnection.Connected && !string.IsNullOrWhiteSpace(beforeConnection.AdapterName))
+            diagnostics = diagnostics with { AdapterName = beforeConnection.AdapterName };
+
+        var retest = await ProbeAsync(policy, diagnostics, cancellationToken, beforeConnection);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var afterConnection = await _wifi.GetConnectionInfoAsync(cancellationToken).WaitAsync(cancellationToken);
+        var sameRoute = afterConnection.ReadSucceeded
+            && afterConnection.Connected
+            && RecoveryPlanner.SsidEquals(afterConnection.Ssid, profile.Ssid)
+            && string.Equals(afterConnection.AdapterName, beforeConnection.AdapterName, StringComparison.OrdinalIgnoreCase);
+
+        if (!sameRoute)
+        {
+            Observe(IncidentStepKind.Inconclusive, profile.Ssid, "网页认证复测时无线出口已改变或断开", retest);
+            return (false, true);
+        }
+
+        if (!retest.Ok)
+        {
+            ObserveReport(retest);
+            Raise(EngineEventKind.CheckError, $"网络“{profile.Ssid}”网页认证后公网复测未通过：{retest.State}，{retest.Summary}");
+            return (false, true);
+        }
+
+        ObserveReport(retest, afterAction: true);
+        lock (_lifecycle)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _lastCheckHealthy = true;
+            _failureStreak = 0;
+            _failedRecoveryRounds = 0;
+        }
+        config.LastAuthenticatedAt = _time.GetLocalNow();
+        config.LastFailureSummary = null;
+        _previousSwitchFailures.Clear();
+        RememberVerifiedWifi(profile.Ssid);
+        RecordProfileResult(policy, profile.Ssid, true);
+        ProfileRecoveryResult?.Invoke(this, new ProfileRecoveryResultEventArgs(profile.Ssid, true));
+        CheckCompleted?.Invoke(this, new CheckCompletedEventArgs(retest, 0));
+        Raise(EngineEventKind.RecoveryWifiConnected, profile.Ssid);
+        return (true, false);
     }
 
     private async Task<ConnectivityReport> CheckWifiAsync(MonitorPolicy policy, WifiAdapterDiagnostics diagnostics,

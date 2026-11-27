@@ -122,7 +122,8 @@ public sealed class ConnectivityTester
 
         if (dnsSuccesses == 0)
         {
-            return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.", wifi.Context, started, await TryPortalProbeAsync(wifi, cancellationToken));
+            var portal = await TryPortalProbeAsync(wifi, cancellationToken);
+            return Report(NetworkState.DnsIssue, currentSsid, ipv4, gateway, probes, "DNS resolution failed.", wifi.Context, started, portal, wifi.Ipv4InterfaceIndex);
         }
 
         var httpsTargets = MonitorPolicy.NormalizeProbeList(_policy.HttpsProbeHosts, MonitorPolicy.DefaultHttpsProbeHosts);
@@ -130,28 +131,32 @@ public sealed class ConnectivityTester
         probes.AddRange(httpsProbes);
         var httpsSuccesses = httpsProbes.Count(probe => probe.Ok);
 
-        return httpsSuccesses >= Math.Min(2, httpsTargets.Count)
-            ? Report(NetworkState.Healthy, currentSsid, ipv4, gateway, probes, "Network is healthy.", wifi.Context, started)
-            : Report(NetworkState.InternetIssue, currentSsid, ipv4, gateway, probes, "Public HTTPS probes did not reach quorum.", wifi.Context, started, await TryPortalProbeAsync(wifi, cancellationToken));
+        if (httpsSuccesses >= Math.Min(2, httpsTargets.Count))
+        {
+            return Report(NetworkState.Healthy, currentSsid, ipv4, gateway, probes, "Network is healthy.", wifi.Context, started, wifiInterfaceIndex: wifi.Ipv4InterfaceIndex);
+        }
+
+        var internetPortal = await TryPortalProbeAsync(wifi, cancellationToken);
+        return Report(NetworkState.InternetIssue, currentSsid, ipv4, gateway, probes, "Public HTTPS probes did not reach quorum.", wifi.Context, started, internetPortal, wifi.Ipv4InterfaceIndex);
     }
 
-    private async Task<PortalEvidence> TryPortalProbeAsync(NetworkSnapshot wifi, CancellationToken cancellationToken)
+    private async Task<PortalDiscoveryResult> TryPortalProbeAsync(NetworkSnapshot wifi, CancellationToken cancellationToken)
     {
         if (!_requireWifiRoute || wifi.Ipv4InterfaceIndex is not > 0 || !IPAddress.TryParse(wifi.Ipv4, out var address))
-            return PortalEvidence.None;
+            return PortalDiscoveryResult.Empty;
 
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(Math.Min(2, _policy.ProbeTimeoutSeconds)));
         try
         {
-            var evidence = await _probes.WifiPortalAsync(address, wifi.Ipv4InterfaceIndex.Value, timeout.Token).WaitAsync(timeout.Token);
+            var result = await _probes.WifiPortalDiscoverAsync(address, wifi.Ipv4InterfaceIndex.Value, timeout.Token).WaitAsync(timeout.Token);
             cancellationToken.ThrowIfCancellationRequested();
-            return evidence;
+            return result;
         }
         catch (Exception ex) when (ex is HttpRequestException or SocketException or OperationCanceledException)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return PortalEvidence.None;
+            return PortalDiscoveryResult.Empty;
         }
     }
 
@@ -203,13 +208,21 @@ public sealed class ConnectivityTester
         string? ipv4,
         string? gateway,
         List<ConnectivityProbe> probes,
-        string summary, string? context = null, DateTimeOffset? started = null, PortalEvidence portalEvidence = PortalEvidence.None)
+        string summary,
+        string? context = null,
+        DateTimeOffset? started = null,
+        PortalDiscoveryResult? portal = null,
+        int? wifiInterfaceIndex = null)
     {
         return new ConnectivityReport
         {
             State = state,
-            PortalEvidence = portalEvidence,
-            SampleStartedAt = started, NetworkContext = context,
+            PortalEvidence = portal?.Evidence ?? PortalEvidence.None,
+            PortalSanitizedOrigin = portal?.SanitizedEntry,
+            PortalEntryUri = portal?.EntryUri,
+            WifiInterfaceIndex = wifiInterfaceIndex,
+            SampleStartedAt = started,
+            NetworkContext = context,
             CurrentSsid = currentSsid,
             Ipv4 = ipv4,
             Gateway = gateway,
@@ -292,51 +305,20 @@ internal sealed class SystemConnectivityProbes : IConnectivityProbes
 
     public async Task<HttpStatusCode> WifiHttpsHeadAsync(string host, IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
     {
-        using var client = CreateWifiHttpClient(address, interfaceIndex);
+        using var client = WifiSocketConnector.CreateHttpClient(address, interfaceIndex);
         return await SendHeadAsync(client, host, cancellationToken);
     }
 
     public async Task<PortalEvidence> WifiPortalAsync(IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
     {
-        using var client = CreateWifiHttpClient(address, interfaceIndex);
+        using var client = WifiSocketConnector.CreateHttpClient(address, interfaceIndex);
         return await PortalProbe.InspectAsync(client, cancellationToken);
     }
 
-    private static HttpClient CreateWifiHttpClient(IPAddress address, int interfaceIndex) => new(new SocketsHttpHandler
+    public async Task<PortalDiscoveryResult> WifiPortalDiscoverAsync(IPAddress address, int interfaceIndex, CancellationToken cancellationToken)
     {
-        AllowAutoRedirect = false,
-        UseProxy = false,
-        ConnectCallback = (context, token) => ConnectWifiAsync(context.DnsEndPoint, address, interfaceIndex, token)
-    });
-
-    private static async ValueTask<Stream> ConnectWifiAsync(DnsEndPoint endpoint, IPAddress address, int interfaceIndex, CancellationToken token)
-    {
-        var addresses = await Dns.GetHostAddressesAsync(endpoint.Host, AddressFamily.InterNetwork, token);
-        SocketException? failure = null;
-        foreach (var remote in addresses)
-        {
-            token.ThrowIfCancellationRequested();
-            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-            try
-            {
-                // Windows IP_UNICAST_IF（31）接收网络字节序的索引，限制实际出站接口。
-                socket.SetSocketOption(SocketOptionLevel.IP, (SocketOptionName)31, IPAddress.HostToNetworkOrder(interfaceIndex));
-                socket.Bind(new IPEndPoint(address, 0));
-                await socket.ConnectAsync(new IPEndPoint(remote, endpoint.Port), token);
-                return new NetworkStream(socket, ownsSocket: true);
-            }
-            catch (SocketException ex)
-            {
-                socket.Dispose();
-                failure = ex;
-            }
-            catch
-            {
-                socket.Dispose();
-                throw;
-            }
-        }
-        throw failure ?? new SocketException((int)SocketError.HostNotFound);
+        using var client = WifiSocketConnector.CreateHttpClient(address, interfaceIndex);
+        return await PortalProbe.DiscoverAsync(client, cancellationToken);
     }
 
     private static async Task<HttpStatusCode> SendHeadAsync(HttpClient client, string host, CancellationToken cancellationToken)
